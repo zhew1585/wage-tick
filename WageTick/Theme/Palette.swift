@@ -24,6 +24,8 @@ enum Palette {
     static let lossSoft = Color(hex: 0xFBE4DA)
     /// 纯白：输入框、日历格子、开关圆钮 (设计稿里直接写的 #FFFFFF)。
     static let card = Color(hex: 0xFFFFFF)
+    /// 示意用的系统菜单栏底色 (引导第 3 步的菜单栏预览，设计稿里直接写的 #E9E6E1)。
+    static let menuBarMock = Color(hex: 0xE9E6E1)
 }
 
 private extension Color {

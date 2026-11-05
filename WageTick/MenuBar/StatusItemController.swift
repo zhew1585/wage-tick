@@ -44,17 +44,35 @@ final class StatusItemController: NSObject {
         self.openHistory = openHistory
         super.init()
         configureButton()
-        bossModeItem.target = self
-        menu.delegate = self
-        menu.addItem(withTitle: "今日概览", action: #selector(todayPanelClicked), keyEquivalent: "1").target = self
-        menu.addItem(withTitle: "目标", action: #selector(goalsClicked), keyEquivalent: "2").target = self
-        menu.addItem(withTitle: "历史", action: #selector(historyClicked), keyEquivalent: "3").target = self
-        menu.addItem(bossModeItem)
-        menu.addItem(withTitle: "设置…", action: #selector(settingsClicked), keyEquivalent: ",").target = self
-        menu.addItem(withTitle: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        buildMenu()
         registerBossModeHotkey()
         observeClockChanges()
         refresh()
+    }
+
+    /// 左键菜单 (设计稿 F2 左键菜单)：三组之间用分隔线隔开，每行自绘图标、文字、快捷键与选中态 (`MenuRowView`)。
+    /// 项目与快捷键按 PRD F2；最后一项按 PRD 叫「退出」，设计稿写的是「退出牛马鼓励器」。
+    private func buildMenu() {
+        menu.delegate = self
+        bossModeItem.target = self
+        bossModeItem.image = NSImage(resource: .MenuIcon.eyeSlash)
+        MenuRowView.attach(to: bossModeItem)
+        addRow("今日概览", icon: .MenuIcon.gauge, key: "1", action: #selector(todayPanelClicked))
+        addRow("目标", icon: .MenuIcon.flagBanner, key: "2", action: #selector(goalsClicked))
+        addRow("历史", icon: .MenuIcon.calendarBlank, key: "3", action: #selector(historyClicked))
+        menu.addItem(MenuSeparatorView.item())
+        menu.addItem(bossModeItem)
+        addRow("设置…", icon: .MenuIcon.gearSix, key: ",", action: #selector(settingsClicked))
+        menu.addItem(MenuSeparatorView.item())
+        addRow("退出", icon: .MenuIcon.power, key: "q", action: #selector(NSApplication.terminate(_:)), target: NSApp)
+    }
+
+    private func addRow(_ title: String, icon: ImageResource, key: String, action: Selector, target: AnyObject? = nil) {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        item.target = target ?? self
+        item.image = NSImage(resource: icon)
+        MenuRowView.attach(to: item)
+        menu.addItem(item)
     }
 
     /// 取最新快照更新菜单栏，并按日状态安排下一次刷新。
@@ -85,13 +103,14 @@ final class StatusItemController: NSObject {
         button.imagePosition = display.text == nil ? .imageOnly : .imageLeading
     }
 
-    /// 老板路过菜单项：开启时打勾，右侧显示当前快捷键 (F2)。
+    /// 老板路过菜单项：开启时文字后打勾，右侧显示当前快捷键 (F2)。
     /// 全局快捷键注册失败时不显示快捷键，免得牛马以为按了有用。
     private func renderBossModeItem(_ settings: InterfaceSettings) {
         bossModeItem.state = settings.bossMode ? .on : .off
         let hotkey = bossModeHotkey == nil ? nil : settings.bossModeHotkey
         bossModeItem.keyEquivalent = hotkey?.menuKeyEquivalent ?? ""
         bossModeItem.keyEquivalentModifierMask = hotkey?.menuModifierMask ?? []
+        bossModeItem.view?.needsDisplay = true
     }
 
     /// 切换老板路过并立即重绘，不等下一次定时刷新 (F3：必须一键生效)。
