@@ -53,7 +53,14 @@ extension QueuedGoalCard {
         id = goal.id
         name = goal.name
         amountText = Format.money(goal.amount)
-        let date = finish.year == today.year ? Format.monthDay(finish) : "\(finish.year)年\(finish.month)月"
+        let date = finish.year == today.year ? Format.monthDay(finish) : Format.yearMonth(finish)
         estimate = "排队中 · 预计 \(date)"
+    }
+}
+
+extension Format {
+    /// 年月，如「2027年1月」。
+    static func yearMonth(_ day: LocalDate) -> String {
+        "\(day.year)年\(day.month)月"
     }
 }

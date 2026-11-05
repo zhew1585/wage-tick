@@ -386,7 +386,7 @@ struct GoalQueuePersistenceTests {
 
 @Suite("目标队列：目标管理列表")
 struct GoalQueueListTests {
-    @Test("F8 列表分三组：累计中、排队中 (按队列顺序)、已完成；只有排队中能拖动，已完成不能编辑")
+    @Test("F8 列表分三组：累计中、排队中 (按队列顺序)、已完成；已完成不能编辑")
     func rowsGrouped() throws {
         let first = try creatingGoal("D", 100, in: try onboarded(), at: standardDay(9, 0))
         let done = try sending(.advance, to: first, at: standardDay(11, 0))
@@ -401,6 +401,5 @@ struct GoalQueueListTests {
         ])
         #expect(rows.map(\.kind) == [.accumulating, .queued, .queued, .completed])
         #expect(rows.map(\.canEdit) == [true, true, true, false])
-        #expect(rows.map(\.canReorder) == [false, true, true, false])
     }
 }

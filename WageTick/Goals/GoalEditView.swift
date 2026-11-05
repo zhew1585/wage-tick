@@ -47,7 +47,7 @@ struct GoalEditView: View {
 
     private func submit() {
         do {
-            try save(name, GoalsView.parseAmount(amountText) ?? 0)
+            try save(name, AmountText.parse(amountText) ?? 0)
             dismiss()
         } catch {
             errorMessage = error.message

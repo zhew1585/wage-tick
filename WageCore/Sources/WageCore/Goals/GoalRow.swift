@@ -8,7 +8,7 @@ public struct GoalRow: Sendable, Equatable, Identifiable {
     public let statusLabel: String
     /// 累计中为「¥3000 / ¥10000」；排队中为目标金额「¥3000」；已完成为「¥500 · 2月11日达成」，不在今年时带年份。
     public let detail: String
-    /// 所在分组 (PRD F8：累计中、排队中、已完成三组)。
+    /// 所在分组 (PRD F8：累计中、排队中、已完成三组)；只有排队中一组内可拖动排序，累计中固定在最前【D6】。
     public let kind: Kind
     /// 目标金额，截掉末尾 0，如「3000.5」，编辑时直接填进输入框。
     public let amountInput: String
@@ -19,8 +19,6 @@ public struct GoalRow: Sendable, Equatable, Identifiable {
 
     /// 能否改名称和金额：排队中和累计中可以，已完成冻结 (PRD 4.5.2)。
     public var canEdit: Bool { kind != .completed }
-    /// 能否拖动排序：只有排队中，累计中固定在最前【D6】。
-    public var canReorder: Bool { kind == .queued }
 }
 
 extension GoalRow {

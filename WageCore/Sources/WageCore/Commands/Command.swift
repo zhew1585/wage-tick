@@ -105,7 +105,8 @@ public enum CommandError: Error, Sendable, Equatable {
         case .unpaidWorkAlreadyRunning: "已经在白干计时了"
         case .unpaidWorkNotRunning: "没有在白干计时"
         case .invalidGoal: "给目标起个名字，金额得大于 0"
-        // 以下三条 PRD 没给文案：外壳只对快照允许的行提供编辑、拖动，正常用不到。
+        // 以下三条 PRD 没给文案：外壳只对快照允许的行提供编辑、删除，排队中目标只能在排队中一组里拖动，
+        // 正常只在列表过期 (如目标刚好达成) 时用到。
         case .goalNotFound: "这个目标已经不在了"
         case .goalCompleted: "已完成的目标不能再改"
         case .goalOrderLocked: "累计中的目标固定在最前"

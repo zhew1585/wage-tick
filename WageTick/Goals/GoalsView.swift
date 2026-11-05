@@ -2,7 +2,7 @@ import SwiftUI
 import WageCore
 
 /// 目标管理 (PRD F8)：上方新建表单 (名称、金额)，下方目标列表 (累计中、排队中、已完成)。
-/// 列表可编辑、删除，排队中目标可拖动排序；能否编辑、拖动取自快照的 `GoalRow`。
+/// 列表按累计中、排队中、已完成分三组，可编辑、删除，排队中一组内可拖动排序；能否编辑、拖动取自快照的 `GoalRow`。
 /// 校验与排序规则交给核心，失败时展示 `CommandError.message`；列表文字原样取自快照。
 struct GoalsView: View {
     let content: GoalsContent
@@ -12,7 +12,7 @@ struct GoalsView: View {
     @State private var name = ""
     @State private var amountText = ""
     @State private var errorMessage: String?
-    /// 列表操作 (删除、拖动) 被核心拒绝时的提示，如把排队中目标拖到累计中之前【D6】。
+    /// 列表操作 (删除、拖动) 被核心拒绝时的提示，如列表过期时目标已不在。
     @State private var listError: String?
     /// 正在编辑的目标；nil 时没有编辑表单。
     @State private var editing: GoalRow?
@@ -60,17 +60,27 @@ struct GoalsView: View {
         }
     }
 
-    /// 队列 (累计中 + 排队中) 一组可拖动，累计中那一行禁止拖动；拖到累计中之前由核心拒绝。已完成另一组。
+    /// 三组 (PRD F8)：只有排队中一组可拖动，累计中单独一组，拖不到它前面【D6】。空的组不显示。
     private var list: some View {
         List {
-            ForEach(queueRows) { row in
-                rowView(row).moveDisabled(!row.canReorder)
+            section("累计中", rows: rows(.accumulating))
+            if !rows(.queued).isEmpty {
+                Section("排队中") {
+                    ForEach(rows(.queued), content: rowView)
+                        .onMove(perform: move)
+                }
             }
-            .onMove(perform: move)
-            ForEach(completedRows, content: rowView)
+            section("已完成", rows: rows(.completed))
         }
         .listStyle(.plain)
         .frame(minHeight: 220)
+    }
+
+    @ViewBuilder
+    private func section(_ title: String, rows: [GoalRow]) -> some View {
+        if !rows.isEmpty {
+            Section(title) { ForEach(rows, content: rowView) }
+        }
     }
 
     private func rowView(_ row: GoalRow) -> some View {
@@ -91,14 +101,13 @@ struct GoalsView: View {
         .buttonStyle(.borderless)
     }
 
-    private var queueRows: [GoalRow] { content.rows.filter { $0.kind != .completed } }
-    private var completedRows: [GoalRow] { content.rows.filter { $0.kind == .completed } }
+    private func rows(_ kind: GoalRow.Kind) -> [GoalRow] { content.rows.filter { $0.kind == kind } }
 
-    /// 拖动后把队列的新顺序原样交给核心。
+    /// 拖动后把队列的新顺序 (累计中在前，排队中按拖动后的顺序) 交给核心。
     private func move(from source: IndexSet, to destination: Int) {
-        var ids = queueRows.map(\.id)
-        ids.move(fromOffsets: source, toOffset: destination)
-        perform(.reorderGoals(ids: ids))
+        var queued = rows(.queued).map(\.id)
+        queued.move(fromOffsets: source, toOffset: destination)
+        perform(.reorderGoals(ids: rows(.accumulating).map(\.id) + queued))
     }
 
     /// 列表上直接发出的命令，失败时在列表下方提示。
@@ -113,7 +122,7 @@ struct GoalsView: View {
 
     private func submit() {
         do {
-            try send(.createGoal(name: name, amount: Self.parseAmount(amountText) ?? 0))
+            try send(.createGoal(name: name, amount: AmountText.parse(amountText) ?? 0))
         } catch {
             errorMessage = error.message
             return
@@ -121,12 +130,5 @@ struct GoalsView: View {
         name = ""
         amountText = ""
         errorMessage = nil
-    }
-
-    /// 金额输入框：只认纯数字写法，其他写法视为未填 (nil)；大于 0 等规则交给核心的 `Validation`。
-    static func parseAmount(_ text: String) -> Decimal? {
-        let trimmed = text.trimmingCharacters(in: .whitespaces)
-        guard trimmed.wholeMatch(of: /[0-9]+(\.[0-9]+)?/) != nil else { return nil }
-        return Decimal(string: trimmed, locale: Locale(identifier: "en_US_POSIX"))
     }
 }

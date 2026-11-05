@@ -16,7 +16,7 @@ func editGoal(
     guard state.profile != nil else { throw .notOnboarded }
     guard let index = state.goals.firstIndex(where: { $0.id == id }) else { throw .goalNotFound }
     let goal = state.goals[index]
-    if case .completed = goal.status { throw .goalCompleted }
+    guard !goal.status.isCompleted else { throw .goalCompleted }
     if let error = Validation.goal(name: name, amount: amount) { throw error }
     var next = state
     next.goals[index] = Goal(
@@ -41,7 +41,7 @@ func deleteGoal(id: Int, state: AppState, now: Moment, holidays: HolidayTable) t
 /// 调整队列顺序 (PRD 4.5.2)：`ids` 必须正好是当前累计中和排队中的目标，累计中固定在最前【D6】。
 /// 列表对不上 (目标已完成、已删除或重复) 时提示目标不在了，让外壳按最新快照重来。
 func reorderGoals(ids: [Int], state: AppState) throws(CommandError) -> AppState {
-    let queue = state.goals.filter(\.isInQueue)
+    let queue = state.goals.filter { !$0.status.isCompleted }
     guard ids.count == queue.count, Set(ids) == Set(queue.map(\.id)) else { throw .goalNotFound }
     guard ids.first == queue.first?.id else { throw .goalOrderLocked }
     let queued = ids.dropFirst().compactMap { id in queue.first { $0.id == id } }
@@ -74,9 +74,9 @@ extension AppState {
     }
 }
 
-extension Goal {
-    /// 是否在队列里 (累计中或排队中)，已完成的不在。
-    var isInQueue: Bool {
-        if case .completed = status { false } else { true }
+extension GoalStatus {
+    /// 是否已完成；累计中和排队中都在队列里。
+    var isCompleted: Bool {
+        if case .completed = self { true } else { false }
     }
 }
