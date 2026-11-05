@@ -29,17 +29,23 @@ struct ScheduleDraft: Equatable {
     }
 }
 
-/// 计划上下班与午休的输入行，放在 `Form` 里使用。
+/// 计划上下班与午休的输入 (设计稿 P1 引导 · 2 作息)：上下班一行两格，午休开关，打开后午休时段一行两格。
 struct ScheduleFields: View {
     @Binding var draft: ScheduleDraft
 
     var body: some View {
-        DatePicker("计划上班", selection: $draft.start, displayedComponents: .hourAndMinute)
-        DatePicker("计划下班", selection: $draft.end, displayedComponents: .hourAndMinute)
-        Toggle("午休", isOn: $draft.lunchEnabled)
-        if draft.lunchEnabled {
-            DatePicker("午休开始", selection: $draft.lunchStart, displayedComponents: .hourAndMinute)
-            DatePicker("午休结束", selection: $draft.lunchEnd, displayedComponents: .hourAndMinute)
+        VStack(alignment: .leading, spacing: Spacing.s12) {
+            HStack(spacing: Spacing.s12) {
+                Field("计划上班") { TimeInput(selection: $draft.start) }
+                Field("计划下班") { TimeInput(selection: $draft.end) }
+            }
+            ToggleRow("午休", isOn: $draft.lunchEnabled)
+            if draft.lunchEnabled {
+                HStack(spacing: Spacing.s12) {
+                    Field("午休开始") { TimeInput(selection: $draft.lunchStart) }
+                    Field("午休结束") { TimeInput(selection: $draft.lunchEnd) }
+                }
+            }
         }
     }
 }

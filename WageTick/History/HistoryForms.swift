@@ -43,17 +43,20 @@ struct UnpaidWorkFormView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(isEditing ? "改一段白干" : "补记白干").font(.title3.bold())
-            Form {
-                DatePicker("开始", selection: $start, displayedComponents: .hourAndMinute)
-                DatePicker("结束", selection: $end, displayedComponents: .hourAndMinute)
+            HStack(spacing: Spacing.s12) {
+                Field("开始") { TimeInput(selection: $start) }
+                Field("结束") { TimeInput(selection: $end) }
             }
             if let errorMessage {
-                Text(errorMessage).foregroundStyle(.red)
+                Text(errorMessage).foregroundStyle(Palette.loss)
             }
-            HStack {
-                Button("取消", action: dismiss).keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("保存", action: save).keyboardShortcut(.defaultAction)
+            HStack(spacing: Spacing.s8) {
+                Button("取消", action: dismiss)
+                    .keyboardShortcut(.cancelAction)
+                    .buttonStyle(.secondary(fullWidth: true))
+                Button(action: save) { Label("保存", systemImage: "checkmark") }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.primary(fullWidth: true))
             }
         }
         .padding(20)
@@ -109,20 +112,19 @@ struct SalaryFormView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("\(title)的月薪").font(.title3.bold())
-            Text(hint).font(.callout).foregroundStyle(.secondary)
-            HStack {
-                TextField("月薪", text: $text)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit(save)
-                Text("元").foregroundStyle(.secondary)
-            }
+            Text(hint).font(.callout).foregroundStyle(Palette.muted)
+            Field("月薪", text: $text, suffix: "元")
+                .onSubmit(save)
             if let errorMessage {
-                Text(errorMessage).foregroundStyle(.red)
+                Text(errorMessage).foregroundStyle(Palette.loss)
             }
-            HStack {
-                Button("取消", action: dismiss).keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("保存", action: save).keyboardShortcut(.defaultAction)
+            HStack(spacing: Spacing.s8) {
+                Button("取消", action: dismiss)
+                    .keyboardShortcut(.cancelAction)
+                    .buttonStyle(.secondary(fullWidth: true))
+                Button(action: save) { Label("保存", systemImage: "checkmark") }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.primary(fullWidth: true))
             }
         }
         .padding(20)

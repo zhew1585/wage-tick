@@ -22,7 +22,7 @@ struct DayDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             header
             if let notice = detail.notice {
-                Text(notice).font(.callout).foregroundStyle(.orange)
+                Text(notice).font(.callout).foregroundStyle(Palette.accent)
             }
             if !detail.stats.isEmpty {
                 HistoryStatsGrid(stats: detail.stats)
@@ -35,11 +35,11 @@ struct DayDetailView: View {
                 unpaidWorkRow(item)
             }
             if let summary = detail.unpaidWorkSummary {
-                Text(summary).font(.callout).foregroundStyle(.secondary).monospacedDigit()
+                Text(summary).font(.callout).foregroundStyle(Palette.muted).monospacedDigit()
             }
             editButtons
             if let errorMessage {
-                Text(errorMessage).font(.callout).foregroundStyle(.red)
+                Text(errorMessage).font(.callout).foregroundStyle(Palette.loss)
             }
         }
         .sheet(item: $deductionForm) { request in
@@ -62,7 +62,7 @@ struct DayDetailView: View {
                 .padding(.vertical, 2)
                 .background(day.kind.color, in: Capsule())
             Spacer()
-            Text("\(detail.sourceItem.title) \(detail.sourceItem.value)").font(.callout).foregroundStyle(.secondary)
+            Text("\(detail.sourceItem.title) \(detail.sourceItem.value)").font(.callout).foregroundStyle(Palette.muted)
         }
     }
 
@@ -116,8 +116,9 @@ struct DayDetailView: View {
                 Spacer()
                 Button(editing.overrideButton.title) { send(editing.overrideButton.command) }
             }
+            .buttonStyle(.secondary)
             ForEach(reasons, id: \.self) { reason in
-                Text(reason).font(.caption).foregroundStyle(.secondary)
+                Text(reason).font(.caption).foregroundStyle(Palette.muted)
             }
         }
         .padding(.top, 4)
@@ -158,7 +159,7 @@ private struct HistoryLineRow<Actions: View>: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).monospacedDigit()
                 if let detail {
-                    Text(detail).font(.caption).foregroundStyle(.secondary)
+                    Text(detail).font(.caption).foregroundStyle(Palette.muted)
                 }
             }
             Spacer()
