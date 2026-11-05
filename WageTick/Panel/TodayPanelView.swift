@@ -2,9 +2,11 @@ import SwiftUI
 import WageCore
 
 /// 今日概览面板 (PRD F4)。所有文字和数字原样取自快照的 `TodayPanel`，这里只管排版。
-/// 目标区、情绪按钮、「我还没走」按钮本期只占位，功能留给后续票。
+/// 情绪按钮、「我还没走」按钮本期只占位，功能留给后续票。
 struct TodayPanelView: View {
     let content: TodayPanelContent
+    /// 点击空的目标区时打开目标管理 (F9)。
+    let openGoals: () -> Void
 
     /// 进度区高度：已下班时换成「我还没走」按钮，高度保持一致 (AC-HOME-11)。
     private static let progressAreaHeight: CGFloat = 44
@@ -19,7 +21,7 @@ struct TodayPanelView: View {
                 case .rest(let rest):
                     restSection(rest)
                 }
-                goalPlaceholder
+                GoalCardView(card: panel.goal, openGoals: openGoals)
                 Divider()
                 moodButtons(isRestDay: panel.body.isRest)
             }
@@ -94,16 +96,6 @@ struct TodayPanelView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-    }
-
-    /// 目标区占位 (F9，后续票)。
-    private var goalPlaceholder: some View {
-        Text("目标")
-            .font(.callout)
-            .foregroundStyle(.tertiary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
     }
 
     /// 情绪按钮占位 (F5、F6、F7，后续票)：应出勤日为扣钱、请假，休息日为被迫营业。

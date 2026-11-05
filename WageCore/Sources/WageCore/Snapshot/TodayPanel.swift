@@ -9,6 +9,8 @@ public struct TodayPanel: Sendable, Equatable {
     /// 顶部状态标签，如「上班中」。
     public let statusLabel: String
     public let body: Body
+    /// 目标区 (PRD F9)。
+    public let goal: GoalCard
 
     public enum Body: Sendable, Equatable {
         /// 应出勤日：未上班、上班中、午休中、已下班。
@@ -76,10 +78,11 @@ public struct ProgressSegment: Sendable, Equatable {
 }
 
 extension TodayPanel {
-    init(today: Today, now: Moment) {
+    init(today: Today, goal: GoalCard, now: Moment) {
         dateText = Format.date(today.date, relativeTo: today.date)
         timeText = Format.time(now)
         statusLabel = today.status.label
+        self.goal = goal
         guard let earnings = today.earnings, let plan = today.plan else {
             body = .rest(RestPanel(today: today))
             return

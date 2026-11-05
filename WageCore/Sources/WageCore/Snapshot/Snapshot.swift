@@ -10,6 +10,8 @@ public struct Snapshot: Sendable, Equatable {
     public let settings: InterfaceSettings
     /// 今日概览面板的展示内容；未完成引导时为 nil。
     public let panel: TodayPanel?
+    /// 目标管理页的目标列表 (PRD F8)；未完成引导时为 nil。
+    public let goals: [GoalRow]?
 }
 
 /// 菜单栏内容：小牛姿势 + 可选数字 (PRD 4.7.1 第 1、2 条)。
@@ -36,13 +38,15 @@ public enum CowPose: Sendable, Equatable {
 /// 核心入口二：推导 `state` 在 `now` 时刻的快照，纯函数，不改状态。
 public func snapshot(of state: AppState, at now: Moment) -> Snapshot {
     guard let profile = state.profile else {
-        return Snapshot(menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil)
+        return Snapshot(menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil, goals: nil)
     }
     let today = Today(profile: profile, now: now)
+    let activeGoal = ActiveGoalCard(state: state, profile: profile, today: today)
     return Snapshot(
         menuBar: MenuBarDisplay(today: today, settings: state.settings),
         today: today,
         settings: state.settings,
-        panel: TodayPanel(today: today, now: now)
+        panel: TodayPanel(today: today, goal: GoalCard(active: activeGoal), now: now),
+        goals: GoalRow.rows(state: state, active: activeGoal, today: today, now: now)
     )
 }

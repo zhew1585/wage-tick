@@ -6,6 +6,10 @@ public enum Command: Sendable, Equatable {
     case completeOnboarding(OnboardingInput)
     /// 开启或关闭老板路过模式 (PRD 4.7.1 第 3 条)，由全局快捷键或左键菜单发出。
     case toggleBossMode
+    /// 新建目标 (PRD 4.5.2)，名称与金额未经校验。
+    case createGoal(name: String, amount: Decimal)
+    /// 推进到此刻：外壳每次刷新时先发它，再取快照。处理随时间发生的状态变化，如累计中目标达成。
+    case advance
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -31,6 +35,9 @@ public enum CommandError: Error, Sendable, Equatable {
     case endNotAfterStart
     case lunchOutsideWorkHours
     case alreadyOnboarded
+    case invalidGoal
+    case notOnboarded
+    case goalAlreadyAccumulating
 
     public var message: String {
         switch self {
@@ -38,6 +45,9 @@ public enum CommandError: Error, Sendable, Equatable {
         case .endNotAfterStart: "下班时间要晚于上班时间"
         case .lunchOutsideWorkHours: "午休要在上下班时间之内"
         case .alreadyOnboarded: "已经完成过引导了"
+        case .invalidGoal: "给目标起个名字，金额得大于 0"
+        case .notOnboarded: "还没完成引导"
+        case .goalAlreadyAccumulating: "先攒完当前这个目标吧"
         }
     }
 }
@@ -56,6 +66,10 @@ public func apply(
         var next = state
         next.settings.bossMode.toggle()
         return (next, [])
+    case .createGoal(let name, let amount):
+        return (try createGoal(name: name, amount: amount, state: state, now: now), [])
+    case .advance:
+        return (advance(state, now: now), [])
     }
 }
 

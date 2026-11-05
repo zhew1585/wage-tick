@@ -24,19 +24,42 @@ public struct LocalDate: Sendable, Hashable, Comparable, Codable {
     }
 
     /// 星期几：1 为周日，2 为周一，…，7 为周六 (公历 weekday 口径)。
+    /// 1970-01-01 是周四。
     var weekday: Int {
-        LocalDate.utcCalendar.component(.weekday, from: utcNoon)
+        ((dayNumber % 7 + 7 + 4) % 7) + 1
     }
 
     /// 往后数 `days` 天的日期。
     func adding(days: Int) -> LocalDate {
-        let date = LocalDate.utcCalendar.date(byAdding: .day, value: days, to: utcNoon)!
-        let parts = LocalDate.utcCalendar.dateComponents([.year, .month, .day], from: date)
-        return LocalDate(year: parts.year!, month: parts.month!, day: parts.day!)
+        LocalDate(dayNumber: dayNumber + days)
     }
 
-    private var utcNoon: Date {
-        LocalDate.utcCalendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12))!
+    // 星期与加减天数用纯整数算法 (Howard Hinnant 的 days_from_civil / civil_from_days)，
+    // 不经 Calendar：目标的累计收入与预计完成日要逐日遍历，每次刷新都会算。
+
+    /// 自 1970-01-01 起的天数。
+    private var dayNumber: Int {
+        let y = month <= 2 ? year - 1 : year
+        let era = (y >= 0 ? y : y - 399) / 400
+        let yearOfEra = y - era * 400
+        let dayOfYear = (153 * (month + (month > 2 ? -3 : 9)) + 2) / 5 + day - 1
+        let dayOfEra = yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear
+        return era * 146_097 + dayOfEra - 719_468
+    }
+
+    private init(dayNumber: Int) {
+        let z = dayNumber + 719_468
+        let era = (z >= 0 ? z : z - 146_096) / 146_097
+        let dayOfEra = z - era * 146_097
+        let yearOfEra = (dayOfEra - dayOfEra / 1460 + dayOfEra / 36524 - dayOfEra / 146_096) / 365
+        let dayOfYear = dayOfEra - (365 * yearOfEra + yearOfEra / 4 - yearOfEra / 100)
+        let shiftedMonth = (5 * dayOfYear + 2) / 153
+        let month = shiftedMonth < 10 ? shiftedMonth + 3 : shiftedMonth - 9
+        self.init(
+            year: yearOfEra + era * 400 + (month <= 2 ? 1 : 0),
+            month: month,
+            day: dayOfYear - (153 * shiftedMonth + 2) / 5 + 1
+        )
     }
 
     static let utcCalendar: Calendar = {

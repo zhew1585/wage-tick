@@ -20,12 +20,15 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     private static let idleInterval: TimeInterval = 1
 
     private let model: AppModel
+    private let openGoals: () -> Void
     private let content = TodayPanelContent()
     private lazy var window: NSWindow = makeWindow()
     private var timer: Timer?
 
-    init(model: AppModel) {
+    /// `openGoals`：点击空的目标区时打开目标管理 (F9)。
+    init(model: AppModel, openGoals: @escaping () -> Void) {
         self.model = model
+        self.openGoals = openGoals
     }
 
     func show() {
@@ -56,7 +59,7 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow() -> NSWindow {
-        let window = NSWindow(contentViewController: NSHostingController(rootView: TodayPanelView(content: content)))
+        let window = NSWindow(contentViewController: NSHostingController(rootView: TodayPanelView(content: content, openGoals: openGoals)))
         window.title = "今日概览"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false

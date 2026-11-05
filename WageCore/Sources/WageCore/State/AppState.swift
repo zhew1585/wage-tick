@@ -7,19 +7,24 @@ public struct AppState: Sendable, Equatable, Codable {
     public internal(set) var profile: Profile?
     /// 界面设置 (老板路过等)，引导前也有默认值。
     public internal(set) var settings: InterfaceSettings
+    /// 目标，按新建顺序 (PRD 4.5)。
+    public internal(set) var goals: [Goal]
 
-    private enum CodingKeys: String, CodingKey { case profile, settings }
+    private enum CodingKeys: String, CodingKey { case profile, settings, goals }
 
     public init() {
         profile = nil
         settings = InterfaceSettings()
+        goals = []
     }
 
     /// #2 写出的旧文件没有 `settings`，读入时取默认值，不当作损坏文件。
+    /// #11 之前的文件没有 `goals`，读入时为空队列。
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         profile = try container.decodeIfPresent(Profile.self, forKey: .profile)
         settings = try container.decodeIfPresent(InterfaceSettings.self, forKey: .settings) ?? InterfaceSettings()
+        goals = try container.decodeIfPresent([Goal].self, forKey: .goals) ?? []
     }
 }
 

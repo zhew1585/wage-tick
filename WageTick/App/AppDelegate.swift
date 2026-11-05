@@ -1,24 +1,27 @@
 import AppKit
 import WageCore
 
-/// 组装外壳各部件：状态存储、菜单栏条目、引导窗口、今日概览面板。
+/// 组装外壳各部件：状态存储、菜单栏条目、引导窗口、今日概览面板、目标管理。
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var model: AppModel!
     private var statusItem: StatusItemController!
     private var onboarding: OnboardingWindowController!
     private var todayPanel: TodayPanelWindowController!
+    private var goals: GoalsWindowController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         model = AppModel(store: StateStore())
-        todayPanel = TodayPanelWindowController(model: model)
+        goals = GoalsWindowController(model: model)
+        todayPanel = TodayPanelWindowController(model: model) { [weak self] in self?.goals.show() }
         onboarding = OnboardingWindowController(model: model) { [weak self] in
             self?.statusItem.refresh()
         }
         statusItem = StatusItemController(
             model: model,
             openOnboarding: { [weak self] in self?.onboarding.show() },
-            openTodayPanel: { [weak self] in self?.todayPanel.show() }
+            openTodayPanel: { [weak self] in self?.todayPanel.show() },
+            openGoals: { [weak self] in self?.goals.show() }
         )
         if !model.isOnboarded {
             onboarding.show()
