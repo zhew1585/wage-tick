@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// 设计稿 Field：上方标签 (12/500，muted)，下方白底输入框 (高 38、圆角 8、line 描边、左右内边距 12)，右侧可带单位 (13，muted)。
-/// 大号 (`.large`，引导页月薪)：高 46、ink 1.5 描边、数字 18/600。输入框获得焦点时描边换成 accent。
+/// 大号 (`.large`，引导页月薪)：高 46、ink 1.5 描边、数字 18/600。输入框获得焦点时描边换成 accent，
+/// 悬停 (未聚焦) 时常规框描边换成 `strokeHover`；文本框的 I 型光标由系统给，`TimeInput` 自己挂手型。
 ///
 /// 用法：
 /// - 数字：`Field("月薪", text: $salaryText, suffix: "元")`，回车提交在外面挂 `.onSubmit(save)`
@@ -21,6 +22,7 @@ struct Field<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     @FocusState private var focused: Bool
+    @State private var hovering = false
 
     init(_ label: String?, size: Size = .regular, suffix: String? = nil, @ViewBuilder content: @escaping () -> Content) {
         self.label = label
@@ -53,11 +55,13 @@ struct Field<Content: View>: View {
         .frame(height: size.height)
         .background(Palette.card, in: shape)
         .overlay(shape.strokeBorder(stroke, lineWidth: size.strokeWidth))
+        .onHover { hovering = $0 }
     }
 
     private var stroke: Color {
         if focused { return Palette.accent }
-        return size == .large ? Palette.ink : Palette.line
+        if size == .large { return Palette.ink }
+        return hovering ? Palette.strokeHover : Palette.line
     }
 }
 

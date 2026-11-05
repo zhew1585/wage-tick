@@ -123,7 +123,7 @@ private enum PanelPreviews {
 
     // MARK: 视图
 
-    /// 与 `TodayPanelWindowController` 相同的面板外观 (圆角、描边)；命令只试算，不保存。
+    /// 与 `TodayPanelWindowController` 相同的面板尺寸 (窗口固定尺寸减去标题栏)，加圆角描边便于对照；命令只试算，不保存。
     private static func panel(
         _ state: AppState, day: Int, _ hour: Int, _ minute: Int, _ second: Int = 0, route: PanelRoute = .home
     ) -> AnyView {
@@ -144,6 +144,7 @@ private enum PanelPreviews {
         let navigation = PanelNavigation(openHistory: {}, openGoals: {}, openSettings: {})
         return AnyView(
             TodayPanelView(content: content, actions: actions, navigation: navigation)
+                .frame(height: WindowMetrics.size.height - WindowChrome.Titlebar.standard.height)
                 .clipShape(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius))
                 .overlay(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius).strokeBorder(Palette.line, lineWidth: 1))
                 .padding(24)

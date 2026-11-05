@@ -32,13 +32,11 @@ struct PanelFooter: View {
     }
 }
 
-/// 入口栏的一项：图标 14 + 文字 12，muted；悬停时浅色底。
+/// 入口栏的一项：图标 14 + 文字 12，muted；悬停时文字变 ink、叠一层底，按下再深一档，手型光标。
 private struct FooterItem: View {
     let icon: Phosphor
     let title: String
     let action: () -> Void
-
-    @State private var hovering = false
 
     var body: some View {
         Button(action: action) {
@@ -46,13 +44,14 @@ private struct FooterItem: View {
                 PhosphorIcon(icon, size: 14)
                 Text(title).font(AppFont.caption)
             }
-            .foregroundStyle(hovering ? Palette.ink : Palette.muted)
             .padding(.horizontal, Spacing.s8)
             .padding(.vertical, Spacing.s6)
-            .background(hovering ? Palette.line.opacity(0.6) : Color.clear, in: RoundedRectangle(cornerRadius: Radius.r6))
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
+        .buttonStyle(InteractiveButtonStyle { label, state in
+            label
+                .foregroundStyle(state.isHovered || state.isPressed ? Palette.ink : Palette.muted)
+                .background(state.overlay, in: RoundedRectangle(cornerRadius: Radius.r6))
+                .contentShape(Rectangle())
+        })
     }
 }

@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// 设计稿 F5、F6 的表单外框：顶部 Sheet Head (返回箭头 + 标题，右侧日期)、中间内容、底部按钮行，三段之间有分隔线。
-/// 宽 360，与今日概览面板同宽：在面板里原地替换面板内容，在历史单日详情里作为 sheet 弹出。
+/// 宽 360，与今日概览面板同宽：在面板里原地替换面板内容 (占满窗口，中间放不下时滚动，头和按钮行不动)，
+/// 在历史单日详情里作为 sheet 弹出 (按内容高度)。
 ///
 /// 用法：`FormSheet(title: "请假", subtitle: "11月5日 周四", back: dismiss) { 内容 } actions: { 按钮 }`
 struct FormSheet<Content: View, Actions: View>: View {
@@ -16,12 +17,14 @@ struct FormSheet<Content: View, Actions: View>: View {
         VStack(spacing: 0) {
             head
             PanelDivider()
-            VStack(alignment: .leading, spacing: 18) {
-                content()
+            ScrollBody {
+                VStack(alignment: .leading, spacing: 18) {
+                    content()
+                }
+                .padding(.horizontal, Spacing.screen)
+                .padding(.vertical, 18)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, Spacing.screen)
-            .padding(.vertical, 18)
-            .frame(maxWidth: .infinity, alignment: .leading)
             PanelDivider()
             HStack(spacing: Spacing.s8) {
                 actions()
@@ -39,7 +42,7 @@ struct FormSheet<Content: View, Actions: View>: View {
                     .foregroundStyle(Palette.ink)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.highlight(radius: Radius.r6, outset: Spacing.s4))
             .help("返回")
             Text(title).font(AppFont.sheetTitle).foregroundStyle(Palette.ink)
             Spacer(minLength: Spacing.s8)

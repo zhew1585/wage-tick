@@ -18,6 +18,7 @@ enum PanelRoute: Equatable {
 
 /// 今日概览面板 (PRD F4，设计稿 P2)。所有文字和数字原样取自快照的 `TodayPanel`，这里只管排版。
 /// 从上到下：日期与状态、主数字、进度区 (已下班、白干中换成白干计时按钮)、统计行、目标区、情绪按钮、底部入口栏。
+/// 窗口固定尺寸：底部入口栏贴窗口底边，上面放不下时滚动。
 /// 白干计时按钮 (我还没走、被迫营业、终于下班了) 原样发出快照给的命令。
 struct TodayPanelView: View {
     let content: TodayPanelContent
@@ -39,30 +40,15 @@ struct TodayPanelView: View {
             }
         }
         .frame(width: PanelMetrics.width)
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(Palette.bg)
     }
 
+    /// 概览：上面各段在窗口里滚动 (展开排队目标时可能放不下)，底部入口栏固定在窗口底边。
     private var home: some View {
         VStack(spacing: 0) {
             if let panel = content.panel {
-                notices(panel.notices)
-                PanelTopBar(panel: panel)
-                switch panel.body {
-                case .attendance(let attendance):
-                    attendanceSection(attendance, button: panel.unpaidWorkButton)
-                case .rest(let rest):
-                    restSection(rest)
-                case .unpaidWork(let unpaidWork):
-                    unpaidWorkSection(unpaidWork, button: panel.unpaidWorkButton)
-                }
-                PanelDivider()
-                GoalCardView(
-                    card: panel.goal,
-                    queue: panel.goalQueue,
-                    openGoals: navigation.openGoals,
-                    toggleQueue: { send(.toggleGoalQueueExpanded) }
-                )
-                actionsSection(panel)
+                ScrollBody { homeSections(panel) }
                 PanelFooter(
                     bossHotkey: content.bossHotkey,
                     openHistory: navigation.openHistory,
@@ -71,11 +57,34 @@ struct TodayPanelView: View {
                 )
             }
         }
-        // 盖在面板上，不改变面板高度 (AC-HOME-11)。
+        // 盖在面板上，不改变面板布局 (AC-HOME-11)。
         .overlay {
             if let celebration = content.celebration {
                 CelebrationView(celebration: celebration) { content.celebration = nil }
             }
+        }
+    }
+
+    private func homeSections(_ panel: TodayPanel) -> some View {
+        VStack(spacing: 0) {
+            notices(panel.notices)
+            PanelTopBar(panel: panel)
+            switch panel.body {
+            case .attendance(let attendance):
+                attendanceSection(attendance, button: panel.unpaidWorkButton)
+            case .rest(let rest):
+                restSection(rest)
+            case .unpaidWork(let unpaidWork):
+                unpaidWorkSection(unpaidWork, button: panel.unpaidWorkButton)
+            }
+            PanelDivider()
+            GoalCardView(
+                card: panel.goal,
+                queue: panel.goalQueue,
+                openGoals: navigation.openGoals,
+                toggleQueue: { send(.toggleGoalQueueExpanded) }
+            )
+            actionsSection(panel)
         }
     }
 
@@ -277,7 +286,7 @@ struct TodayPanelView: View {
                     .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r6))
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.highlight(radius: Radius.r6))
         }
     }
 

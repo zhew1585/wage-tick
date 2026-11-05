@@ -39,5 +39,13 @@ enum Spacing {
     /// 面板、表单页左右内边距。
     static let screen = s20
     /// 子页面 (目标、历史、设置) 的宽度，设计稿 P3 至 P6 都是 360。
-    static let pageWidth: CGFloat = 360
+    static let pageWidth = WindowMetrics.size.width
+}
+
+/// 所有窗口 (引导、今日概览、目标、历史、设置) 统一的固定内容尺寸，不能拉伸：
+/// 宽 360 (设计稿各屏同宽)；高 560，正好是引导三屏，面板、表单、月列表、月日历、单日详情的设计稿都放得下。
+/// 放不下的 (目标多了、设置页、展开排队目标的面板) 在窗口里滚动中间内容区，页头和底部按钮栏不动 (`ScrollBody`)。
+/// 弹出的 sheet (改月薪、补记等小表单) 不在此列，仍按内容大小。
+enum WindowMetrics {
+    static let size = CGSize(width: 360, height: 560)
 }

@@ -40,4 +40,4 @@ xcodebuild -project WageTick.xcodeproj -scheme WageTick -configuration Debug -de
     ENABLE_HARDENED_RUNTIME=NO build -quiet
 mkdir -p "$OUT"
 WAGETICK_RENDER_DIR="$(cd "$OUT" && pwd)" DYLD_INSERT_LIBRARIES="$WORK/librender.dylib" \
-    "$WORK/dd/Build/Products/Debug/WageTick.app/Contents/MacOS/WageTick"
+    "$WORK/dd/Build/Products/Debug/牛马鼓励器.app/Contents/MacOS/WageTick"

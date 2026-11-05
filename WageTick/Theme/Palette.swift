@@ -30,6 +30,20 @@ enum Palette {
     static let shadow = ink.opacity(0.1)
     /// 示意用的系统菜单栏底色 (引导第 3 步的菜单栏预览，设计稿里直接写的 #E9E6E1)。
     static let menuBarMock = Color(hex: 0xE9E6E1)
+
+    // MARK: 交互态 (设计稿没给，按上面的 token 推出来；用法见 `Components/Interaction.swift`)
+
+    /// 悬停时叠在任意底色上的一层暖褐色 (#9B7B44 的 10%)：叠在 bg 上正好是 surface，
+    /// 叠在 surface、白底、浅色底 (loss-soft 等) 上各自深一档，色相不跑偏。
+    static let hoverOverlay = Color(hex: 0x9B7B44).opacity(0.10)
+    /// 按下时叠的一层，比悬停再深一档 (同色 18%)。
+    static let pressedOverlay = Color(hex: 0x9B7B44).opacity(0.18)
+    /// 主按钮 (ink 底) 悬停：略浅。
+    static let inkHover = Color(hex: 0x3A332B)
+    /// 主按钮按下：略深。
+    static let inkPressed = Color(hex: 0x0B0907)
+    /// 输入框悬停 (未聚焦) 的描边。
+    static let strokeHover = muted
 }
 
 private extension Color {

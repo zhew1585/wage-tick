@@ -50,30 +50,24 @@ final class StatusItemController: NSObject {
         refresh()
     }
 
-    /// 左键菜单 (设计稿 F2 左键菜单)：三组之间用分隔线隔开，每行自绘图标、文字、快捷键与选中态 (`MenuRowView`)。
-    /// 项目与快捷键按 PRD F2；最后一项按 PRD 叫「退出」，设计稿写的是「退出牛马鼓励器」。
+    /// 左键菜单：macOS 原生菜单，系统画标题、快捷键、勾选与分隔线，跟随系统深浅色，不放图标。
+    /// 项目与快捷键按 PRD F2：今日概览 ⌘1、目标 ⌘2、历史 ⌘3 | 老板路过 (当前全局快捷键) | 设置… ⌘, | 退出 ⌘Q。
     private func buildMenu() {
         menu.delegate = self
-        // 菜单栏条目的菜单跟随菜单栏深浅，不吃 `NSApp.appearance`；固定浅色，和设计稿与 ADR-0004 一致。
-        menu.appearance = NSAppearance(named: .aqua)
         bossModeItem.target = self
-        bossModeItem.image = NSImage(resource: .MenuIcon.eyeSlash)
-        MenuRowView.attach(to: bossModeItem)
-        addRow("今日概览", icon: .MenuIcon.gauge, key: "1", action: #selector(todayPanelClicked))
-        addRow("目标", icon: .MenuIcon.flagBanner, key: "2", action: #selector(goalsClicked))
-        addRow("历史", icon: .MenuIcon.calendarBlank, key: "3", action: #selector(historyClicked))
-        menu.addItem(MenuSeparatorView.item())
+        addRow("今日概览", key: "1", action: #selector(todayPanelClicked))
+        addRow("目标", key: "2", action: #selector(goalsClicked))
+        addRow("历史", key: "3", action: #selector(historyClicked))
+        menu.addItem(.separator())
         menu.addItem(bossModeItem)
-        addRow("设置…", icon: .MenuIcon.gearSix, key: ",", action: #selector(settingsClicked))
-        menu.addItem(MenuSeparatorView.item())
-        addRow("退出", icon: .MenuIcon.power, key: "q", action: #selector(NSApplication.terminate(_:)), target: NSApp)
+        addRow("设置…", key: ",", action: #selector(settingsClicked))
+        menu.addItem(.separator())
+        addRow("退出", key: "q", action: #selector(NSApplication.terminate(_:)), target: NSApp)
     }
 
-    private func addRow(_ title: String, icon: ImageResource, key: String, action: Selector, target: AnyObject? = nil) {
+    private func addRow(_ title: String, key: String, action: Selector, target: AnyObject? = nil) {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
         item.target = target ?? self
-        item.image = NSImage(resource: icon)
-        MenuRowView.attach(to: item)
         menu.addItem(item)
     }
 
@@ -105,14 +99,13 @@ final class StatusItemController: NSObject {
         button.imagePosition = display.text == nil ? .imageOnly : .imageLeading
     }
 
-    /// 老板路过菜单项：开启时文字后打勾，右侧显示当前快捷键 (F2)。
+    /// 老板路过菜单项：开启时系统勾选，右侧由系统画出当前快捷键 (如 ⌃⌥B，F2)。
     /// 全局快捷键注册失败时不显示快捷键，免得牛马以为按了有用。
     private func renderBossModeItem(_ settings: InterfaceSettings) {
         bossModeItem.state = settings.bossMode ? .on : .off
         let hotkey = bossModeHotkey == nil ? nil : settings.bossModeHotkey
         bossModeItem.keyEquivalent = hotkey?.menuKeyEquivalent ?? ""
         bossModeItem.keyEquivalentModifierMask = hotkey?.menuModifierMask ?? []
-        bossModeItem.view?.needsDisplay = true
     }
 
     /// 切换老板路过并立即重绘，不等下一次定时刷新 (F3：必须一键生效)。

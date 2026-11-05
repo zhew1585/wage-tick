@@ -17,19 +17,14 @@ struct GoalsView: View {
     /// 正在新建或编辑的目标；nil 时没有表单。
     @State private var form: GoalFormView.Mode?
 
-    /// 列表超过这个高度时滚动。
-    private static let maxBodyHeight: CGFloat = 520
-
     var body: some View {
         VStack(spacing: 0) {
             PageHeader("目标", back: close)
-            ScrollView {
+            ScrollBody {
                 groups
                     .padding(.horizontal, Spacing.screen)
                     .padding(.vertical, Spacing.s18)
             }
-            .frame(maxHeight: Self.maxBodyHeight)
-            .fixedSize(horizontal: false, vertical: true)
             footer
         }
         .frame(width: Spacing.pageWidth)
@@ -243,7 +238,7 @@ private struct QueueDropDelegate: DropDelegate {
     }
 }
 
-/// 排队中的一行。点一下编辑。
+/// 排队中的一行。点一下编辑；悬停整行叠一层底，手型光标 (能拖动排序，不做按下态，见 `hoverFeedback`)。
 private struct QueuedGoalRow: View {
     let row: GoalRow
     let edit: () -> Void
@@ -269,6 +264,7 @@ private struct QueuedGoalRow: View {
         .padding(.vertical, Spacing.s12)
         .contentShape(Rectangle())
         .onTapGesture(perform: edit)
+        .hoverFeedback(showsPress: false)
         .onHover { hovering = $0 }
         .contextMenu {
             Button("编辑", action: edit)

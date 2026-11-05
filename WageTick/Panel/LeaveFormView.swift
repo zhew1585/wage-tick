@@ -94,7 +94,9 @@ struct LeaveFormView: View {
         .background(Palette.card, in: shape)
         .overlay(shape.strokeBorder(percentFocused ? Palette.ink : Palette.line, lineWidth: 1.5))
         .contentShape(shape)
+        // 点框里任意处都聚焦到输入框，整框显示 I 型光标。
         .onTapGesture { percentFocused = true }
+        .cursor(.iBeam)
     }
 
     /// 汇总框：每行标题 + 数值，下方一条分隔线与说明；比例填错时这里换成核心的校验提示。

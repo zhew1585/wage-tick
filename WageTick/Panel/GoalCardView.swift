@@ -41,7 +41,7 @@ struct GoalCardView: View {
                 .padding(.vertical, Spacing.s2)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.highlight(radius: Radius.r6, outset: Spacing.s6))
         case .active(let goal):
             // 设计稿不展示金额，悬停时显示「¥3000 / ¥10000」。
             GoalRowView(icon: .flagBanner, name: goal.name, estimate: goal.estimate, progress: goal.progress, muted: false)
@@ -61,7 +61,7 @@ struct GoalCardView: View {
             .padding(.vertical, 3)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.highlight(radius: Radius.r6))
         .frame(maxWidth: .infinity)
         .padding(.top, Spacing.s2)
     }

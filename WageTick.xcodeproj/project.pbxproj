@@ -12,7 +12,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A10000000000000000000004 /* WageTick.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WageTick.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000004 /* 牛马鼓励器.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "牛马鼓励器.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -43,7 +43,7 @@
 		A10000000000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A10000000000000000000004 /* WageTick.app */,
+				A10000000000000000000004 /* 牛马鼓励器.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -72,7 +72,7 @@
 				A10000000000000000040013 /* HolidaySource */,
 			);
 			productName = WageTick;
-			productReference = A10000000000000000000004 /* WageTick.app */;
+			productReference = A10000000000000000000004 /* 牛马鼓励器.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -186,7 +186,9 @@
 				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zhew1585.WageTick;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = WageTick;
+				PRODUCT_NAME = "牛马鼓励器";
+				EXECUTABLE_NAME = WageTick;
 				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
@@ -209,7 +211,9 @@
 				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.zhew1585.WageTick;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = WageTick;
+				PRODUCT_NAME = "牛马鼓励器";
+				EXECUTABLE_NAME = WageTick;
 				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
