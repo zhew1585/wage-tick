@@ -16,7 +16,7 @@ struct MonthCalendarView: View {
     @State private var editingSalary = false
 
     private static let columnSpacing: CGFloat = Spacing.s4
-    private static let rowSpacing: CGFloat = 5
+    private static let rowSpacing = Spacing.s5
     private static let columns = Array(repeating: GridItem(.flexible(), spacing: columnSpacing), count: 7)
 
     var body: some View {

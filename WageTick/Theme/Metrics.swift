@@ -35,6 +35,10 @@ enum Spacing {
     static let s18: CGFloat = 18
     static let s20: CGFloat = 20
     static let s24: CGFloat = 24
+    // 760 设计稿补的：日历行距 5、设置页分组间距 22、单日详情结算区上边距 26。
+    static let s5: CGFloat = 5
+    static let s22: CGFloat = 22
+    static let s26: CGFloat = 26
 
     /// 面板、表单页左右内边距。
     static let screen = s20

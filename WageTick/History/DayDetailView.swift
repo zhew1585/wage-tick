@@ -78,7 +78,7 @@ struct DayDetailView: View {
     private func settlement(_ settled: StatItem, rest: [StatItem]) -> some View {
         let notes = rest.map { "\($0.title) \($0.value)" } + [detail.breakdown].compactMap { $0 }
         return VStack(alignment: .leading, spacing: Spacing.s6) {
-            Text(detail.headlineTitle ?? settled.title).font(AppFont.body).foregroundStyle(Palette.muted)
+            Text(settled.title).font(AppFont.body).foregroundStyle(Palette.muted)
             Text(settled.value)
                 .font(AppFont.num(44, .bold))
                 .foregroundStyle(Palette.ink)
@@ -90,7 +90,7 @@ struct DayDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Spacing.screen)
-        .padding(.top, 26)
+        .padding(.top, Spacing.s26)
         .padding(.bottom, Spacing.s24)
     }
 

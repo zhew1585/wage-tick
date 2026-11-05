@@ -43,13 +43,19 @@ public struct HistoryMonthSummary: Sendable, Equatable, Identifiable {
     public let isCurrentMonth: Bool
     /// 是否安装当月：最早的一个月，月中安装时前面的日子按满勤补齐 (AC-PRE-01)。
     public let isInstallMonth: Bool
-    /// 结算总额、应出勤日数、扣款合计、请假天数、白干时长 (AC-HIS-02)，按此顺序。
-    public let stats: [StatItem]
-    /// 结算总额，如「¥19450」(设计稿放在月份右边)。
+    /// 结算总额 (AC-HIS-02)，如「¥19450」(设计稿放在月份右边)；本月等于本月累计 (AC-HIS-01)。
     public let total: String
-    /// 结算总额以外的四项，用设计稿的短标题：应出勤、扣款、请假、白干 (如「1h30m」)。
-    /// 扣款不带负号，有扣款时 `isLoss` 标亏钱色。
-    public let figures: [HistoryFigure]
+    /// 应出勤日数，如「应出勤」「20 天」。
+    public let attendance: HistoryFigure
+    /// 扣款合计 (扣钱 + 请假扣薪)，不带负号，如「扣款」「¥550」；有扣款时 `isLoss`。
+    public let deduction: HistoryFigure
+    /// 请假天数 (半天计 0.5)，如「请假」「0.5 天」。
+    public let leave: HistoryFigure
+    /// 白干时长合计，如「白干」「1h30m」。
+    public let unpaidWork: HistoryFigure
+
+    /// 结算总额以外的四项，按设计稿顺序：应出勤、扣款、请假、白干。
+    public var figures: [HistoryFigure] { [attendance, deduction, leave, unpaidWork] }
 
     public var id: YearMonth { month }
 

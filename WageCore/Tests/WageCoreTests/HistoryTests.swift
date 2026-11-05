@@ -55,21 +55,16 @@ struct HistoryMonthSummaryTests {
         let snap = snapshot(of: state, at: now)
         let panelMonthToDate = try attendancePanel(state, at: now).stats.first { $0.title == "本月累计" }
 
-        #expect(try summary(snap, february).stats.first == StatItem(title: "结算总额", value: "¥9542.8571"))
+        #expect(try summary(snap, february).total == "¥9542.8571")
         #expect(panelMonthToDate?.value == "¥9542.8571")
     }
 
-    @Test("AC-HIS-02 3 月查看 2 月：结算总额 20000 - 50 - 500 = ¥19450，应出勤 20 天，扣款 −¥550，请假 0.5 天，白干 1:30")
+    @Test("AC-HIS-02 3 月查看 2 月：结算总额 20000 - 50 - 500 = ¥19450，应出勤 20 天，扣款 ¥550，请假 0.5 天，白干 1h30m")
     func pastMonthSummary() throws {
-        let snap = snapshot(of: try februaryWithRecords(), at: moment(2026, 3, 10, 15, 0))
+        let summary = try summary(snapshot(of: try februaryWithRecords(), at: moment(2026, 3, 10, 15, 0)), february)
 
-        #expect(try summary(snap, february).stats == [
-            StatItem(title: "结算总额", value: "¥19450"),
-            StatItem(title: "应出勤日数", value: "20 天"),
-            StatItem(title: "扣款合计", value: "−¥550"),
-            StatItem(title: "请假天数", value: "0.5 天"),
-            StatItem(title: "白干时长", value: "1:30"),
-        ])
+        #expect(summary.total == "¥19450")
+        #expect(summary.figures.map(\.value) == ["20 天", "¥550", "0.5 天", "1h30m"])
     }
 
     @Test("AC-HIS-03 某月请了一次下午假：请假天数 0.5")
@@ -77,9 +72,9 @@ struct HistoryMonthSummaryTests {
         let state = try applied(
             .requestLeave(Leave(period: .afternoon, deductionPercent: 50)), to: try onboarded(), at: standardDay(9, 0)
         )
-        let stats = try summary(snapshot(of: state, at: standardDay(20, 0)), february).stats
+        let summary = try summary(snapshot(of: state, at: standardDay(20, 0)), february)
 
-        #expect(stats.first { $0.title == "请假天数" }?.value == "0.5 天")
+        #expect(summary.leave.value == "0.5 天")
     }
 
     @Test("一整天假计 1 天；没有扣款和白干时扣款合计 ¥0、白干时长 0:00")
@@ -87,9 +82,9 @@ struct HistoryMonthSummaryTests {
         let state = try applied(
             .requestLeave(Leave(period: .fullDay, deductionPercent: 0)), to: try onboarded(), at: standardDay(9, 0)
         )
-        let stats = try summary(snapshot(of: state, at: moment(2026, 3, 2, 9, 0)), february).stats
+        let summary = try summary(snapshot(of: state, at: moment(2026, 3, 2, 9, 0)), february)
 
-        #expect(stats.map(\.value) == ["¥20000", "20 天", "¥0", "1 天", "0:00"])
+        #expect([summary.total] + summary.figures.map(\.value) == ["¥20000", "20 天", "¥0", "1 天", "0m"])
     }
 
     @Test("本月的扣款合计、请假天数与结算总额同口径，只算到今天：系统时间拨回到请假那天之前，未来那天的请假不计入")
@@ -98,7 +93,7 @@ struct HistoryMonthSummaryTests {
         let state = try applied(leave, to: try onboarded(), at: moment(2026, 2, 13, 9, 0))
         let snap = snapshot(of: state, at: standardDay(15, 0))
 
-        #expect(try summary(snap, february).stats.map(\.value) == ["¥7571.4286", "20 天", "¥0", "0 天", "0:00"])
+        #expect(try [summary(snap, february).total] + summary(snap, february).figures.map(\.value) == ["¥7571.4286", "20 天", "¥0", "0 天", "0m"])
         #expect(try day(snap, feb(13)).kind == .leave)
     }
 
@@ -106,7 +101,7 @@ struct HistoryMonthSummaryTests {
     func attendanceDaysFollowHolidays() throws {
         let snap = snapshot(of: try onboarded(at: moment(2026, 10, 9, 9, 0)), at: moment(2026, 10, 9, 15, 0), holidays: nationalDay2026)
 
-        #expect(try summary(snap, YearMonth(year: 2026, month: 10)).stats[1] == StatItem(title: "应出勤日数", value: "18 天"))
+        #expect(try summary(snap, YearMonth(year: 2026, month: 10)).attendance == HistoryFigure(title: "应出勤", value: "18 天"))
     }
 }
 
@@ -159,7 +154,7 @@ struct HistoryCalendarTests {
         let days = try [2, 3, 4, 5, 6, 9, 10].map { try day(snap, feb($0)) }
 
         #expect(days.allSatisfy { $0.kind == .fullAttendance })
-        #expect(days.allSatisfy { $0.detail.stats == [StatItem(title: "结算", value: "¥1000")] })
+        #expect(days.allSatisfy { $0.detail.stats == [StatItem(title: "当天结算", value: "¥1000")] })
     }
 }
 
@@ -173,12 +168,12 @@ struct HistoryDayDetailTests {
         #expect(detail.source == .workday)
         #expect(detail.source.label == "工作日")
         #expect(detail.sourceItem == StatItem(title: "判定来源", value: "工作日"))
-        #expect(detail.stats == [StatItem(title: "结算", value: "¥950")])
+        #expect(detail.stats == [StatItem(title: "当天结算", value: "¥950")])
         #expect(detail.deductions.map(\.title) == ["迟到"])
         #expect(detail.deductions.map(\.amount) == ["−¥50"])
         #expect(detail.leave == nil)
         #expect(detail.unpaidWork.isEmpty)
-        #expect(detail.unpaidWorkSummary == nil)
+        #expect(detail.editing.unpaidWorkItems.isEmpty)
     }
 
     @Test("请下午假的一天：请假下午假 · 扣薪 50% −¥500，结算 ¥500")
@@ -186,7 +181,7 @@ struct HistoryDayDetailTests {
         let detail = try day(snapshot(of: try februaryWithRecords(), at: moment(2026, 3, 10, 15, 0)), feb(6)).detail
 
         #expect(detail.leave == HistoryLine(title: "下午假", detail: "扣薪 50%", value: "−¥500"))
-        #expect(detail.stats == [StatItem(title: "结算", value: "¥500")])
+        #expect(detail.stats == [StatItem(title: "当天结算", value: "¥500")])
     }
 
     @Test("有白干的一天：白干段 18:00 – 19:30 共 1h30m，白干 1:30 · 倒贴 ¥214.2857，结算仍是 ¥1000")
@@ -194,8 +189,8 @@ struct HistoryDayDetailTests {
         let detail = try day(snapshot(of: try februaryWithRecords(), at: moment(2026, 3, 10, 15, 0)), feb(9)).detail
 
         #expect(detail.unpaidWork == [HistoryLine(title: "18:00 – 19:30", detail: nil, value: "1h30m")])
-        #expect(detail.unpaidWorkSummary == "白干 1:30 · 倒贴 ¥214.2857")
-        #expect(detail.stats == [StatItem(title: "结算", value: "¥1000")])
+        #expect(detail.editing.unpaidWorkItems.map(\.loss) == ["倒贴 ¥214.2857"])
+        #expect(detail.stats == [StatItem(title: "当天结算", value: "¥1000")])
     }
 
     @Test("#9 遗留 疑似通宵：18:00 开始忘了停，次日推进后那段在 23:59:59 结束，详情标出疑似通宵")

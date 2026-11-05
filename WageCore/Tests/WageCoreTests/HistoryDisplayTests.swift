@@ -160,11 +160,11 @@ struct HistoryCalendarDisplayTests {
 
 @Suite("历史展示：单日详情")
 struct HistoryDayDisplayTests {
-    @Test("当天结算：标题过去「当天结算」、今天「今日已赚」、未来「预计结算」，休息日没有")
+    @Test("大号数字的标题：过去「当天结算」、今天「今日已赚」、未来「预计结算」，休息日没有")
     func headline() throws {
         let snap = snapshot(of: try onboarded(at: moment(2026, 2, 2, 9, 0)), at: standardDay(15, 0))
 
-        #expect(try [10, 11, 12, 7].map { try day(snap, feb($0)).detail.headlineTitle } == ["当天结算", "今日已赚", "预计结算", nil])
+        #expect(try [10, 11, 12, 7].map { try day(snap, feb($0)).detail.stats.first?.title } == ["当天结算", "今日已赚", "预计结算", nil])
     }
 
     @Test("算式：有扣钱写「日薪 1000 − 扣款 50」，有请假加「请假 500」；没扣也没请假不写")

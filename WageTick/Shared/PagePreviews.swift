@@ -23,8 +23,8 @@ public func renderPagePreviews(_ directory: UnsafePointer<CChar>) {
 @MainActor
 private enum PagePreviews {
     static func renderAll(to directory: URL) {
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             for (name, view) in try scenes() {
                 let file = directory.appending(path: "\(name).png")
                 try render(view, to: file)
@@ -36,6 +36,12 @@ private enum PagePreviews {
     }
 
     private static let today = LocalDate(year: 2026, month: 11, day: 5)
+    /// 10:00 至 18:00，午休 12:00 至 13:00。
+    private static let schedule = WorkSchedule(
+        start: TimeOfDay(hour: 10, minute: 0),
+        end: TimeOfDay(hour: 18, minute: 0),
+        lunch: LunchBreak(start: TimeOfDay(hour: 12, minute: 0), end: TimeOfDay(hour: 13, minute: 0))
+    )
 
     private static func scenes() throws -> [(String, AnyView)] {
         let state = try november()
@@ -57,11 +63,6 @@ private enum PagePreviews {
 
     /// 10 月 15 日 (周四) 早上完成引导，月薪 20000。
     private static func onboarded() throws -> AppState {
-        let schedule = WorkSchedule(
-            start: TimeOfDay(hour: 10, minute: 0),
-            end: TimeOfDay(hour: 18, minute: 0),
-            lunch: LunchBreak(start: TimeOfDay(hour: 12, minute: 0), end: TimeOfDay(hour: 13, minute: 0))
-        )
         let input = OnboardingInput(monthlySalary: 20000, schedule: schedule, launchAtLogin: false)
         return try apply(.completeOnboarding(input), to: AppState(), at: moment(month: 10, day: 15, 9, 0)).state
     }
@@ -139,11 +140,6 @@ private enum PagePreviews {
     private static func settings() throws -> AnyView {
         let directory = FileManager.default.temporaryDirectory.appending(path: "wagetick-page-previews-\(UUID().uuidString)")
         let model = AppModel(store: StateStore(directory: directory))
-        let schedule = WorkSchedule(
-            start: TimeOfDay(hour: 10, minute: 0),
-            end: TimeOfDay(hour: 18, minute: 0),
-            lunch: LunchBreak(start: TimeOfDay(hour: 12, minute: 0), end: TimeOfDay(hour: 13, minute: 0))
-        )
         try model.send(.completeOnboarding(OnboardingInput(monthlySalary: 20000, schedule: schedule, launchAtLogin: true)))
         let form = SettingsFormModel(model: model, menuBar: nil, notifier: SystemNotifier(openPanel: {}))
         form.reload()

@@ -8,9 +8,7 @@ public struct HistoryMonth: Sendable, Equatable {
     public let leadingBlanks: Int
     /// 当月每一天，按日期升序。
     public let days: [HistoryDay]
-    /// 该月月薪，如「月薪 ¥20000」；任意月份可在这里改 (PRD 4.2.1 #2、4.6.1)。
-    public let salaryItem: StatItem
-    /// 该月月薪的数值，改月薪表单据此预填。
+    /// 该月月薪的数值，改月薪表单据此预填；任意月份可在月薪条改 (PRD 4.2.1 #2、4.6.1)。
     public let monthlySalary: Decimal
     /// 月薪条的小标题，如「本月月薪 · 应出勤 20 天」；往月写「2月月薪 · 应出勤 20 天」。
     public let salaryCaption: String
@@ -19,7 +17,7 @@ public struct HistoryMonth: Sendable, Equatable {
 
     /// 日历底部的月小结：已结算 (同结算总额) 与扣款、请假、白干。
     public var footer: [HistoryFigure] {
-        [HistoryFigure(title: "已结算", value: summary.total)] + summary.figures.filter { $0.title != "应出勤" }
+        [HistoryFigure(title: "已结算", value: summary.total), summary.deduction, summary.leave, summary.unpaidWork]
     }
 
     /// 日历表头，与 `leadingBlanks` 同样从周一排起。
@@ -84,10 +82,9 @@ public struct HistoryDayDetail: Sendable, Equatable {
     /// 如「2月11日 周三」；不在今年时带年份。
     public let title: String
     public let source: AttendanceSource
-    /// 已过的应出勤日为「结算」，今天为「今日已赚」「今日上限」，未来为「预计结算」；不应出勤的日子没有。
+    /// 已过的应出勤日为「当天结算」，今天为「今日已赚」「今日上限」，未来为「预计结算」；不应出勤的日子没有。
+    /// 详情页把第一项放大展示。
     public let stats: [StatItem]
-    /// 详情页大号数字 (`stats` 第一项) 的标题：过去「当天结算」，今天「今日已赚」，未来「预计结算」；不应出勤的日子为 nil。
-    public let headlineTitle: String?
     /// 结算的算式，如「日薪 1000 − 请假 500 − 扣款 50」；没扣钱也没请假扣薪、或不应出勤时为 nil。
     public let breakdown: String?
     /// 扣款明细，按记录先后。不应出勤的日子 (单日覆盖或节假日表更新后变成不上班) 已有的也列出，不计入结算，可删除。
@@ -95,9 +92,8 @@ public struct HistoryDayDetail: Sendable, Equatable {
     /// 请假，如「下午假 · 扣薪 50% · −¥500」；没请假为 nil。不应出勤的日子已有的同样列出。
     public let leave: HistoryLine?
     /// 白干段，按开始时刻先后，标题如「18:00 – 19:30」、数值如「1h30m」；疑似通宵、计时中写在 `detail`。
+    /// 每段倒贴见 `editing.unpaidWorkItems`。
     public let unpaidWork: [HistoryLine]
-    /// 如「白干 1:30 · 倒贴 ¥214.2857」；没有白干段为 nil。
-    public let unpaidWorkSummary: String?
     /// 不应出勤的日子还留着扣钱或请假时的提示，否则为 nil (#14 遗留)。
     public let notice: String?
     /// 编辑入口 (PRD 4.6.1 可编辑内容)。
@@ -140,7 +136,6 @@ extension HistoryLedger {
             // weekday 1 为周日、2 为周一：换成从周一起数的 0 至 6。
             leadingBlanks: (monthLedger.days[0].date.weekday + 5) % 7,
             days: monthLedger.days.map { day($0, dailyWage: monthLedger.dailyWage) },
-            salaryItem: StatItem(title: "月薪", value: Format.money(salary)),
             monthlySalary: salary,
             salaryCaption: "\(salaryTitle) · 应出勤 \(monthLedger.attendanceDayCount) 天",
             salaryText: "\(Format.money(salary)) → 日薪 \(Format.money(monthLedger.dailyWage))"
@@ -162,12 +157,10 @@ extension HistoryLedger {
                 title: Format.date(day.date, relativeTo: today),
                 source: day.source,
                 stats: stats(day),
-                headlineTitle: headlineTitle(day),
                 breakdown: day.settlement.flatMap(breakdown),
                 deductions: shown?.deductions.map(DeductionItem.init) ?? [],
                 leave: leaveLine(day, settlement: shown),
                 unpaidWork: unpaidWork,
-                unpaidWorkSummary: unpaidWorkSummary(day, dailyWage: dailyWage),
                 notice: staleNotice(day),
                 editing: editing(day, unpaidWorkLines: unpaidWork, dailyWage: dailyWage)
             )
@@ -183,11 +176,11 @@ extension HistoryLedger {
         return day.date > today ? .upcoming : .fullAttendance
     }
 
-    /// 格子金额：已过的应出勤日为结算，今天为今日已赚 (今天没有收入推导时为今日上限)。
+    /// 格子金额：已过的应出勤日为结算，今天为今日已赚 (今天没有收入推导时不写)。
     private func amountText(_ day: DayLedger) -> String? {
         guard day.date <= today, let settlement = day.settlement else { return nil }
-        let amount = day.date == today ? inputs.today.earnings?.earned ?? settlement.cap : settlement.cap
-        return Format.wholeMoney(amount)
+        let amount = day.date == today ? inputs.today.earnings?.earned : settlement.cap
+        return amount.map(Format.wholeMoney)
     }
 
     /// 格子小字：请假时段优先，其次单日覆盖的方向。
@@ -198,14 +191,6 @@ extension HistoryLedger {
         case .attendanceDay: "改班"
         case nil: nil
         }
-    }
-
-    /// 与 `stats` 第一项对应的大号标题，过去的结算写成「当天结算」。
-    private func headlineTitle(_ day: DayLedger) -> String? {
-        guard day.settlement != nil else { return nil }
-        if day.date < today { return "当天结算" }
-        if day.date > today { return "预计结算" }
-        return inputs.today.earnings == nil ? incomeTitle(day.date) : "今日已赚"
     }
 
     /// 结算的算式：日薪减去请假扣薪与扣钱合计，数字不带 ¥；两样都没有时不写。
@@ -225,7 +210,8 @@ extension HistoryLedger {
                 StatItem(title: incomeTitle(day.date), value: Format.money(earnings.cap)),
             ]
         }
-        return [StatItem(title: incomeTitle(day.date), value: Format.money(settlement.cap))]
+        let title = day.date < today ? "当天结算" : incomeTitle(day.date)
+        return [StatItem(title: title, value: Format.money(settlement.cap))]
     }
 
     /// 某天收入项的标题：过去为「结算」，今天为「今日上限」，未来为「预计结算」。详情、请假与扣钱表单共用。
@@ -266,13 +252,5 @@ extension HistoryLedger {
     private func staleNotice(_ day: DayLedger) -> String? {
         guard !day.isAttendanceDay, let record = day.record, !record.deductions.isEmpty || record.leave != nil else { return nil }
         return "这天不上班，下面的扣钱和请假不计入结算，可以删掉"
-    }
-
-    /// 倒贴 = 白干时长 × 时薪，时薪按该日生效作息的标准工时计算 (PRD 4.4.3 #4)。
-    private func unpaidWorkSummary(_ day: DayLedger, dailyWage: Decimal) -> String? {
-        guard !day.unpaidWork.isEmpty else { return nil }
-        let milliseconds = day.unpaidWorkMilliseconds
-        let owed = inputs.profile.schedule(on: day.date).owed(dailyWage: dailyWage, milliseconds: milliseconds)
-        return "白干 \(Format.hoursMinutes(milliseconds: milliseconds)) · 倒贴 \(Format.money(owed))"
     }
 }

@@ -71,33 +71,22 @@ extension HistoryLedger {
         let deducted = happened.compactMap(\.settlement).map(\.deductionTotal).reduce(0, +)
         let leaveDays = happened.map(\.leaveDays).reduce(0, +)
         let unpaid = happened.map(\.unpaidWorkMilliseconds).reduce(0, +)
-        let attendance = "\(ledger.attendanceDayCount) 天"
-        let leave = "\(Format.trimmed(leaveDays)) 天"
         return HistoryMonthSummary(
             month: month,
             title: "\(month.year)年\(month.month)月",
             isCurrentMonth: isCurrent,
             isInstallMonth: month == inputs.profile.installDate.yearMonth,
-            stats: [
-                StatItem(title: "结算总额", value: Format.money(settled)),
-                StatItem(title: "应出勤日数", value: attendance),
-                StatItem(title: "扣款合计", value: Format.deductionOrZero(deducted)),
-                StatItem(title: "请假天数", value: leave),
-                StatItem(title: "白干时长", value: Format.hoursMinutes(milliseconds: unpaid)),
-            ],
             total: Format.money(settled),
-            figures: [
-                HistoryFigure(title: "应出勤", value: attendance),
-                HistoryFigure(title: "扣款", value: Format.money(deducted), isLoss: deducted > 0),
-                HistoryFigure(title: "请假", value: leave),
-                HistoryFigure(title: "白干", value: Format.compactDuration(milliseconds: unpaid)),
-            ]
+            attendance: HistoryFigure(title: "应出勤", value: "\(ledger.attendanceDayCount) 天"),
+            deduction: HistoryFigure(title: "扣款", value: Format.money(deducted), isLoss: deducted > 0),
+            leave: HistoryFigure(title: "请假", value: "\(Format.trimmed(leaveDays)) 天"),
+            unpaidWork: HistoryFigure(title: "白干", value: Format.compactDuration(milliseconds: unpaid))
         )
     }
 }
 
 extension Format {
-    /// 扣款合计：有扣款时如「−¥550」，没有时为「¥0」，不出现「−¥0」。
+    /// 扣款：有扣款时如「−¥550」，没有时为「¥0」，不出现「−¥0」。
     static func deductionOrZero(_ amount: Decimal) -> String {
         amount > 0 ? deduction(amount) : money(0)
     }
