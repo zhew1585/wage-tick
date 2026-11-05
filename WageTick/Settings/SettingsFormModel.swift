@@ -12,7 +12,7 @@ enum FormMessage: Equatable {
 
 /// 设置页的表单状态与动作 (PRD F12)。
 /// 每一项都发命令给核心，校验与提示文案来自核心的 `CommandError`，与引导一致 (PRD 4.3.5 #1 至 #3)。
-/// 月薪、作息点「保存」才生效；显示模式、快捷键、开机自启改了立即生效。
+/// 月薪、作息点「保存」才生效；显示模式、快捷键、开机自启、下班通知改了立即生效。
 @MainActor
 @Observable
 final class SettingsFormModel {
@@ -22,6 +22,9 @@ final class SettingsFormModel {
     private(set) var hotkeyText = ""
     private(set) var launchAtLogin = true
     private(set) var isRecordingHotkey = false
+    private(set) var offWorkNotification = true
+    /// 系统拒绝了通知权限：通知区显示提示 (AC-SET-05)。
+    private(set) var notificationDenied = false
 
     private(set) var salaryMessage: FormMessage?
     private(set) var scheduleMessage: FormMessage?
@@ -31,12 +34,14 @@ final class SettingsFormModel {
     @ObservationIgnored private let model: AppModel
     /// 改完设置立即重绘菜单栏；改快捷键时重新注册全局快捷键。
     @ObservationIgnored private weak var menuBar: StatusItemController?
+    @ObservationIgnored private let notifier: SystemNotifier
     @ObservationIgnored private var keyMonitor: Any?
     @ObservationIgnored private let logger = Logger(subsystem: AppIdentity.bundleID, category: "Settings")
 
-    init(model: AppModel, menuBar: StatusItemController) {
+    init(model: AppModel, menuBar: StatusItemController, notifier: SystemNotifier) {
         self.model = model
         self.menuBar = menuBar
+        self.notifier = notifier
     }
 
     /// 打开设置页时按最新快照填好各项，清掉上次的提示。
@@ -49,6 +54,8 @@ final class SettingsFormModel {
         }
         menuBarMode = snap.settings.menuBarMode
         hotkeyText = snap.settings.bossModeHotkey.displayText
+        offWorkNotification = snap.settings.offWorkNotification
+        refreshNotificationPermission()
         salaryMessage = nil
         scheduleMessage = nil
         hotkeyMessage = nil
@@ -81,6 +88,16 @@ final class SettingsFormModel {
         }
         launchMessage = send(.setLaunchAtLogin(enabled))
         if launchMessage == .saved { launchAtLogin = enabled }
+    }
+
+    func setOffWorkNotification(_ enabled: Bool) {
+        guard send(.setOffWorkNotification(enabled)) == .saved else { return }
+        offWorkNotification = enabled
+    }
+
+    /// 重新读一次系统通知权限：打开设置页、从系统设置切回来时调用。
+    func refreshNotificationPermission() {
+        Task { notificationDenied = await notifier.isDenied() }
     }
 
     /// 开始录制快捷键：暂停全局快捷键，接下来按下的一组键作为新快捷键，esc 取消。

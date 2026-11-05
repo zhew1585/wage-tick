@@ -7,19 +7,24 @@ public struct AppState: Sendable, Equatable, Codable {
     public internal(set) var profile: Profile?
     /// 界面设置 (老板路过等)，引导前也有默认值。
     public internal(set) var settings: InterfaceSettings
+    /// 下班事件的进度 (见 `OffWorkWatch`)。不是牛马产生的内容，但重启后要记得今天发没发过，所以要存。
+    var offWorkWatch: OffWorkWatch?
 
-    private enum CodingKeys: String, CodingKey { case profile, settings }
+    private enum CodingKeys: String, CodingKey { case profile, settings, offWorkWatch }
 
     public init() {
         profile = nil
         settings = InterfaceSettings()
+        offWorkWatch = nil
     }
 
     /// #2 写出的旧文件没有 `settings`，读入时取默认值，不当作损坏文件。
+    /// #10 之前的文件没有 `offWorkWatch`，读入时当作今天还没看到过上班。
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         profile = try container.decodeIfPresent(Profile.self, forKey: .profile)
         settings = try container.decodeIfPresent(InterfaceSettings.self, forKey: .settings) ?? InterfaceSettings()
+        offWorkWatch = try container.decodeIfPresent(OffWorkWatch.self, forKey: .offWorkWatch)
     }
 }
 

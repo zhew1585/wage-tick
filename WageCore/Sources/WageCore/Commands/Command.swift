@@ -16,6 +16,11 @@ public enum Command: Sendable, Equatable {
     case setBossModeHotkey(Hotkey)
     /// 开关开机自动启动 (PRD 4.7.2)。
     case setLaunchAtLogin(Bool)
+    /// 开关下班通知 (PRD 4.7.2)。
+    case setOffWorkNotification(Bool)
+    /// 推进到此刻：外壳每次刷新时先发它，再取快照。处理随时间发生的状态变化，
+    /// 跨过当日计划下班时返回一次下班事件 (PRD 4.6.3)。
+    case advance
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -32,8 +37,10 @@ public struct OnboardingInput: Sendable, Equatable {
 }
 
 /// 命令执行后产生的领域事件，外壳据此发系统通知。
-/// 本期还没有任何事件 (下班、目标达成留给后续票)。
-public enum DomainEvent: Sendable, Equatable {}
+public enum DomainEvent: Sendable, Equatable {
+    /// 到达当日计划下班 (PRD 4.6.3)。`message` 是通知正文，已按老板路过模式决定是否含金额，外壳原样发出。
+    case offWork(message: String)
+}
 
 /// 命令被拒绝的原因，`message` 是直接展示给牛马的提示文案 (PRD 4.3.5)。
 public enum CommandError: Error, Sendable, Equatable {
@@ -59,11 +66,13 @@ public enum CommandError: Error, Sendable, Equatable {
 }
 
 /// 核心入口一：在 `now` 时刻对 `state` 执行 `command`，返回新状态与领域事件。
+/// `holidays` 与 `snapshot` 用同一张节假日表，判定今天是否应出勤；不传时为空表，只按双休。
 /// 校验失败时抛出 `CommandError`，原状态不受影响。
 public func apply(
     _ command: Command,
     to state: AppState,
-    at now: Moment
+    at now: Moment,
+    holidays: HolidayTable = .empty
 ) throws(CommandError) -> (state: AppState, events: [DomainEvent]) {
     switch command {
     case .completeOnboarding(let input):
@@ -82,6 +91,10 @@ public func apply(
         return (try setBossModeHotkey(hotkey, state: state), [])
     case .setLaunchAtLogin(let enabled):
         return (try setLaunchAtLogin(enabled, state: state), [])
+    case .setOffWorkNotification(let enabled):
+        return (setOffWorkNotification(enabled, state: state), [])
+    case .advance:
+        return advanceOffWork(state, now: now, holidays: holidays)
     }
 }
 
