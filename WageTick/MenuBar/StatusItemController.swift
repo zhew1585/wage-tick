@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 import WageCore
 
 /// 菜单栏条目：小牛 + 数字，内容完全取自快照的 `menuBar`，不自行拼接任何文字 (AC-BAR-06)。
@@ -14,15 +15,24 @@ final class StatusItemController: NSObject {
     private let openOnboarding: () -> Void
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
+    private let bossModeItem = NSMenuItem(title: "老板路过", action: #selector(bossModeClicked), keyEquivalent: "")
+    private let logger = Logger(subsystem: AppIdentity.bundleID, category: "StatusItem")
     private var timer: Timer?
     private var shown: MenuBarDisplay?
+    /// 注册失败时为 nil，只能从左键菜单切换 (PRD 6.4)。
+    private var bossModeHotkey: GlobalHotkey?
+    private var isMenuOpen = false
 
     init(model: AppModel, openOnboarding: @escaping () -> Void) {
         self.model = model
         self.openOnboarding = openOnboarding
         super.init()
         configureButton()
+        bossModeItem.target = self
+        menu.delegate = self
+        menu.addItem(bossModeItem)
         menu.addItem(withTitle: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        registerBossModeHotkey()
         observeClockChanges()
         refresh()
     }
@@ -33,6 +43,7 @@ final class StatusItemController: NSObject {
         // 引导完成前没有菜单，点击直接走 `buttonClicked`。
         item.menu = model.isOnboarded ? menu : nil
         render(snap.menuBar)
+        renderBossModeItem(snap.settings)
         scheduleNextRefresh(rolling: snap.today?.isEarning == true)
     }
 
@@ -51,6 +62,32 @@ final class StatusItemController: NSObject {
         button.image = CowIcon.image(for: display.pose)
         button.title = display.text ?? ""
         button.imagePosition = display.text == nil ? .imageOnly : .imageLeading
+    }
+
+    /// 老板路过菜单项：开启时打勾，右侧显示当前快捷键 (F2)。
+    private func renderBossModeItem(_ settings: Settings) {
+        bossModeItem.state = settings.bossMode ? .on : .off
+        bossModeItem.keyEquivalent = settings.bossModeHotkey.menuKeyEquivalent
+        bossModeItem.keyEquivalentModifierMask = settings.bossModeHotkey.menuModifierMask
+    }
+
+    /// 切换老板路过并立即重绘，不等下一次定时刷新 (F3：必须一键生效)。
+    private func toggleBossMode() {
+        do {
+            try model.send(.toggleBossMode)
+        } catch {
+            logger.error("切换老板路过失败：\(error.message, privacy: .public)")
+        }
+        refresh()
+    }
+
+    private func registerBossModeHotkey() {
+        let hotkey = model.currentSnapshot().settings.bossModeHotkey
+        bossModeHotkey = GlobalHotkey(hotkey) { [weak self] in
+            // 菜单展开时同一组按键会由菜单项的快捷键处理，这里跳过，避免切换两次。
+            guard let self, !self.isMenuOpen else { return }
+            self.toggleBossMode()
+        }
     }
 
     private func scheduleNextRefresh(rolling: Bool) {
@@ -79,5 +116,19 @@ final class StatusItemController: NSObject {
 
     @objc private func buttonClicked() {
         openOnboarding()
+    }
+
+    @objc private func bossModeClicked() {
+        toggleBossMode()
+    }
+}
+
+extension StatusItemController: NSMenuDelegate {
+    func menuWillOpen(_ menu: NSMenu) {
+        isMenuOpen = true
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        isMenuOpen = false
     }
 }

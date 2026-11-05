@@ -4,6 +4,8 @@ import Foundation
 public enum Command: Sendable, Equatable {
     /// 完成 3 步引导 (PRD 4.1.1)。
     case completeOnboarding(OnboardingInput)
+    /// 开启或关闭老板路过模式 (PRD 4.7.1 第 3 条)，由全局快捷键或左键菜单发出。
+    case toggleBossMode
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -50,6 +52,10 @@ public func apply(
     switch command {
     case .completeOnboarding(let input):
         return (try completeOnboarding(input, state: state, now: now), [])
+    case .toggleBossMode:
+        var next = state
+        next.settings.bossMode.toggle()
+        return (next, [])
     }
 }
 
