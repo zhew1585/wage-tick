@@ -1,18 +1,8 @@
 import AppKit
 import Carbon.HIToolbox
 import Observation
+import OSLog
 import WageCore
-
-/// 设置页要操作的菜单栏部件：改完设置立即重绘，改快捷键时重新注册全局快捷键。
-@MainActor
-protocol MenuBarControl: AnyObject {
-    func refresh()
-    func suspendBossModeHotkey()
-    func resumeBossModeHotkey()
-    func rebindBossModeHotkey(_ hotkey: Hotkey) -> Bool
-}
-
-extension StatusItemController: MenuBarControl {}
 
 /// 设置页某一项操作后的提示。
 enum FormMessage: Equatable {
@@ -39,10 +29,12 @@ final class SettingsFormModel {
     private(set) var launchMessage: FormMessage?
 
     @ObservationIgnored private let model: AppModel
-    @ObservationIgnored private weak var menuBar: MenuBarControl?
+    /// 改完设置立即重绘菜单栏；改快捷键时重新注册全局快捷键。
+    @ObservationIgnored private weak var menuBar: StatusItemController?
     @ObservationIgnored private var keyMonitor: Any?
+    @ObservationIgnored private let logger = Logger(subsystem: AppIdentity.bundleID, category: "Settings")
 
-    init(model: AppModel, menuBar: MenuBarControl) {
+    init(model: AppModel, menuBar: StatusItemController) {
         self.model = model
         self.menuBar = menuBar
     }
@@ -128,7 +120,9 @@ final class SettingsFormModel {
             return .error("这个快捷键被系统或别的软件占用了，换一个吧")
         }
         let result = send(.setBossModeHotkey(hotkey))
-        if result != .saved { _ = menuBar?.rebindBossModeHotkey(old) }
+        if result != .saved, menuBar?.rebindBossModeHotkey(old) != true {
+            logger.error("快捷键保存失败后换回旧组合也失败了，老板路过只能从左键菜单切换")
+        }
         return result
     }
 

@@ -72,8 +72,16 @@ public func apply(
         var next = state
         next.settings.bossMode.toggle()
         return (next, [])
-    case .changeMonthlySalary, .changeSchedule, .setMenuBarMode, .setBossModeHotkey, .setLaunchAtLogin:
-        return (try applySettings(command, to: state, at: now), [])
+    case .changeMonthlySalary(let amount):
+        return (try changeMonthlySalary(amount, state: state, now: now), [])
+    case .changeSchedule(let schedule):
+        return (try changeSchedule(schedule, state: state, now: now), [])
+    case .setMenuBarMode(let mode):
+        return (setMenuBarMode(mode, state: state), [])
+    case .setBossModeHotkey(let hotkey):
+        return (try setBossModeHotkey(hotkey, state: state), [])
+    case .setLaunchAtLogin(let enabled):
+        return (try setLaunchAtLogin(enabled, state: state), [])
     }
 }
 

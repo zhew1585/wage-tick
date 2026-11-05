@@ -1,39 +1,46 @@
 import Foundation
 
-/// 设置页发出的命令 (PRD F12)：月薪、作息、菜单栏显示模式、老板路过快捷键、开机自启。
-/// 校验规则与引导共用 `Validation` (PRD 4.3.5 #1 至 #3)。
-func applySettings(_ command: Command, to state: AppState, at now: Moment) throws(CommandError) -> AppState {
+// 设置页发出的命令 (PRD F12)：月薪、作息、菜单栏显示模式、老板路过快捷键、开机自启。
+// 校验规则与引导共用 `Validation` (PRD 4.3.5 #1 至 #3)。
+
+/// 修改当月月薪，当月整月生效。
+func changeMonthlySalary(_ amount: Decimal, state: AppState, now: Moment) throws(CommandError) -> AppState {
+    if let error = Validation.monthlySalary(amount) { throw error }
+    return try updatingProfile(state) { $0.setSalary(amount, for: now.localDate.yearMonth) }
+}
+
+/// 修改作息，从今天起生效。
+func changeSchedule(_ schedule: WorkSchedule, state: AppState, now: Moment) throws(CommandError) -> AppState {
+    if let error = Validation.schedule(schedule) { throw error }
+    return try updatingProfile(state) { $0.setSchedule(schedule, from: now.localDate) }
+}
+
+func setLaunchAtLogin(_ enabled: Bool, state: AppState) throws(CommandError) -> AppState {
+    try updatingProfile(state) { $0.launchAtLogin = enabled }
+}
+
+/// 显示模式属于界面设置，引导前也能改。
+func setMenuBarMode(_ mode: MenuBarMode, state: AppState) -> AppState {
     var next = state
-    switch command {
-    case .changeMonthlySalary(let amount):
-        if let error = Validation.monthlySalary(amount) { throw error }
-        var profile = try onboardedProfile(state)
-        profile.setSalary(amount, for: now.localDate.yearMonth)
-        next.profile = profile
-    case .changeSchedule(let schedule):
-        if let error = Validation.schedule(schedule) { throw error }
-        var profile = try onboardedProfile(state)
-        profile.setSchedule(schedule, from: now.localDate)
-        next.profile = profile
-    case .setLaunchAtLogin(let enabled):
-        var profile = try onboardedProfile(state)
-        profile.launchAtLogin = enabled
-        next.profile = profile
-    case .setMenuBarMode(let mode):
-        next.settings.menuBarMode = mode
-    case .setBossModeHotkey(let hotkey):
-        if let error = Validation.hotkey(hotkey) { throw error }
-        next.settings.bossModeHotkey = hotkey
-    case .completeOnboarding, .toggleBossMode:
-        preconditionFailure("不是设置命令：\(command)")
-    }
+    next.settings.menuBarMode = mode
+    return next
+}
+
+/// 快捷键属于界面设置，引导前也能改。
+func setBossModeHotkey(_ hotkey: Hotkey, state: AppState) throws(CommandError) -> AppState {
+    if let error = Validation.hotkey(hotkey) { throw error }
+    var next = state
+    next.settings.bossModeHotkey = hotkey
     return next
 }
 
 /// 月薪、作息、开机自启存在引导产生的配置里，引导前不能改。
-private func onboardedProfile(_ state: AppState) throws(CommandError) -> Profile {
-    guard let profile = state.profile else { throw .notOnboarded }
-    return profile
+private func updatingProfile(_ state: AppState, _ change: (inout Profile) -> Void) throws(CommandError) -> AppState {
+    guard var profile = state.profile else { throw .notOnboarded }
+    change(&profile)
+    var next = state
+    next.profile = profile
+    return next
 }
 
 extension Profile {

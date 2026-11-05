@@ -23,6 +23,8 @@ final class StatusItemController: NSObject {
     private var shown: MenuBarDisplay?
     /// 注册失败时为 nil，只能从左键菜单切换 (PRD 6.4)。
     private var bossModeHotkey: GlobalHotkey?
+    /// 设置页正在录制新快捷键，期间全局快捷键保持暂停，菜单合上也不恢复。
+    private var isRecordingHotkey = false
 
     init(
         model: AppModel,
@@ -150,10 +152,12 @@ final class StatusItemController: NSObject {
 /// 新组合在系统注册成功后才保存，旧的同时失效。
 extension StatusItemController {
     func suspendBossModeHotkey() {
+        isRecordingHotkey = true
         bossModeHotkey?.suspend()
     }
 
     func resumeBossModeHotkey() {
+        isRecordingHotkey = false
         bossModeHotkey?.resume()
     }
 
@@ -176,6 +180,7 @@ extension StatusItemController: NSMenuDelegate {
     }
 
     func menuDidClose(_ menu: NSMenu) {
+        guard !isRecordingHotkey else { return }
         bossModeHotkey?.resume()
     }
 }

@@ -20,8 +20,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         window.makeKeyAndOrderFront(nil)
     }
 
-    /// 录制快捷键中途关窗：结束录制，恢复全局快捷键。
+    /// 录制快捷键中途关窗或切走：结束录制，恢复全局快捷键，别的窗口的按键不再被吞掉。
     func windowWillClose(_ notification: Notification) {
+        form.endRecordingHotkey()
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
         form.endRecordingHotkey()
     }
 

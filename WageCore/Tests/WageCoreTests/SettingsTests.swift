@@ -312,7 +312,7 @@ struct BossModeHotkeyTests {
         Set<HotkeyModifier>([.control, .option]), [.command, .shift], [.control, .shift], [.command, .option], [.control, .option, .shift, .command],
     ])
     func acceptsStrongModifiers(modifiers: Set<HotkeyModifier>) throws {
-        #expect(Validation.hotkey(Hotkey(key: "B", modifiers: modifiers)) == nil)
+        #expect(rejection(.setBossModeHotkey(Hotkey(key: "B", modifiers: modifiers)), to: try onboarded()) == nil)
     }
 
     @Test("主键只能是单个大写字母或数字", arguments: ["", "b", "BB", "?", " ", "é"])
