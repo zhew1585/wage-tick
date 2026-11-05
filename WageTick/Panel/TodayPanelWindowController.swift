@@ -20,6 +20,8 @@ final class TodayPanelContent {
     var celebration: GoalCelebration?
     /// 概览还是原地打开的表单；每次打开面板回到概览。
     var route: PanelRoute = .home
+    /// 钉住：窗口始终浮在其他窗口之上。由标题栏右侧的图钉按钮切换，记在偏好里，重启后保留。
+    var isPinned = false
 }
 
 /// 今日概览面板 (PRD F4，页面 P2)，从左键菜单、主菜单「今日概览 ⌘1」、Dock 图标或通知打开。
@@ -137,11 +139,52 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         )
         // 面板是普通窗口，底部入口打开别的窗口时面板留着，牛马可以从 Dock、⌘Tab 或窗口菜单切回来。
         // 顶部整条让出标准标题栏 (28) 放红绿灯，下面按设计稿排。
+        // 钉住按钮放在标题栏右侧，和红绿灯同一行。
         let view = TodayPanelView(content: content, actions: actions, navigation: navigation)
             .padding(.top, WindowChrome.Titlebar.standard.height)
+            .overlay(alignment: .topTrailing) {
+                PinButton(content: content) { [weak self] in self?.togglePin() }
+                    .frame(height: WindowChrome.Titlebar.standard.height)
+                    .padding(.trailing, Spacing.s12)
+            }
         let panel = WindowChrome.makeWindow(PanelWindow.self, title: "今日概览", titlebar: .standard, rootView: view)
         panel.delegate = self
+        content.isPinned = UserDefaults.standard.bool(forKey: Self.pinnedKey)
+        applyPin(to: panel)
         return panel
+    }
+
+    // MARK: 钉住
+
+    private static let pinnedKey = "todayPanelPinned"
+
+    private func togglePin() {
+        content.isPinned.toggle()
+        UserDefaults.standard.set(content.isPinned, forKey: Self.pinnedKey)
+        applyPin(to: panel)
+    }
+
+    /// 钉住时窗口提到浮动层级，切到别的 App 也留在最前；取消后回到普通层级。
+    private func applyPin(to window: NSWindow) {
+        window.level = content.isPinned ? .floating : .normal
+    }
+}
+
+/// 标题栏右侧的图钉：未钉住为空心 muted，钉住为实心 accent。
+private struct PinButton: View {
+    let content: TodayPanelContent
+    let toggle: () -> Void
+
+    var body: some View {
+        Button(action: toggle) {
+            PhosphorIcon(content.isPinned ? .pushPinFill : .pushPin, size: 14)
+                .foregroundStyle(content.isPinned ? Palette.accent : Palette.muted)
+                .frame(width: 20, height: 20)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.highlight(radius: Radius.r4, outset: 2))
+        .help(content.isPinned ? "取消钉住" : "钉住：窗口始终在最前")
+        .accessibilityLabel(content.isPinned ? "取消钉住" : "钉住")
     }
 }
 

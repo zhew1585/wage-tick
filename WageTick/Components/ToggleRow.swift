@@ -17,7 +17,7 @@ struct ToggleRow: View {
     }
 }
 
-/// 胶囊开关：开为 money 底、圆钮靠右，关为 line 底、圆钮靠左；点整行切换。
+/// 胶囊开关：开为 accent (主题色) 底、圆钮靠右，关为 line 底、圆钮靠左；点整行切换。
 /// 整行是一个按钮：悬停手型，开关轨道悬停、按下时叠一层加深；不可用时变淡、没有反馈。
 struct ThemeSwitchToggleStyle: ToggleStyle {
     private static let disabledOpacity = 0.4
@@ -59,7 +59,7 @@ private struct ThemeSwitchTrack: View {
 
     var body: some View {
         Capsule()
-            .fill(isOn ? Palette.money : Palette.line)
+            .fill(isOn ? Palette.accent : Palette.line)
             .overlay(Capsule().fill(overlay))
             .frame(width: Self.trackSize.width, height: Self.trackSize.height)
             .overlay(alignment: isOn ? .trailing : .leading) {

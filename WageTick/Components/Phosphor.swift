@@ -22,6 +22,8 @@ enum Phosphor: String {
     case hourglassSimple = "hourglass-simple"
     case pencilSimple = "pencil-simple"
     case personSimpleRun = "person-simple-run"
+    case pushPin = "push-pin"
+    case pushPinFill = "push-pin-fill"
     case trash
     case trendDown = "trend-down"
     case umbrella
