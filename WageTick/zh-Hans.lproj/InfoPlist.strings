@@ -1,0 +1,2 @@
+/* 屏幕顶部主菜单的粗体 App 名用 CFBundleName；PRODUCT_NAME (WageTick) 还给模块名与包名用，这里只改给人看的名字。 */
+"CFBundleName" = "牛马鼓励器";

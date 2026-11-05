@@ -1,7 +1,8 @@
 import AppKit
 import WageCore
 
-/// 组装外壳各部件：状态存储、菜单栏条目、引导窗口、今日概览面板、设置窗口、目标管理、历史窗口、系统通知。
+/// 组装外壳各部件：状态存储、菜单栏条目、主菜单、引导窗口、今日概览面板、设置窗口、目标管理、历史窗口、系统通知。
+/// 普通 App + 菜单栏常驻 (ADR-0005)：点 Dock 图标找回窗口，关掉所有窗口不退出，小牛继续在菜单栏跑。
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var model: AppModel!
@@ -13,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var goals: GoalsWindowController!
     private var notifier: SystemNotifier!
     private var history: HistoryWindowController!
+    private var mainMenu: MainMenu!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 设计稿只有浅色一套 token (`Palette`)，App 窗口与菜单固定浅色外观；菜单栏小牛是模板图，仍跟随菜单栏深浅。
@@ -52,8 +54,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.statusItem.refresh()
         }
         settings = SettingsWindowController(form: SettingsFormModel(model: model, menuBar: statusItem, notifier: notifier))
+        mainMenu = MainMenu(actions: MainMenu.Actions(
+            isOnboarded: { [weak self] in self?.model.isOnboarded == true },
+            openTodayPanel: { [weak self] in self?.todayPanel.show() },
+            openGoals: { [weak self] in self?.goals.show() },
+            openHistory: { [weak self] in self?.history.show() },
+            openSettings: { [weak self] in self?.settings.show() }
+        ))
+        mainMenu.install()
         if !model.isOnboarded {
             onboarding.show()
         }
+    }
+
+    /// 点 Dock 图标：已引导打开今日概览，未引导回到引导。
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if model.isOnboarded {
+            todayPanel.show()
+        } else {
+            onboarding.show()
+        }
+        return false
+    }
+
+    /// 关掉所有窗口不退出，菜单栏小牛继续跑；只有菜单里的「退出」(⌘Q) 才退出。
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 }

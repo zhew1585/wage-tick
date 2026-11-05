@@ -30,7 +30,7 @@ final class GoalsContent {
     }
 }
 
-/// 目标管理窗口 (PRD F8，页面 P3)，从左键菜单「目标 ⌘2」或面板空目标区打开。外观见 `PageWindow`。
+/// 目标管理窗口 (PRD F8，页面 P3)，从左键菜单、主菜单「目标 ⌘2」或面板空目标区打开。外观见 `PageWindow`。
 /// 只在窗口可见时每秒刷新一次，让累计中目标的累计额跟着走。
 @MainActor
 final class GoalsWindowController: NSObject, NSWindowDelegate {

@@ -17,7 +17,7 @@ final class HistoryContent {
     var selectedDay: LocalDate?
 }
 
-/// 历史窗口 (PRD F10、F11，页面 P4、P5)，从左键菜单「历史 ⌘3」打开，可编辑历史 (#15)。外观见 `PageWindow`。
+/// 历史窗口 (PRD F10、F11，页面 P4、P5)，从左键菜单或主菜单「历史 ⌘3」打开，可编辑历史 (#15)。外观见 `PageWindow`。
 /// 只在窗口可见时每秒刷新一次：本月结算总额含今日已赚，要跟着本月累计走 (AC-HIS-01)。
 @MainActor
 final class HistoryWindowController: NSObject, NSWindowDelegate {

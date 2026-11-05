@@ -25,18 +25,13 @@ final class OnboardingWindowController {
             self?.window.close()
             self?.onComplete()
         }
-        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
-        window.title = "牛马鼓励器"
-        // 设计稿是一整张卡片，没有标题栏：标题栏透明、内容铺满，只留关闭按钮 (中途关闭见 AC-ONB-04)。
-        window.styleMask = [.titled, .closable, .fullSizeContentView]
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        window.standardWindowButton(.zoomButton)?.isHidden = true
-        window.isMovableByWindowBackground = true
-        window.backgroundColor = NSColor(Palette.bg)
+        let controller = NSHostingController(rootView: view)
+        // 不让出标题栏的安全区，窗口正好是设计稿的 360×560，否则底部会多出一条标题栏高的空白。
+        controller.safeAreaRegions = []
+        let window = NSWindow(contentViewController: controller)
+        // 设计稿是一整张卡片：标题栏透明、内容铺满，红绿灯齐全 (中途关闭见 AC-ONB-04)，步骤条排在红绿灯右边。
+        WindowChrome.apply(to: window, title: "牛马鼓励器", titlebar: .standard)
         window.setContentSize(OnboardingView.size)
-        window.isReleasedWhenClosed = false
         return window
     }
 }

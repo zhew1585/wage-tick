@@ -18,7 +18,7 @@ final class StateStore {
 
     /// 读出状态。没有文件视为首次打开；文件损坏或版本不认识时移到旁边留底，从头开始。
     func load() -> AppState {
-        guard FileManager.default.fileExists(atPath: fileURL.path()) else { return AppState() }
+        guard FileManager.default.fileExists(atPath: fileURL.path(percentEncoded: false)) else { return AppState() }
         do {
             let file = try JSONDecoder().decode(StateFile.self, from: Data(contentsOf: fileURL))
             guard file.version == Self.currentVersion else {
