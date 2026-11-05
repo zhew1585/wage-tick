@@ -1,51 +1,75 @@
 import Foundation
 
-/// 目标管理页 (PRD F8，页面 P3) 列表里的一行，文字已格式化好。
-public struct GoalRow: Sendable, Equatable, Identifiable {
-    public let id: Int
-    public let name: String
-    /// 如「累计中」「排队中」「已完成」。
-    public let statusLabel: String
-    /// 累计中为「¥3000 / ¥10000」；排队中为目标金额「¥3000」；已完成为「¥500 · 2月11日达成」，不在今年时带年份。
-    public let detail: String
-    /// 所在分组 (PRD F8：累计中、排队中、已完成三组)；只有排队中一组内可拖动排序，累计中固定在最前【D6】。
-    public let kind: Kind
-    /// 目标金额，截掉末尾 0，如「3000.5」，编辑时直接填进输入框。
-    public let amountInput: String
+/// 目标管理页 (PRD F8，页面 P3) 的目标列表，分两组，文字已格式化好。
+public struct GoalList: Sendable, Equatable {
+    /// 攒钱队列：全部未完成目标，按队列顺序；第一个是累计中，其余排队中。整组可拖动排序【D6】。
+    public let queue: [QueueGoalRow]
+    /// 已完成：按完成时间倒序，沉底，不参与排序、不能编辑 (AC-GOAL-10)。
+    public let completed: [CompletedGoalRow]
 
-    public enum Kind: Sendable, Equatable {
-        case accumulating, queued, completed
+    public init(queue: [QueueGoalRow], completed: [CompletedGoalRow]) {
+        self.queue = queue
+        self.completed = completed
     }
 
-    /// 能否改名称和金额：排队中和累计中可以，已完成冻结 (PRD 4.5.2)。
-    public var canEdit: Bool { kind != .completed }
+    public var isEmpty: Bool { queue.isEmpty && completed.isEmpty }
 }
 
-extension GoalRow {
-    /// 列表顺序：累计中在最前，排队中按队列顺序，已完成按完成时间倒序。
-    /// `active`：累计中目标的卡片，与面板目标区同一份。
-    static func rows(state: AppState, active: ActiveGoalCard?, today: Today, now: Moment) -> [GoalRow] {
-        let current = state.accumulatingGoal.flatMap { current in
-            active.map { GoalRow(goal: current.goal, statusLabel: "累计中", detail: $0.amountText, kind: .accumulating) }
-        }
-        let queued = state.goals.filter(\.status.isQueued).map { goal in
-            GoalRow(goal: goal, statusLabel: "排队中", detail: Format.money(goal.amount), kind: .queued)
+/// 攒钱队列里的一行 (累计中或排队中)，可编辑名称和金额。
+public struct QueueGoalRow: Sendable, Equatable, Identifiable {
+    public let id: Int
+    public let name: String
+    /// 目标金额，如「¥3000」，排队中的行展示它。
+    public let amountText: String
+    /// 目标金额，截掉末尾 0，如「3000.5」，编辑时直接填进输入框。
+    public let amountInput: String
+    /// 这个目标排在攒钱队列第一个 (累计中) 时的卡片：进度、累计额 / 目标金额、预计完成。
+    /// 第一行就是此刻的累计中目标，与面板目标区同一份；其余行是拖到最前时的即时预览，
+    /// 累计额 = 当前已累计的钱 (换人时转过去【D6】)，已达标的松手即完成。
+    public let asFirst: ActiveGoalCard
+}
+
+/// 已完成的一行，冻结，只能删除。
+public struct CompletedGoalRow: Sendable, Equatable, Identifiable {
+    public let id: Int
+    public let name: String
+    /// 目标金额，如「¥500」。
+    public let amountText: String
+    /// 如「2月11日达成」，不在今年时带年份「2026年12月30日达成」。
+    public let completedText: String
+
+    public init(id: Int, name: String, amountText: String, completedText: String) {
+        self.id = id
+        self.name = name
+        self.amountText = amountText
+        self.completedText = completedText
+    }
+}
+
+extension GoalList {
+    /// 攒钱队列按 `AppState.goals` 里未完成目标的先后 (累计中总在排队中之前)；已完成按完成时间倒序。
+    init(state: AppState, profile: Profile, today: Today, now: Moment, holidays: HolidayTable) {
+        let accumulated = state.accumulatingGoal.map { current in
+            Ledger.cumulativeIncome(profile: profile, dayRecords: state.dayRecords, today: today, holidays: holidays) - current.baseline
+        } ?? 0
+        let rule = AttendanceRule(holidays: holidays)
+        let queue = state.goals.filter { !$0.status.isCompleted }.map { goal in
+            QueueGoalRow(
+                id: goal.id, name: goal.name,
+                amountText: Format.money(goal.amount), amountInput: Format.trimmed(goal.amount),
+                asFirst: ActiveGoalCard(goal: goal, accumulated: accumulated, today: today, rule: rule)
+            )
         }
         let completed = state.goals.compactMap { goal -> (Goal, Date)? in
             if case .completed(let at) = goal.status { (goal, at) } else { nil }
         }
         let done = completed.sorted { $0.1 > $1.1 }.map { goal, at in
             let day = Moment(date: at, timeZone: now.timeZone).localDate
-            let detail = "\(Format.money(goal.amount)) · \(Format.monthDay(day, relativeTo: today.date))达成"
-            return GoalRow(goal: goal, statusLabel: "已完成", detail: detail, kind: .completed)
+            return CompletedGoalRow(
+                id: goal.id, name: goal.name, amountText: Format.money(goal.amount),
+                completedText: "\(Format.monthDay(day, relativeTo: today.date))达成"
+            )
         }
-        return [current].compactMap { $0 } + queued + done
-    }
-
-    private init(goal: Goal, statusLabel: String, detail: String, kind: Kind) {
-        self.init(
-            id: goal.id, name: goal.name, statusLabel: statusLabel, detail: detail,
-            kind: kind, amountInput: Format.trimmed(goal.amount)
-        )
+        self.init(queue: queue, completed: done)
     }
 }

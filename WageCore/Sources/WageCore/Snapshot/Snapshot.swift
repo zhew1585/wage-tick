@@ -15,7 +15,7 @@ public struct Snapshot: Sendable, Equatable {
     /// 请假表单 (F6) 的内容；未完成引导或今天不应出勤时为 nil，此时没有请假入口 (PRD 4.3.5 #8)。
     public let leaveForm: LeaveForm?
     /// 目标管理页的目标列表 (PRD F8)；未完成引导时为 nil。
-    public let goals: [GoalRow]?
+    public let goals: GoalList?
     /// 面板该播放的目标达成庆祝动画 (PRD F9)，开始播放时发 `.acknowledgeCelebration` 确认；没有时为 nil。
     public let celebration: GoalCelebration?
     /// 历史 (PRD 4.6.1) 的推导输入；未完成引导时为 nil。只带输入不推导，见 `historyMonths()`。
@@ -68,7 +68,7 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
         ),
         settingsForm: SettingsForm(profile: profile, today: today.date),
         leaveForm: LeaveForm(today: today, now: now),
-        goals: GoalRow.rows(state: state, active: activeGoal, today: today, now: now),
+        goals: GoalList(state: state, profile: profile, today: today, now: now, holidays: holidays),
         celebration: GoalCelebration(state: state),
         history: HistoryInputs(profile: profile, dayRecords: state.dayRecords, today: today, now: now, holidays: holidays)
     )

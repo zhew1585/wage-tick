@@ -19,8 +19,13 @@ private func creatingGoals(_ goals: [(String, Decimal)], in state: AppState, at 
 }
 
 /// 目标管理列表；未完成引导时测试失败。
-private func goalRows(_ state: AppState, at now: Moment) throws -> [GoalRow] {
+private func goalList(_ state: AppState, at now: Moment) throws -> GoalList {
     try #require(snapshot(of: state, at: now).goals)
+}
+
+/// 目标管理列表里攒钱队列的目标名称，按队列顺序，第一个是累计中。
+private func queueNames(_ state: AppState, at now: Moment) throws -> [String] {
+    try goalList(state, at: now).queue.map(\.name)
 }
 
 /// 面板目标区下方的队列部分；未完成引导时测试失败。
@@ -45,10 +50,7 @@ struct GoalQueueCreationTests {
         let state = try creatingGoals([("键盘", 1000), ("Switch 2", 3000)], in: try onboarded(), at: standardDay(9, 0))
 
         #expect(state.goals.map(\.status.isQueued) == [false, true])
-        #expect(try goalRows(state, at: standardDay(11, 0)).map { [$0.name, $0.statusLabel] } == [
-            ["键盘", "累计中"],
-            ["Switch 2", "排队中"],
-        ])
+        #expect(try queueNames(state, at: standardDay(11, 0)) == ["键盘", "Switch 2"])
         #expect(try activeGoal(state, at: standardDay(11, 0)).name == "键盘")
     }
 
@@ -140,7 +142,7 @@ struct GoalQueueDeletionTests {
         let state = try threeGoals()
         let deleted = try sending(.deleteGoal(id: try goalID("B", in: state)), to: state, at: standardDay(13, 6))
 
-        #expect(try goalRows(deleted, at: standardDay(13, 6)).map(\.name) == ["A", "C"])
+        #expect(try queueNames(deleted, at: standardDay(13, 6)) == ["A", "C"])
         #expect(try activeGoal(deleted, at: standardDay(13, 6)).amountText == "¥300 / ¥10000")
     }
 
@@ -150,7 +152,7 @@ struct GoalQueueDeletionTests {
         let deleted = try sending(.deleteGoal(id: try goalID("A", in: state)), to: state, at: standardDay(11, 0))
 
         #expect(try goalCard(deleted, at: standardDay(11, 0)) == .empty("给自己定个目标吧"))
-        #expect(try goalRows(deleted, at: standardDay(11, 0)) == [])
+        #expect(try goalList(deleted, at: standardDay(11, 0)) == GoalList(queue: [], completed: []))
     }
 
     @Test("F8 删除已完成目标：从列表移除，当前目标不受影响")
@@ -159,7 +161,7 @@ struct GoalQueueDeletionTests {
         let done = try sending(.advance, to: state, at: standardDay(15, 0))
         let deleted = try sending(.deleteGoal(id: try goalID("A", in: done)), to: done, at: standardDay(16, 0))
 
-        #expect(try goalRows(deleted, at: standardDay(16, 0)).map(\.name) == ["B"])
+        #expect(try goalList(deleted, at: standardDay(16, 0)) == GoalList(queue: goalList(done, at: standardDay(16, 0)).queue, completed: []))
         #expect(try activeGoal(deleted, at: standardDay(16, 0)) == activeGoal(done, at: standardDay(16, 0)))
     }
 
@@ -174,30 +176,88 @@ struct GoalQueueDeletionTests {
 
 @Suite("目标队列：排序")
 struct GoalQueueOrderTests {
-    @Test("AC-GOAL-05 / D6 把排队中 C 拖到累计中 A 之前：不允许，A 保持最前")
-    func cannotMoveBeforeActive() throws {
-        let state = try threeGoals()
+    @Test("AC-GOAL-05 / D6 累计中 A (1000) 已累计 300，把排队中 C (2000) 拖到 A 之前：C 成为累计中，累计额 300；A 退回排队中")
+    func movingQueuedGoalFirstTakesOverAccumulated() throws {
+        // 13:06 已工作 2.1 小时，今日已赚 300。
+        let state = try creatingGoals([("A", 1000), ("B", 3000), ("C", 2000)], in: try onboarded(), at: standardDay(9, 0))
         let ids = try ["C", "A", "B"].map { try goalID($0, in: state) }
+        let result = try apply(.reorderGoals(ids: ids), to: state, at: standardDay(13, 6))
 
-        #expect(throws: CommandError.goalOrderLocked) { try sending(.reorderGoals(ids: ids), to: state, at: standardDay(11, 0)) }
-        #expect(CommandError.goalOrderLocked.message == "累计中的目标固定在最前")
-        #expect(try goalRows(state, at: standardDay(11, 0)).map(\.name) == ["A", "B", "C"])
+        #expect(result.events.isEmpty)
+        #expect(try queueNames(result.state, at: standardDay(13, 6)) == ["C", "A", "B"])
+        let active = try activeGoal(result.state, at: standardDay(13, 6))
+        #expect(active.name == "C")
+        #expect(active.amountText == "¥300 / ¥2000")
+        #expect(result.state.goals.first { $0.name == "A" }?.status == .queued)
+        // C 接着从 A 的起算基准往上累计。
+        #expect(try activeGoal(result.state, at: standardDay(14, 6)).amountText == "¥442.8571 / ¥2000")
     }
 
-    @Test("PRD 4.5.2 排队中目标之间可以调整顺序：C 排到 B 之前，下一个激活的是 C")
+    @Test("AC-GOAL-09 / D6 累计中 A 已累计 300，把排队中 B (200) 拖到最前：B 立即完成，零头 100 结转给新的第一个")
+    func movingReachedGoalFirstCompletesIt() throws {
+        let state = try creatingGoals([("A", 1000), ("B", 200), ("C", 3000)], in: try onboarded(), at: standardDay(9, 0))
+        let ids = try ["B", "A", "C"].map { try goalID($0, in: state) }
+        let result = try apply(.reorderGoals(ids: ids), to: state, at: standardDay(13, 6))
+
+        #expect(result.state.goals.first { $0.name == "B" }?.status == .completed(at: standardDay(13, 6).date))
+        #expect(result.events == [.goalReached(message: "🎉 目标「B」达成")])
+        #expect(snapshot(of: result.state, at: standardDay(13, 6)).celebration?.goalID == (try goalID("B", in: state)))
+        #expect(try queueNames(result.state, at: standardDay(13, 6)) == ["A", "C"])
+        #expect(try activeGoal(result.state, at: standardDay(13, 6)).amountText == "¥100 / ¥1000")
+    }
+
+    @Test("D6 换下来的 A 退回排队中，之后再被激活时按激活时刻重新起算，不带回原来累计的钱")
+    func swappedOutGoalRestartsWhenActivatedAgain() throws {
+        // 13:06 A 已累计 300 时换成 B (500)；15:00 累计 571.4286，B 完成，A 只带着零头 71.4286 开始。
+        let state = try creatingGoals([("A", 10000), ("B", 500)], in: try onboarded(), at: standardDay(9, 0))
+        let ids = try ["B", "A"].map { try goalID($0, in: state) }
+        let swapped = try sending(.reorderGoals(ids: ids), to: state, at: standardDay(13, 6))
+        let done = try sending(.advance, to: swapped, at: standardDay(15, 0))
+
+        let active = try activeGoal(done, at: standardDay(15, 0))
+        #expect(active.name == "A")
+        #expect(active.amountText == "¥71.4286 / ¥10000")
+    }
+
+    @Test("D6 换下来再换回去：A 从此刻继承当前第一个的累计额，不是自己原来的起算基准")
+    func swappingBackInheritsCurrentAccumulated() throws {
+        // 13:06 把 B 换上 (300)，15:00 再把 A 换回来：A 继承 B 的起算基准，累计额 571.4286。
+        let state = try creatingGoals([("A", 10000), ("B", 3000)], in: try onboarded(), at: standardDay(9, 0))
+        let a = try goalID("A", in: state), b = try goalID("B", in: state)
+        let swapped = try sending(.reorderGoals(ids: [b, a]), to: state, at: standardDay(13, 6))
+        let back = try sending(.reorderGoals(ids: [a, b]), to: swapped, at: standardDay(15, 0))
+
+        #expect(try activeGoal(back, at: standardDay(15, 0)).amountText == "¥571.4286 / ¥10000")
+        #expect(back.goals.first { $0.id == b }?.status == .queued)
+    }
+
+    @Test("PRD 4.5.2 只调排队中目标之间的顺序：累计中目标和它的累计额不变，下一个激活的是 C")
     func reorderQueuedGoals() throws {
         let state = try creatingGoals([("A", 500), ("B", 3000), ("C", 2500)], in: try onboarded(), at: standardDay(9, 0))
         let ids = try ["A", "C", "B"].map { try goalID($0, in: state) }
-        let reordered = try sending(.reorderGoals(ids: ids), to: state, at: standardDay(11, 0))
+        let result = try apply(.reorderGoals(ids: ids), to: state, at: standardDay(11, 0))
 
-        #expect(try goalRows(reordered, at: standardDay(11, 0)).map(\.name) == ["A", "C", "B"])
-        let done = try sending(.advance, to: reordered, at: standardDay(15, 0))
+        #expect(result.events.isEmpty)
+        #expect(try queueNames(result.state, at: standardDay(11, 0)) == ["A", "C", "B"])
+        #expect(result.state.goals.first { $0.name == "A" }?.status == state.goals.first { $0.name == "A" }?.status)
+        #expect(try activeGoal(result.state, at: standardDay(11, 0)) == activeGoal(state, at: standardDay(11, 0)))
+        let done = try sending(.advance, to: result.state, at: standardDay(15, 0))
         #expect(try activeGoal(done, at: standardDay(15, 0)).name == "C")
     }
 
+    @Test("顺序不变时什么都不变")
+    func unchangedOrder() throws {
+        let state = try threeGoals()
+        let ids = try ["A", "B", "C"].map { try goalID($0, in: state) }
+        let result = try apply(.reorderGoals(ids: ids), to: state, at: standardDay(13, 6))
+
+        #expect(result.state == state)
+        #expect(result.events.isEmpty)
+    }
+
     @Test(
-        "PRD 4.5.2 排序列表必须正好是累计中和排队中的目标：少一个、多一个、重复或混入已完成都提示【这个目标已经不在了】",
-        arguments: [["A", "B"], ["A", "B", "C", "C"], ["A", "B", "C", "D"]]
+        "PRD 4.5.2 / AC-GOAL-10 排序列表必须正好是攒钱队列：少一个、多一个、重复或混入已完成都提示【这个目标已经不在了】",
+        arguments: [["A", "B"], ["A", "B", "C", "C"], ["A", "B", "C", "D"], ["D", "A", "B", "C"]]
     )
     func reorderWithStaleList(names: [String]) throws {
         let finished = try creatingGoal("D", 100, in: try onboarded(), at: standardDay(9, 0))
@@ -239,12 +299,9 @@ struct GoalQueueEditTests {
         let state = try threeGoals()
         let edited = try sending(.editGoal(id: try goalID("B", in: state), name: "耳机", amount: 1200), to: state, at: standardDay(11, 0))
 
-        let rows = try goalRows(edited, at: standardDay(11, 0))
-        #expect(rows.map { [$0.name, $0.statusLabel, $0.detail] } == [
-            ["A", "累计中", "¥142.8571 / ¥10000"],
-            ["耳机", "排队中", "¥1200"],
-            ["C", "排队中", "¥2500"],
-        ])
+        let queue = try goalList(edited, at: standardDay(11, 0)).queue
+        #expect(queue.map { [$0.name, $0.amountText] } == [["A", "¥10000"], ["耳机", "¥1200"], ["C", "¥2500"]])
+        #expect(queue.first?.asFirst.amountText == "¥142.8571 / ¥10000")
     }
 
     @Test("PRD 4.5.2 不变量 3 已完成目标不能编辑：提示【已完成的目标不能再改】")
@@ -398,26 +455,46 @@ struct GoalQueuePersistenceTests {
         let restored = try JSONDecoder().decode(AppState.self, from: JSONEncoder().encode(reordered))
 
         #expect(restored == reordered)
-        #expect(try goalRows(restored, at: standardDay(11, 0)).map(\.name) == ["A", "C", "B"])
+        #expect(try queueNames(restored, at: standardDay(11, 0)) == ["A", "C", "B"])
     }
 }
 
 @Suite("目标队列：目标管理列表")
 struct GoalQueueListTests {
-    @Test("F8 列表分三组：累计中、排队中 (按队列顺序)、已完成；已完成不能编辑")
+    @Test("F8 / AC-GOAL-10 列表分两组：攒钱队列 (按队列顺序，第一个是累计中) 与已完成 (沉底)")
     func rowsGrouped() throws {
         let first = try creatingGoal("D", 100, in: try onboarded(), at: standardDay(9, 0))
         let done = try sending(.advance, to: first, at: standardDay(11, 0))
         let state = try creatingGoals([("A", 10000), ("B", 3000.5), ("C", 2500)], in: done, at: standardDay(11, 0))
 
-        let rows = try goalRows(state, at: standardDay(11, 0))
-        #expect(rows.map { [$0.name, $0.statusLabel, $0.detail, $0.amountInput] } == [
-            ["A", "累计中", "¥0 / ¥10000", "10000"],
-            ["B", "排队中", "¥3000.5", "3000.5"],
-            ["C", "排队中", "¥2500", "2500"],
-            ["D", "已完成", "¥100 · 2月11日达成", "100"],
+        let list = try goalList(state, at: standardDay(11, 0))
+        #expect(list.queue.map { [$0.name, $0.amountText, $0.amountInput] } == [
+            ["A", "¥10000", "10000"],
+            ["B", "¥3000.5", "3000.5"],
+            ["C", "¥2500", "2500"],
         ])
-        #expect(rows.map(\.kind) == [.accumulating, .queued, .queued, .completed])
-        #expect(rows.map(\.canEdit) == [true, true, true, false])
+        #expect(list.completed.map { [$0.name, $0.amountText, $0.completedText] } == [["D", "¥100", "2月11日达成"]])
+    }
+
+    @Test("F8 攒钱队列第一个带累计中的进度、累计额、预计完成，与面板目标区同一份")
+    func firstRowIsAccumulating() throws {
+        let state = try threeGoals()
+        let list = try goalList(state, at: standardDay(11, 0))
+
+        #expect(list.queue.first?.asFirst == (try activeGoal(state, at: standardDay(11, 0))))
+    }
+
+    @Test("D6 排队中目标也带排到第一个时的样子：继承当前已累计的钱，供拖到最前时即时预览")
+    func queuedRowsPreviewAsFirst() throws {
+        // 13:06 已累计 300：B 3000 排到最前时还差 2700，扣除今日剩余 700 后 2 天到 2 月 13 日；C 200 换上即达标。
+        let state = try creatingGoals([("A", 10000), ("B", 3000), ("C", 200)], in: try onboarded(), at: standardDay(9, 0))
+        let previews = try goalList(state, at: standardDay(13, 6)).queue.dropFirst().map(\.asFirst)
+
+        #expect(previews.map { [$0.name, $0.amountText, $0.estimate] } == [
+            ["B", "¥300 / ¥3000", "还需搬砖 2 天 · 2月13日"],
+            ["C", "¥300 / ¥200", "今天就能达成"],
+        ])
+        #expect(abs(previews[0].progress - 0.1) < 1e-9)
+        #expect(previews[1].progress == 1)
     }
 }

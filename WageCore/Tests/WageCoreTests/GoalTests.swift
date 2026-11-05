@@ -232,12 +232,12 @@ struct GoalListTests {
         let secondDone = try apply(.advance, to: second, at: moment(2026, 2, 12, 15, 0)).state
         let third = try creatingGoal("Switch 2", 3000, in: secondDone, at: moment(2026, 2, 12, 15, 0))
 
-        let rows = try #require(snapshot(of: third, at: moment(2026, 2, 13, 11, 0)).goals)
+        let list = try #require(snapshot(of: third, at: moment(2026, 2, 13, 11, 0)).goals)
         // 2 月 12 日 15:00 新建，当天还剩 428.5714，加上 13 日 11:00 已赚 142.8571。
-        #expect(rows.map { [$0.name, $0.statusLabel, $0.detail] } == [
-            ["Switch 2", "累计中", "¥571.4286 / ¥3000"],
-            ["耳机", "已完成", "¥300 · 2月12日达成"],
-            ["键盘", "已完成", "¥500 · 2月11日达成"],
+        #expect(list.queue.map { [$0.name, $0.asFirst.amountText] } == [["Switch 2", "¥571.4286 / ¥3000"]])
+        #expect(list.completed.map { [$0.name, $0.amountText, $0.completedText] } == [
+            ["耳机", "¥300", "2月12日达成"],
+            ["键盘", "¥500", "2月11日达成"],
         ])
     }
 
@@ -247,12 +247,12 @@ struct GoalListTests {
         let state = try creatingGoal("键盘", 100, in: try onboarded(at: created), at: created)
         let done = try apply(.advance, to: state, at: moment(2026, 12, 30, 15, 0)).state
 
-        #expect(try #require(snapshot(of: done, at: moment(2027, 1, 4, 9, 0)).goals).map(\.detail) == ["¥100 · 2026年12月30日达成"])
+        #expect(try #require(snapshot(of: done, at: moment(2027, 1, 4, 9, 0)).goals).completed.map(\.completedText) == ["2026年12月30日达成"])
     }
 
     @Test("F8 没有目标时列表为空；引导前没有列表")
     func emptyList() throws {
-        #expect(snapshot(of: try onboarded(), at: standardDay(11, 0)).goals == [])
+        #expect(snapshot(of: try onboarded(), at: standardDay(11, 0)).goals == GoalList(queue: [], completed: []))
         #expect(snapshot(of: AppState(), at: standardDay(11, 0)).goals == nil)
     }
 }

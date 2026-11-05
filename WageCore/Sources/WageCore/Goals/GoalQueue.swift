@@ -1,7 +1,8 @@
 import Foundation
 
 // 目标队列 (PRD 4.5.2，issue #12)：编辑、删除、排序，以及达标后的完成与激活。
-// 队列 = 累计中目标 + 排队中目标 (按 `AppState.goals` 里的先后)；同一时间最多一个累计中，有排队中时必有累计中。
+// 攒钱队列 = 累计中目标 + 排队中目标 (按 `AppState.goals` 里的先后，累计中总在排队中之前)；
+// 同一时间最多一个累计中，有排队中时必有累计中。
 
 /// 编辑排队中或累计中目标的名称和金额 (PRD 4.5.2)。改小金额导致累计额已达标时立即完成并激活下一个。
 /// 已完成目标冻结，不能编辑 (不变量 3)。立即完成时的领域事件原样返回。
@@ -43,16 +44,24 @@ func deleteGoal(
     return completingReachedGoals(next.activatingNextGoal(baseline: baseline), now: now, holidays: holidays)
 }
 
-/// 调整队列顺序 (PRD 4.5.2)：`ids` 必须正好是当前累计中和排队中的目标，累计中固定在最前【D6】。
+/// 调整攒钱队列顺序 (PRD 4.5.2)：`ids` 必须正好是当前全部未完成目标 (累计中 + 排队中)，顺序任意，第一个即累计中【D6】。
+/// 第一个换人时：新的第一个成为累计中，继承原累计中目标的起算基准 (已累计的钱转过去)；原累计中目标退回排队中，
+/// 下次被激活时按激活时刻重新起算。继承后已达标的立即完成，零头照常结转，领域事件原样返回。
 /// 列表对不上 (目标已完成、已删除或重复) 时提示目标不在了，让外壳按最新快照重来。
-func reorderGoals(ids: [Int], state: AppState) throws(CommandError) -> AppState {
+func reorderGoals(
+    ids: [Int],
+    state: AppState,
+    now: Moment,
+    holidays: HolidayTable
+) throws(CommandError) -> (state: AppState, events: [DomainEvent]) {
     let queue = state.goals.filter { !$0.status.isCompleted }
     guard ids.count == queue.count, Set(ids) == Set(queue.map(\.id)) else { throw .goalNotFound }
-    guard ids.first == queue.first?.id else { throw .goalOrderLocked }
-    let queued = ids.dropFirst().compactMap { id in queue.first { $0.id == id } }
+    guard let current = state.accumulatingGoal, ids.first != current.goal.id else {
+        return (state.reorderingQueue(ids), [])
+    }
     var next = state
-    next.goals = state.goals.filter { !$0.status.isQueued } + queued
-    return next
+    next.goals[current.index].status = .queued
+    return completingReachedGoals(next.reorderingQueue(ids).activatingNextGoal(baseline: current.baseline), now: now, holidays: holidays)
 }
 
 /// 累计中目标达标即完成 (PRD 4.5.2)，完成时间取 `now`；下一个排队目标成为累计中，
@@ -82,6 +91,13 @@ func completingReachedGoals(
 }
 
 extension AppState {
+    /// 未完成目标按 `ids` 的顺序排在已完成目标之后；`ids` 已校验正好是全部未完成目标。状态不变。
+    func reorderingQueue(_ ids: [Int]) -> AppState {
+        var next = self
+        next.goals = goals.filter(\.status.isCompleted) + ids.compactMap { id in goals.first { $0.id == id } }
+        return next
+    }
+
     /// 第一个排队中目标成为累计中，起算基准为 `baseline`；没有排队中目标时不变。
     func activatingNextGoal(baseline: Decimal) -> AppState {
         guard let index = goals.firstIndex(where: \.status.isQueued) else { return self }

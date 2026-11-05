@@ -2,12 +2,12 @@ import SwiftUI
 import WageCore
 
 /// 新建目标，或编辑排队中、累计中目标的名称和金额 (PRD 4.5.2)，从目标管理弹出。
-/// 编辑时初始值取自快照的 `GoalRow`；校验交给核心，失败时展示 `CommandError.message`。
+/// 编辑时初始值取自快照攒钱队列里的那一行 (`QueueGoalRow`)；校验交给核心，失败时展示 `CommandError.message`。
 /// 改小金额导致已达标时核心会立即完成并激活下一个，这里不做判断。
 struct GoalFormView: View {
     enum Mode: Identifiable {
         case create
-        case edit(GoalRow)
+        case edit(QueueGoalRow)
 
         var id: String {
             switch self {
@@ -30,7 +30,7 @@ struct GoalFormView: View {
         self.mode = mode
         self.save = save
         self.dismiss = dismiss
-        let row: GoalRow? = if case .edit(let row) = mode { row } else { nil }
+        let row: QueueGoalRow? = if case .edit(let row) = mode { row } else { nil }
         _name = State(initialValue: row?.name ?? "")
         _amountText = State(initialValue: row?.amountInput ?? "")
     }

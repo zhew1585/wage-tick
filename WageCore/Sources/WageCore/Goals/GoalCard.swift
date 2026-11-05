@@ -40,7 +40,8 @@ extension ActiveGoalCard {
         self.init(goal: current.goal, accumulated: income - current.baseline, today: today, rule: AttendanceRule(holidays: holidays))
     }
 
-    private init(goal: Goal, accumulated: Decimal, today: Today, rule: AttendanceRule) {
+    /// `goal` 以累计额 `accumulated` 累计时的卡片；目标管理页也用它预览排队中目标排到第一个时的样子。
+    init(goal: Goal, accumulated: Decimal, today: Today, rule: AttendanceRule) {
         let shown = min(max(accumulated, 0), goal.amount)
         id = goal.id
         name = goal.name
