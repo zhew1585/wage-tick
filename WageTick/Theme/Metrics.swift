@@ -35,6 +35,7 @@ enum Spacing {
     static let s16: CGFloat = 16
     static let s18: CGFloat = 18
     static let s20: CGFloat = 20
+    static let s22: CGFloat = 22
     static let s24: CGFloat = 24
 
     /// 面板、表单页左右内边距。

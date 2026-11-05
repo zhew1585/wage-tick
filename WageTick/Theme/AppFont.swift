@@ -45,8 +45,12 @@ enum AppFont {
 
     // MARK: 界面文字预设 (font-ui)
 
-    /// 引导、空状态的大标题 22/700。
+    /// 空状态的大标题 22/700。
     static let title = ui(22, .bold)
+    /// 引导页大标题 28/700 (设计稿 P1 引导 · 760)。
+    static let display = ui(28, .bold)
+    /// 引导页副标题、大号输入框的单位 14/400。
+    static let lead = ui(14)
     /// 弹窗、子页面标题 15/700。
     static let sheetTitle = ui(15, .bold)
     /// 分组标题 14/600。
@@ -76,8 +80,10 @@ enum AppFont {
 
     /// 输入框里的数字 14/400。
     static let numField = num(14)
-    /// 大号输入框里的数字 18/600 (引导页月薪)。
-    static let numFieldLarge = num(18, .semibold)
+    /// 大号输入框里的数字 24/600 (引导页月薪)。
+    static let numFieldLarge = num(24, .semibold)
+    /// 中号输入框里的数字 17/600 (引导页时间)。
+    static let numFieldMedium = num(17, .semibold)
     /// 汇总项数值 17/600。
     static let numStat = num(17, .semibold)
     /// 菜单栏数字 13/500。

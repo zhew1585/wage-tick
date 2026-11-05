@@ -28,8 +28,6 @@ enum Palette {
     static let card = Color(hex: 0xFFFFFF)
     /// 分段控件选中块的投影 (设计稿 #1F1B161A，即 ink 10%)。
     static let shadow = ink.opacity(0.1)
-    /// 示意用的系统菜单栏底色 (引导第 3 步的菜单栏预览，设计稿里直接写的 #E9E6E1)。
-    static let menuBarMock = Color(hex: 0xE9E6E1)
 
     // MARK: 交互态 (设计稿没给，按上面的 token 推出来；用法见 `Components/Interaction.swift`)
 

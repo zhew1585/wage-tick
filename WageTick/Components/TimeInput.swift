@@ -4,8 +4,11 @@ import SwiftUI
 /// 外观照设计稿 P1 引导 · 2 作息：输入框里是 JetBrains Mono 14 的「09:00」，右侧一个向下箭头，不能手填。
 /// 点开弹出 `TimePickerPopover`：左列小时 00-23、右列分钟 00-59。选小时后留在弹层里，选分钟后收起。
 /// 悬停手型、箭头变 ink (外框描边由 `Field` 变)，按下时箭头 accent。
+/// 放进加高的 `Field(size: .medium)` 时 (引导 760) 用大一号：`TimeInput(selection: $start, font: AppFont.numFieldMedium, caretSize: 14)`。
 struct TimeInput: View {
     @Binding var selection: Date
+    var font = AppFont.numField
+    var caretSize: CGFloat = 12
     @State private var isOpen = false
 
     var body: some View {
@@ -13,14 +16,14 @@ struct TimeInput: View {
             isOpen.toggle()
         } label: {
             Text(TimeOfDay(selection).text)
-                .font(AppFont.numField)
+                .font(font)
                 .foregroundStyle(Palette.ink)
         }
         .buttonStyle(InteractiveButtonStyle { label, state in
             HStack(spacing: Spacing.s8) {
                 label
                 Spacer(minLength: 0)
-                PhosphorIcon(.caretDown, size: 12)
+                PhosphorIcon(.caretDown, size: caretSize)
                     .foregroundStyle(caretColor(state))
             }
             .frame(maxHeight: .infinity)
