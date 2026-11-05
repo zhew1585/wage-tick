@@ -3,14 +3,15 @@ import Foundation
 /// 目标 (PRD 4.5.1)：牛马录入的名称和金额，从激活那一刻起累计收入，达到即完成。
 /// 金额、起算基准编码为字符串，避免 JSON 数字经二进制浮点往返丢精度。
 public struct Goal: Sendable, Equatable, Codable, Identifiable {
-    public let id: UUID
+    /// 新建时按已有目标的最大编号 + 1 分配，核心不依赖随机数。
+    public let id: Int
     /// 1 至 20 字，已去掉首尾空白。
     public let name: String
     /// 大于 0。
     public let amount: Decimal
     public internal(set) var status: GoalStatus
 
-    init(id: UUID = UUID(), name: String, amount: Decimal, status: GoalStatus) {
+    init(id: Int, name: String, amount: Decimal, status: GoalStatus) {
         self.id = id
         self.name = name
         self.amount = amount
@@ -22,7 +23,7 @@ public struct Goal: Sendable, Equatable, Codable, Identifiable {
     /// 从文件读入时按新建同一套规则校验 (PRD 4.3.5 #9)，不合法抛解码错误。
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
+        id = try container.decode(Int.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
         amount = try container.decodeDecimal(forKey: .amount)
         if let error = Validation.goal(name: name, amount: amount) {

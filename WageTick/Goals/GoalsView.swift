@@ -14,8 +14,10 @@ struct GoalsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             form
-            Divider()
-            list
+            if !content.rows.isEmpty {
+                Divider()
+                list
+            }
         }
         .padding(20)
         .frame(width: 360)
@@ -40,21 +42,16 @@ struct GoalsView: View {
         }
     }
 
-    @ViewBuilder
     private var list: some View {
-        if content.rows.isEmpty {
-            Text("还没有目标").foregroundStyle(.secondary)
-        } else {
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(content.rows) { row in
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(row.name).font(.body.weight(.medium))
-                            Text(row.detail).font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                        }
-                        Spacer()
-                        Text(row.statusLabel).font(.caption).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(content.rows) { row in
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(row.name).font(.body.weight(.medium))
+                        Text(row.detail).font(.caption).foregroundStyle(.secondary).monospacedDigit()
                     }
+                    Spacer()
+                    Text(row.statusLabel).font(.caption).foregroundStyle(.secondary)
                 }
             }
         }

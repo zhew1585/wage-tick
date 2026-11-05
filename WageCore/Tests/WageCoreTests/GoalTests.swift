@@ -97,6 +97,14 @@ struct GoalEstimateTests {
         #expect(try activeGoal(state, at: standardDay(11, 0)).estimate == "今天就能达成")
     }
 
+    @Test("PRD 4.5.3 #2 扣除今日剩余可赚后正好为 0：也是【今天就能达成】")
+    func reachableTodayExactly() throws {
+        // 09:00 新建 1000 元目标；09:30 还没上班，剩余 1000，今日剩余可赚也是 1000。
+        let state = try creatingGoal("键盘", 1000, in: try onboarded(), at: standardDay(9, 0))
+
+        #expect(try activeGoal(state, at: standardDay(9, 30)).estimate == "今天就能达成")
+    }
+
     @Test("PRD 4.5.3 #2 已下班不再扣除今日剩余可赚：还差 500 时明天就是第 1 个应出勤日")
     func offWorkCountsFromTomorrow() throws {
         let state = try creatingGoal("键盘", 1500, in: try onboarded(), at: standardDay(9, 0))
@@ -188,7 +196,7 @@ struct GoalProgressTests {
         #expect(card.amountText == "¥0 / ¥1000")
     }
 
-    @Test("推进到此刻在引导前什么也不做")
+    @Test("spec #1 推进到此刻：引导前什么也不做")
     func advanceBeforeOnboarding() throws {
         #expect(try advanced(AppState(), at: standardDay(11, 0)) == AppState())
     }
@@ -196,7 +204,7 @@ struct GoalProgressTests {
 
 @Suite("目标：本期边界")
 struct GoalScopeTests {
-    @Test("已有累计中目标时暂不能再新建 (排队属于目标队列 #12)")
+    @Test("PRD 4.5.2 不变量 1 已有累计中目标时暂不能再新建 (排队属于目标队列 #12)")
     func secondGoalIsRejected() throws {
         let state = try creatingGoal("键盘", 1000, in: try onboarded(), at: standardDay(9, 0))
 
@@ -205,7 +213,7 @@ struct GoalScopeTests {
         }
     }
 
-    @Test("目标完成后可以再新建，从新建时刻起算，零头不保留")
+    @Test("PRD 4.5.2 完成时队列为空：零头不保留，之后新建的目标从新建时刻起算")
     func newGoalAfterCompletion() throws {
         let state = try creatingGoal("键盘", 500, in: try onboarded(), at: standardDay(9, 0))
         let done = try apply(.advance, to: state, at: standardDay(15, 0)).state
@@ -214,7 +222,7 @@ struct GoalScopeTests {
         #expect(try activeGoal(again, at: standardDay(15, 0)).amountText == "¥0 / ¥3000")
     }
 
-    @Test("引导前不能新建目标")
+    @Test("PRD 4.1.2 引导前不能新建目标")
     func requiresOnboarding() {
         #expect(throws: CommandError.notOnboarded) { try creatingGoal("键盘", 500, in: AppState(), at: standardDay(9, 0)) }
     }
@@ -268,7 +276,7 @@ struct GoalPersistenceTests {
         #expect(snapshot(of: restored, at: standardDay(17, 0)) == snapshot(of: state, at: standardDay(17, 0)))
     }
 
-    @Test("#11 之前写出的状态文件没有目标，读入后队列为空")
+    @Test("PRD 4.3.5 #14 #11 之前写出的状态文件没有目标，读入后队列为空")
     func oldFileWithoutGoals() throws {
         let state = try onboarded()
         var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(state)) as? [String: Any])
@@ -281,14 +289,14 @@ struct GoalPersistenceTests {
     @Test(
         "PRD 4.3.5 #9 文件里的目标不合法时拒绝读入",
         arguments: [
-            #"{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","name":"","amount":"500","status":"accumulating","baseline":"0"}"#,
-            #"{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","name":"键盘","amount":"0","status":"accumulating","baseline":"0"}"#,
-            #"{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","name":"键盘","amount":"500","status":"queued"}"#,
-            #"{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","name":"键盘","amount":"500","status":"accumulating","baseline":"abc"}"#,
+            #"{"id":1,"name":"","amount":"500","status":"accumulating","baseline":"0"}"#,
+            #"{"id":1,"name":"键盘","amount":"0","status":"accumulating","baseline":"0"}"#,
+            #"{"id":1,"name":"键盘","amount":"500","status":"queued"}"#,
+            #"{"id":1,"name":"键盘","amount":"500","status":"accumulating","baseline":"abc"}"#,
         ]
     )
     func invalidGoalIsRejected(goal: String) throws {
-        let valid = #"{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","name":"键盘","amount":"500","status":"accumulating","baseline":"0"}"#
+        let valid = #"{"id":1,"name":"键盘","amount":"500","status":"accumulating","baseline":"0"}"#
         #expect(throws: Never.self) { try JSONDecoder().decode(AppState.self, from: Data(#"{"goals":[\#(valid)]}"#.utf8)) }
 
         #expect(throws: DecodingError.self) { try JSONDecoder().decode(AppState.self, from: Data(#"{"goals":[\#(goal)]}"#.utf8)) }

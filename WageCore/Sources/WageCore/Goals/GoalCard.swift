@@ -10,6 +10,8 @@ public enum GoalCard: Sendable, Equatable {
 
 /// 累计中目标的卡片。
 public struct ActiveGoalCard: Sendable, Equatable {
+    /// 目标编号，与目标管理列表里的同一行一致。
+    public let id: Int
     public let name: String
     /// 累计额与目标金额，如「¥3000 / ¥10000」；累计额为负时显示 ¥0 (PRD 4.3.5 #17)。
     public let amountText: String
@@ -37,6 +39,7 @@ extension ActiveGoalCard {
 
     private init(goal: Goal, accumulated: Decimal, today: Today) {
         let shown = min(max(accumulated, 0), goal.amount)
+        id = goal.id
         name = goal.name
         amountText = "\(Format.money(max(accumulated, 0))) / \(Format.money(goal.amount))"
         progress = NSDecimalNumber(decimal: shown / goal.amount).doubleValue
@@ -54,7 +57,7 @@ extension ActiveGoalCard {
         guard rest > 0 else { return "今天就能达成" }
         let days = NSDecimalNumber(decimal: roundedUp(rest / today.dailyWage)).intValue
         let finish = AttendanceRule.attendanceDay(days, after: today.date)
-        return "还需搬砖 \(days) 天 · \(finish.month)月\(finish.day)日"
+        return "还需搬砖 \(days) 天 · \(Format.monthDay(finish))"
     }
 
     /// 向上取整到整数，如 6.5714 → 7。
@@ -76,5 +79,13 @@ extension AttendanceRule {
             if isAttendanceDay(date) { found += 1 }
         }
         return date
+    }
+}
+
+extension Format {
+    /// 日期，如「2月20日」；给了 `reference` 且不在同一年时带年份，如「2026年12月30日」。
+    static func monthDay(_ day: LocalDate, relativeTo reference: LocalDate? = nil) -> String {
+        let year = reference.map { $0.year == day.year } ?? true ? "" : "\(day.year)年"
+        return "\(year)\(day.month)月\(day.day)日"
     }
 }

@@ -9,6 +9,7 @@ func createGoal(name: String, amount: Decimal, state: AppState, now: Moment) thr
     let baseline = Ledger.cumulativeIncome(profile: profile, today: Today(profile: profile, now: now))
     var next = state
     next.goals.append(Goal(
+        id: (state.goals.map(\.id).max() ?? 0) + 1,
         name: name.trimmingCharacters(in: .whitespacesAndNewlines),
         amount: amount,
         status: .accumulating(baseline: baseline)

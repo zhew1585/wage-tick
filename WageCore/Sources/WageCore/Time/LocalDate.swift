@@ -35,7 +35,7 @@ public struct LocalDate: Sendable, Hashable, Comparable, Codable {
     }
 
     // 星期与加减天数用纯整数算法 (Howard Hinnant 的 days_from_civil / civil_from_days)，
-    // 不经 Calendar：目标的累计收入与预计完成日要逐日遍历，每次刷新都会算。
+    // 不经 Calendar：调用方会跨月甚至跨年逐日遍历，且每次刷新都要算，Calendar 太慢。
 
     /// 自 1970-01-01 起的天数。
     private var dayNumber: Int {
