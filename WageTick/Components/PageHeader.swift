@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// 设计稿子页面 (P3 至 P6) 的页头：左边返回箭头 + 标题 (15/700)，右边可放说明或操作，高 54，下沿一条分隔线。
+/// 设计稿子页面 (P3 至 P6 · 760) 的页头：左边返回箭头 (Phosphor caret-left 18) + 标题 (17/700)，右边可放说明或操作，
+/// 高 52 (与 `.tall` 标题栏同高，红绿灯正好垂直居中)，下沿一条分隔线。
 /// 页头和系统红绿灯排在同一行 (见 `PageWindow`)，左边让出红绿灯的位置，返回箭头在红绿灯右边。
 /// 顶层页面的返回就是关窗，下一级页面的返回回到上一级；esc 等同返回。返回按钮悬停、按下时外扩一圈圆角底。
 ///
@@ -12,8 +13,8 @@ struct PageHeader<Trailing: View>: View {
     let back: () -> Void
     @ViewBuilder let trailing: () -> Trailing
 
-    private static var height: CGFloat { 54 }
-    private static var iconSize: CGFloat { 16 }
+    private static var height: CGFloat { WindowChrome.Titlebar.tall.height }
+    private static var iconSize: CGFloat { 18 }
 
     init(_ title: String, back: @escaping () -> Void, @ViewBuilder trailing: @escaping () -> Trailing) {
         self.title = title
@@ -25,10 +26,8 @@ struct PageHeader<Trailing: View>: View {
         HStack(spacing: Spacing.s8) {
             Button(action: back) {
                 HStack(spacing: Spacing.s8) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .medium))
-                        .frame(width: Self.iconSize, height: Self.iconSize)
-                    Text(title).font(AppFont.sheetTitle).lineLimit(1)
+                    PhosphorIcon(.caretLeft, size: Self.iconSize)
+                    Text(title).font(AppFont.pageTitle).lineLimit(1)
                 }
                 .foregroundStyle(Palette.ink)
                 .contentShape(Rectangle())
@@ -52,16 +51,17 @@ extension PageHeader where Trailing == EmptyView {
     }
 }
 
-/// 页面里一组内容的小标题 (目标页「累计中 1」、设置页「钱与作息」)。
-/// `count` 给了时在标题后面跟一个等宽小数字。
+/// 页面里一组内容的小标题 (目标页「攒钱队列 4」、设置页「钱与作息」)。
+/// `count` 给了时在标题后面跟一个等宽小数字；`tracking` 是字距 (设置页 0.5)。
 struct GroupLabel: View {
     let title: String
     var count: Int?
     var font: Font = AppFont.captionSemibold
+    var tracking: CGFloat = 0
 
     var body: some View {
         HStack(spacing: Spacing.s6) {
-            Text(title).font(font)
+            Text(title).font(font).tracking(tracking)
             if let count {
                 Text("\(count)").font(AppFont.numSmall)
             }

@@ -1,9 +1,10 @@
 import SwiftUI
 import WageCore
 
-/// 目标管理 (PRD F8，设计稿 P3)：攒钱队列、已完成两组，底部「新目标」。
+/// 目标管理 (PRD F8，设计稿 P3 目标管理 · 760)：攒钱队列、已完成两组，底部「新目标」。
 /// 攒钱队列整组可拖动排序【D6】，第一行是累计中 (进度条、累计额、预计完成)，其余排队中，见 `GoalQueueList`；
 /// 已完成沉底、冻结只能删。编辑、删除在悬停时出现的按钮或右键菜单里，点整行不做任何事。
+/// 没有任何目标时页头与底部按钮之间只居中放一个大旗子图标。
 /// 校验与排序规则交给核心，失败时展示 `CommandError.message`；文字原样取自快照。
 struct GoalsView: View {
     let content: GoalsContent
@@ -19,10 +20,12 @@ struct GoalsView: View {
     var body: some View {
         VStack(spacing: 0) {
             PageHeader("目标", back: close)
-            ScrollBody {
-                groups
-                    .padding(.horizontal, Spacing.screen)
-                    .padding(.vertical, Spacing.s18)
+            if content.list.isEmpty {
+                emptyState
+            } else {
+                ScrollBody {
+                    groups.padding(Spacing.screen)
+                }
             }
             footer
         }
@@ -35,7 +38,7 @@ struct GoalsView: View {
     @ViewBuilder
     private var groups: some View {
         let list = content.list
-        VStack(alignment: .leading, spacing: Spacing.s20) {
+        VStack(alignment: .leading, spacing: Spacing.s24) {
             if !list.queue.isEmpty {
                 group("攒钱队列", count: list.queue.count) {
                     GoalQueueList(
@@ -55,17 +58,17 @@ struct GoalsView: View {
                     }
                 }
             }
-            // 没有任何目标时只放一个大旗子图标，文案留给悬停提示和读屏。
-            if list.isEmpty, let emptyText = content.emptyText {
-                PhosphorIcon(.flagBanner, size: 56)
-                    .foregroundStyle(Palette.line)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 180)
-                    .help(emptyText)
-                    .accessibilityElement()
-                    .accessibilityLabel(emptyText)
-            }
         }
+    }
+
+    /// 没有任何目标：居中一个大旗子图标，文案 (如「给自己定个目标吧」) 留给悬停提示和读屏。
+    private var emptyState: some View {
+        PhosphorIcon(.flagBanner, size: 56)
+            .foregroundStyle(Palette.line)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .help(content.emptyText ?? "")
+            .accessibilityElement()
+            .accessibilityLabel(content.emptyText ?? "")
     }
 
     private func group(_ title: String, count: Int, @ViewBuilder content: () -> some View) -> some View {
@@ -80,11 +83,12 @@ struct GoalsView: View {
             if let listError {
                 Text(listError).font(AppFont.caption).foregroundStyle(Palette.loss)
             }
-            Button { form = .create } label: { Label("新目标", systemImage: "plus") }
-                .buttonStyle(.primary(fullWidth: true))
+            Button { form = .create } label: { Label { Text("新目标") } icon: { PhosphorIcon(.plus) } }
+                .buttonStyle(.primary(fullWidth: true, height: ControlHeight.footerButton))
         }
         .padding(.horizontal, Spacing.screen)
-        .padding(.bottom, Spacing.s18)
+        .padding(.top, Spacing.s12)
+        .padding(.bottom, Spacing.screen)
     }
 
     /// 列表上直接发出的命令，失败时在底部按钮上方提示。
@@ -107,10 +111,8 @@ private struct CompletedGoalRowView: View {
 
     var body: some View {
         HStack(spacing: Spacing.s10) {
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: 14))
+            PhosphorIcon(.checkCircle, size: 16)
                 .foregroundStyle(Palette.money)
-                .frame(width: 16, height: 16)
             VStack(alignment: .leading, spacing: Spacing.s2) {
                 Text(row.name).font(AppFont.bodySemibold).lineLimit(1)
                 Text(row.completedText).font(AppFont.small)

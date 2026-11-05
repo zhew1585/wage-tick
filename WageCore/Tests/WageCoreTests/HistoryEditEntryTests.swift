@@ -112,7 +112,7 @@ struct HistoryEditEntryTests {
         let items = try #require(snapshot(of: state, at: standardDay(19, 0)).historyDay(feb(11))).detail.editing.unpaidWorkItems
 
         #expect(items.map(\.index) == [0, 1])
-        #expect(items.map(\.line.title) == ["08:00 至 09:15", "18:00 起"])
+        #expect(items.map(\.line.title) == ["08:00 – 09:15", "18:00 起"])
         #expect(items.map(\.input) == [UnpaidWorkInput(start: TimeOfDay(hour: 8, minute: 0), end: TimeOfDay(hour: 9, minute: 15)), nil])
     }
 
@@ -120,7 +120,7 @@ struct HistoryEditEntryTests {
     func monthSalary() throws {
         let month = try #require(snapshot(of: try onboarded(), at: standardDay(15, 0)).historyMonth(YearMonth(year: 2026, month: 2)))
 
-        #expect(month.salaryItem == StatItem(title: "月薪", value: "¥20000"))
+        #expect(month.salaryText == "¥20000 → 日薪 ¥1000")
         #expect(month.monthlySalary == 20000)
     }
 }

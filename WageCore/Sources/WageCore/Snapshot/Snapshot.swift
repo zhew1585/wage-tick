@@ -67,7 +67,7 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
             goalQueue: GoalQueueSection(state: state, active: activeGoal, today: today, holidays: holidays),
             goalCount: state.goals.filter { !$0.status.isCompleted }.count
         ),
-        settingsForm: SettingsForm(profile: profile, today: today.date),
+        settingsForm: SettingsForm(profile: profile, today: today, settings: state.settings),
         leaveForm: LeaveForm(today: today, now: now),
         goals: GoalList(state: state, profile: profile, today: today, now: now, holidays: holidays),
         celebration: GoalCelebration(state: state),

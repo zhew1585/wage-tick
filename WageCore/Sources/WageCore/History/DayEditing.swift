@@ -44,6 +44,8 @@ public struct UnpaidWorkItem: Sendable, Equatable, Identifiable {
     public let line: HistoryLine
     /// 修改表单的预填时段；计时中的那段不能改，为 nil。
     public let input: UnpaidWorkInput?
+    /// 这一段倒贴的钱 (时长 × 时薪，PRD 4.4.3 #4)，如「倒贴 ¥214.2857」；计时中的算到此刻。
+    public let loss: String
 
     public var id: Int { index }
 }
@@ -68,7 +70,7 @@ extension Snapshot {
 }
 
 extension HistoryLedger {
-    func editing(_ day: DayLedger, unpaidWorkLines: [HistoryLine]) -> DayEditing {
+    func editing(_ day: DayLedger, unpaidWorkLines: [HistoryLine], dailyWage: Decimal) -> DayEditing {
         let isFuture = day.date > today
         let restReason = CommandError.notAttendanceDay.message
         let futureReason = CommandError.futureDate.message
@@ -86,7 +88,11 @@ extension HistoryLedger {
             leave: leave,
             unpaidWork: isFuture ? .unavailable(reason: futureReason) : .available(unpaidWorkDraft(day.date)),
             unpaidWorkItems: zip(day.unpaidWork, unpaidWorkLines).enumerated().map { index, pair in
-                UnpaidWorkItem(index: index, line: pair.1, input: unpaidWorkInput(pair.0.segment, on: day.date))
+                let owed = inputs.profile.schedule(on: day.date).owed(dailyWage: dailyWage, milliseconds: pair.0.milliseconds)
+                return UnpaidWorkItem(
+                    index: index, line: pair.1, input: unpaidWorkInput(pair.0.segment, on: day.date),
+                    loss: "倒贴 \(Format.money(owed))"
+                )
             },
             overrideButton: overrideButton(day)
         )

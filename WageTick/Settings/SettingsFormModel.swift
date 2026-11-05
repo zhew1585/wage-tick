@@ -25,6 +25,8 @@ final class SettingsFormModel {
     /// 作息表单里的草稿，打开表单时按已保存的填好。
     var scheduleDraft = ScheduleDraft(.default)
     private(set) var menuBarMode = MenuBarMode.amount
+    /// 显示模式各段下面的预览 (此刻菜单栏会显示的数字，如「571.4286」「57.14%」「—」)，打开设置页期间每秒刷新。
+    private(set) var menuBarPreviews: [MenuBarMode: String] = [:]
     private(set) var hotkeyText = ""
     private(set) var launchAtLogin = true
     private(set) var isRecordingHotkey = false
@@ -45,7 +47,8 @@ final class SettingsFormModel {
     @ObservationIgnored private var keyMonitor: Any?
     @ObservationIgnored private let logger = Logger(subsystem: AppIdentity.bundleID, category: "Settings")
 
-    init(model: AppModel, menuBar: StatusItemController, notifier: SystemNotifier) {
+    /// `menuBar` 为 nil 时 (离屏预览) 改了设置不重绘菜单栏、不重新注册快捷键。
+    init(model: AppModel, menuBar: StatusItemController?, notifier: SystemNotifier) {
         self.model = model
         self.menuBar = menuBar
         self.notifier = notifier
@@ -68,6 +71,7 @@ final class SettingsFormModel {
             launchAtLogin = form.launchAtLogin
         }
         menuBarMode = snap.settings.menuBarMode
+        updatePreviews(from: snap)
         hotkeyText = snap.settings.bossModeHotkey.displayText
         offWorkNotification = snap.settings.offWorkNotification
         goalReachedNotification = snap.settings.goalReachedNotification
@@ -76,6 +80,16 @@ final class SettingsFormModel {
         scheduleMessage = nil
         hotkeyMessage = nil
         launchMessage = nil
+    }
+
+    /// 按最新快照刷新显示模式预览，设置窗口可见时每秒调一次。
+    func refreshMenuBarPreviews() {
+        updatePreviews(from: model.currentSnapshot())
+    }
+
+    private func updatePreviews(from snap: Snapshot) {
+        guard let form = snap.settingsForm else { return }
+        menuBarPreviews = Dictionary(uniqueKeysWithValues: MenuBarMode.allCases.map { ($0, form.menuBarPreview($0)) })
     }
 
     /// 打开月薪表单：按已保存的填好，清掉上次的提示。

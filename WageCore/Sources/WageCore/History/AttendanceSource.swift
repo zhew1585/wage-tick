@@ -2,7 +2,9 @@ import Foundation
 
 /// 判定来源 (PRD 4.2.2 应出勤日字段)：这一天是否应出勤由哪条规则决定，历史单日详情里展示。
 public enum AttendanceSource: Sendable, Equatable, CaseIterable {
-    /// 双休：不在节假日表里，周一至周五应出勤、周六日不应出勤 (含节假日数据缺失的年份)。
+    /// 工作日：不在节假日表里的周一至周五，应出勤 (含节假日数据缺失的年份)。设计稿 760 从「双休」里分出来。
+    case workday
+    /// 双休：不在节假日表里的周六日，不应出勤。
     case weekend
     /// 法定节假日：不应出勤。
     case publicHoliday
@@ -14,6 +16,7 @@ public enum AttendanceSource: Sendable, Equatable, CaseIterable {
     /// 展示文案。
     public var label: String {
         switch self {
+        case .workday: "工作日"
         case .weekend: "双休"
         case .publicHoliday: "法定节假日"
         case .makeupDay: "调休上班"
@@ -29,7 +32,7 @@ extension AttendanceRule {
         return switch holidays.kind(on: date) {
         case .makeupDay: .makeupDay
         case .holiday: .publicHoliday
-        case nil: .weekend
+        case nil: date.isWeekend ? .weekend : .workday
         }
     }
 }

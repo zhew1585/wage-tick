@@ -37,6 +37,9 @@ enum Spacing {
     static let s20: CGFloat = 20
     static let s22: CGFloat = 22
     static let s24: CGFloat = 24
+    // 760 设计稿补的：日历行距 5、单日详情结算区上边距 26。
+    static let s5: CGFloat = 5
+    static let s26: CGFloat = 26
 
     /// 面板、表单页左右内边距。
     static let screen = s20
@@ -50,4 +53,12 @@ enum Spacing {
 /// 弹出的 sheet (改月薪、补记等小表单) 不在此列，仍按内容大小。
 enum WindowMetrics {
     static let size = CGSize(width: 360, height: 760)
+}
+
+/// 控件高度 token (设计稿里直接写的高度)。
+enum ControlHeight {
+    /// 子页面底部整宽主按钮 (目标页「新目标」)，760 设计稿 44。
+    static let footerButton: CGFloat = 44
+    /// 设置页「清空数据并重启」整宽按钮，760 设计稿 40。
+    static let wideButton: CGFloat = 40
 }

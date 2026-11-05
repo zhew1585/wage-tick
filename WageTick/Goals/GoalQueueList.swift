@@ -2,7 +2,7 @@ import SwiftUI
 import WageCore
 
 /// 攒钱队列 (PRD F8)：line 描边的卡片，整组按住一行上下拖动排序【D6】。
-/// 第一行是累计中 (accent-soft 底，进度条、累计额 / 目标金额、预计完成，参考设计稿 P3 累计中大卡)，其余排队中。
+/// 第一行是累计中 (accent-soft 底，进度条、累计额 / 目标金额、预计完成，设计稿 P3 目标管理 · 760)，其余排队中。
 /// 第一行的样子按「眼下排在第几」决定，拖到第一位的行即时显示成累计中，内容取快照里的 `asFirst` 预览。
 /// 被拖的行实时跟着鼠标，其余行带动画让位，松手才把新顺序交给核心。
 /// 用列表内的拖动手势而不是系统拖放 (`onDrag`)：系统拖放要生成拖拽图、走跨 App 的拖放流程，起拖慢、跟手差。
@@ -144,10 +144,8 @@ private struct QueueGoalRowView: View {
     }
 
     private var handle: some View {
-        Image(systemName: "line.3.horizontal")
-            .font(.system(size: 11, weight: .medium))
+        PhosphorIcon(.list, size: 14)
             .foregroundStyle(isFirst ? Palette.accent : Palette.muted)
-            .frame(width: 14, height: 14)
             .help("拖动调整顺序，排在第一个的就是累计中")
     }
 

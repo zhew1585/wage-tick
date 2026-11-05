@@ -75,20 +75,31 @@ extension HistoryLedger {
             month: month,
             title: "\(month.year)年\(month.month)月",
             isCurrentMonth: isCurrent,
-            stats: [
-                StatItem(title: "结算总额", value: Format.money(settled)),
-                StatItem(title: "应出勤日数", value: "\(ledger.attendanceDayCount) 天"),
-                StatItem(title: "扣款合计", value: Format.deductionOrZero(deducted)),
-                StatItem(title: "请假天数", value: "\(Format.trimmed(leaveDays)) 天"),
-                StatItem(title: "白干时长", value: Format.hoursMinutes(milliseconds: unpaid)),
-            ]
+            isInstallMonth: month == inputs.profile.installDate.yearMonth,
+            total: Format.money(settled),
+            attendance: HistoryFigure(title: "应出勤", value: "\(ledger.attendanceDayCount) 天"),
+            deduction: HistoryFigure(title: "扣款", value: Format.money(deducted), isLoss: deducted > 0),
+            leave: HistoryFigure(title: "请假", value: "\(Format.trimmed(leaveDays)) 天"),
+            unpaidWork: HistoryFigure(title: "白干", value: Format.compactDuration(milliseconds: unpaid))
         )
     }
 }
 
 extension Format {
-    /// 扣款合计：有扣款时如「−¥550」，没有时为「¥0」，不出现「−¥0」。
+    /// 扣款：有扣款时如「−¥550」，没有时为「¥0」，不出现「−¥0」。
     static func deductionOrZero(_ amount: Decimal) -> String {
         amount > 0 ? deduction(amount) : money(0)
+    }
+
+    /// 历史里的时长 (设计稿 760)：不满 1 小时只写分钟，如「45m」「0m」；满 1 小时分钟补足两位，如「2h05m」。
+    static func compactDuration(milliseconds: Int) -> String {
+        let minutes = max(0, milliseconds) / 60_000
+        guard minutes >= 60 else { return "\(minutes)m" }
+        return "\(minutes / 60)h\(String(format: "%02d", minutes % 60))m"
+    }
+
+    /// 日历格子里的金额：四舍五入到元，如「¥952」(格子窄，放不下小数)。
+    static func wholeMoney(_ amount: Decimal) -> String {
+        money(round(amount, scale: 0))
     }
 }
