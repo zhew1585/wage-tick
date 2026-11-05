@@ -30,9 +30,14 @@ public struct Today: Sendable, Equatable {
     let settlement: DaySettlement?
     /// 今天的请假 (PRD 4.4.2)；没请假或今天不是应出勤日时为 nil。
     public let leave: Leave?
+    /// 今天的白干时长、已倒贴与计时状态 (PRD 4.4.3)。
+    public let unpaidWork: UnpaidWorkToday
 
     /// 今日已赚是否正在增长：只在上班中增长 (PRD 4.3.3 不变量 3)。外壳据此决定刷新频率。
     public var isEarning: Bool { status == .working }
+
+    /// 面板主数字是否在滚动：上班中的今日已赚，或白干计时中的今日已倒贴。外壳据此决定刷新频率。
+    public var isRolling: Bool { isEarning || unpaidWork.isRunning }
 }
 
 /// 应出勤日当天的收入相关数字 (PRD 4.3.4)。
@@ -62,6 +67,13 @@ extension Today {
         }
         let pastDays = month.days.filter { $0 < day && rule.isAttendanceDay($0) }
         let settledSum = pastDays.map { settle($0).cap }.reduce(0, +)
+        // 时薪按该日生效作息的标准工时，不受半天假影响 (PRD 4.4.3 #4)。
+        let unpaidWorkToday = { (status: DayStatus) in
+            UnpaidWorkToday(
+                segments: dayRecords.first { $0.date == day }?.unpaidWork ?? [],
+                status: status, dailyWage: wage, schedule: profile.schedule(on: day), now: now
+            )
+        }
         date = day
         dailyWage = wage
         attendedDays = pastDays.count
@@ -73,6 +85,7 @@ extension Today {
             settlement = nil
             leave = nil
             monthToDate = settledSum
+            unpaidWork = unpaidWorkToday(.restDay)
             return
         }
         let todaySettlement = settle(day)
@@ -87,6 +100,7 @@ extension Today {
         settlement = todaySettlement
         leave = todayLeave
         monthToDate = settledSum + todayEarnings.earned
+        unpaidWork = unpaidWorkToday(status)
     }
 }
 
@@ -125,14 +139,16 @@ extension MenuBarDisplay {
     /// 按显示模式 (PRD 4.7.1 第 2 条) 决定数字：金额模式为 4 位小数的今日已赚，进度模式为 2 位小数的工作进度，
     /// 仅图标模式不显示数字；休息日 (含全天请假，AC-HOME-07) 一律只显示小牛。
     /// 老板路过模式下 (第 3 条) 只隐藏数字，小牛姿势照常随日状态变化。
+    /// 白干计时中小牛边拉磨边冒汗 (AC-BAR-09)，数字不变 (白干不改变收入)。
     init(today: Today, settings: InterfaceSettings) {
-        let pose: CowPose = switch today.status {
+        let statusPose: CowPose = switch today.status {
         case .restDay: .sunbathing
         case .notStarted: .yawning
         case .working: .grinding
         case .lunchBreak: .sleeping
         case .offWork: .lyingFlat
         }
+        let pose = today.unpaidWork.isRunning ? .sweating : statusPose
         let text: String? = if settings.bossMode || today.status == .restDay {
             nil
         } else {

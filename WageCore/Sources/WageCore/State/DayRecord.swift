@@ -1,7 +1,7 @@
 import Foundation
 
 /// 日记录 (PRD 4.3.1)：某一天牛马手动产生的内容。
-/// 字段按 PRD 命名：单日覆盖、请假、扣钱记录、白干段；目前有扣钱记录 (#7) 与请假 (#8)，其余由各自的票追加。
+/// 字段按 PRD 命名：单日覆盖、请假、扣钱记录、白干段；目前有扣钱记录 (#7)、请假 (#8) 与白干段 (#9)，其余由各自的票追加。
 /// 日薪、今日上限、结算等推导内容一律不存，见 `DaySettlement`。
 public struct DayRecord: Sendable, Equatable, Codable {
     public let date: LocalDate
@@ -9,13 +9,16 @@ public struct DayRecord: Sendable, Equatable, Codable {
     public internal(set) var deductions: [Deduction]
     /// 请假 (PRD 4.4.2)；nil 表示这天没请假。同一天只有一条 (4.4.2 #4)。
     public internal(set) var leave: Leave?
+    /// 白干段 (PRD 4.4.3)，1:N，按开始时刻先后排列。
+    public internal(set) var unpaidWork: [UnpaidWorkSegment]
 
-    private enum CodingKeys: String, CodingKey { case date, deductions, leave }
+    private enum CodingKeys: String, CodingKey { case date, deductions, leave, unpaidWork }
 
-    init(date: LocalDate, deductions: [Deduction] = [], leave: Leave? = nil) {
+    init(date: LocalDate, deductions: [Deduction] = [], leave: Leave? = nil, unpaidWork: [UnpaidWorkSegment] = []) {
         self.date = date
         self.deductions = deductions
         self.leave = leave
+        self.unpaidWork = unpaidWork
     }
 
     /// 其他票追加的字段可能让一条日记录没有扣钱记录，缺省视为空。
@@ -24,10 +27,27 @@ public struct DayRecord: Sendable, Equatable, Codable {
         date = try container.decode(LocalDate.self, forKey: .date)
         deductions = try container.decodeIfPresent([Deduction].self, forKey: .deductions) ?? []
         leave = try container.decodeIfPresent(Leave.self, forKey: .leave)
+        unpaidWork = try container.decodeIfPresent([UnpaidWorkSegment].self, forKey: .unpaidWork) ?? []
     }
 
     /// 没有任何牛马录入的内容时，这条日记录可以删掉。
-    var isEmpty: Bool { deductions.isEmpty && leave == nil }
+    var isEmpty: Bool { deductions.isEmpty && leave == nil && unpaidWork.isEmpty }
+}
+
+/// 一段白干计时 (PRD 4.4.3)："我还没走"或"被迫营业"从开始到停止。
+public struct UnpaidWorkSegment: Sendable, Equatable, Codable {
+    public let start: Date
+    /// 计时中为 nil。
+    public internal(set) var end: Date?
+    /// 疑似通宵：到 23:59:59 被自动停止时为 true (PRD 4.3.5 #12)。
+    public internal(set) var suspectedAllNighter: Bool
+
+    /// 文件里结束早于开始的段不拒绝读入 (那样整个状态文件都会被隔离)：推导时长时按 0 计。
+    init(start: Date, end: Date? = nil, suspectedAllNighter: Bool = false) {
+        self.start = start
+        self.end = end
+        self.suspectedAllNighter = suspectedAllNighter
+    }
 }
 
 /// 扣钱记录 (PRD 4.4.1)：牛马自己记下的一笔某天被扣的钱。

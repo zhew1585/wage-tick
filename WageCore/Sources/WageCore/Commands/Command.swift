@@ -28,6 +28,13 @@ public enum Command: Sendable, Equatable {
     case editLeave(Leave)
     /// 撤销今天的请假，当天恢复为普通应出勤日 (4.4.2 #5)；没有请假时什么都不变。
     case cancelLeave
+    /// 开始白干计时 (PRD 4.4.3)："我还没走"或"被迫营业"。
+    case startUnpaidWork
+    /// 停止白干计时："终于下班了"。
+    case stopUnpaidWork
+    /// 推进到此刻：处理随时间发生的状态变化 (白干到 23:59:59 自动停止)。
+    /// 外壳每次刷新时先发它，再取快照。
+    case advance
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -61,6 +68,9 @@ public enum CommandError: Error, Sendable, Equatable {
     case notAttendanceDay
     case deductionNotFound
     case leavePercentOutOfRange
+    case unpaidWorkUnavailable
+    case unpaidWorkAlreadyRunning
+    case unpaidWorkNotRunning
 
     public var message: String {
         switch self {
@@ -76,13 +86,17 @@ public enum CommandError: Error, Sendable, Equatable {
         case .notAttendanceDay: "今天本来就不上班"
         case .deductionNotFound: "这笔扣钱已经不在了"
         case .leavePercentOutOfRange: "扣薪比例要在 0% 到 100% 之间"
+        // 以下三条 PRD 没给文案：外壳只在快照允许时才提供按钮，正常用不到。
+        case .unpaidWorkUnavailable: "下班后或休息日才能白干计时"
+        case .unpaidWorkAlreadyRunning: "已经在白干计时了"
+        case .unpaidWorkNotRunning: "没有在白干计时"
         }
     }
 }
 
 /// 核心入口一：在 `now` 时刻对 `state` 执行 `command`，返回新状态与领域事件。
 /// 校验失败时抛出 `CommandError`，原状态不受影响。
-/// `holidays` 用于需要判定应出勤日的命令 (如记扣钱、请假)；不传时为空表，只按双休。
+/// `holidays` 用于需要判定应出勤日的命令 (如记扣钱、请假、白干计时)；不传时为空表，只按双休。
 public func apply(
     _ command: Command,
     to state: AppState,
@@ -118,6 +132,12 @@ public func apply(
         return (try setLeave(leave, mergingWithExisting: false, state: state, now: now, holidays: holidays), [])
     case .cancelLeave:
         return (cancelLeave(state: state, now: now), [])
+    case .startUnpaidWork:
+        return (try startUnpaidWork(state: state, now: now, holidays: holidays), [])
+    case .stopUnpaidWork:
+        return (try stopUnpaidWork(state: state, now: now), [])
+    case .advance:
+        return (advanceUnpaidWork(state: state, now: now), [])
     }
 }
 

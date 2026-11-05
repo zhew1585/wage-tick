@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import WageCore
 
 /// 外壳持有的唯一状态容器："命令进、快照出"。
@@ -9,6 +10,7 @@ final class AppModel {
     private var state: AppState
     /// 节假日表，由 `HolidayUpdater` 从数据源适配器取来；未就绪时为空表，只按双休。
     var holidays: HolidayTable = .empty
+    private let logger = Logger(subsystem: AppIdentity.bundleID, category: "AppModel")
 
     init(store: StateStore) {
         self.store = store
@@ -34,9 +36,24 @@ final class AppModel {
         }
     }
 
-    /// 按系统当前时间与时区、当前节假日表取快照。
+    /// 先发「推进到此刻」处理随时间发生的变化 (白干到 23:59:59 自动停止)，
+    /// 再按同一此刻、当前节假日表取快照。每次刷新都会调用，只在状态真的变了才落盘。
     func currentSnapshot() -> Snapshot {
-        snapshot(of: state, at: Self.now(), holidays: holidays)
+        let now = Self.now()
+        advance(at: now)
+        return snapshot(of: state, at: now, holidays: holidays)
+    }
+
+    private func advance(at now: Moment) {
+        do {
+            let next = try apply(.advance, to: state, at: now, holidays: holidays).state
+            guard next != state else { return }
+            state = next
+            store.save(state)
+        } catch {
+            // 推进到此刻没有校验，正常不会被拒绝；万一被拒，状态不变，下次刷新再推进。
+            logger.error("推进到此刻失败：\(error.message, privacy: .public)")
+        }
     }
 
     /// 时钟：系统当前时间与当前时区 (PRD 4.3.5 #11)。

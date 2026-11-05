@@ -56,7 +56,7 @@ final class StatusItemController: NSObject {
         item.menu = model.isOnboarded ? menu : nil
         render(snap.menuBar)
         renderBossModeItem(snap.settings)
-        scheduleNextRefresh(rolling: snap.today?.isEarning == true)
+        scheduleNextRefresh(rolling: snap.today?.isRolling == true)
     }
 
     private func configureButton() {

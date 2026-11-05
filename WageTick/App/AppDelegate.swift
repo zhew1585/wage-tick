@@ -16,7 +16,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 先交出内置与缓存的节假日数据，菜单栏第一次刷新就按它计算。
         holidayUpdater = HolidayUpdater(model: model)
         holidayUpdater.start()
-        todayPanel = TodayPanelWindowController(model: model)
+        todayPanel = TodayPanelWindowController(model: model) { [weak self] in
+            self?.statusItem.refresh()
+        }
         onboarding = OnboardingWindowController(model: model) { [weak self] in
             self?.statusItem.refresh()
         }

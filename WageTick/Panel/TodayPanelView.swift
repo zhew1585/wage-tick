@@ -3,7 +3,7 @@ import SwiftUI
 import WageCore
 
 /// 今日概览面板 (PRD F4)。所有文字和数字原样取自快照的 `TodayPanel`，这里只管排版。
-/// 目标区、被迫营业按钮、「我还没走」按钮只占位，功能留给后续票。
+/// 白干计时按钮 (我还没走、被迫营业、终于下班了) 原样发出快照给的命令；目标区只占位，功能留给后续票。
 struct TodayPanelView: View {
     let content: TodayPanelContent
     let actions: PanelActions
@@ -12,8 +12,10 @@ struct TodayPanelView: View {
     /// 正在弹出的请假表单；nil 时没有表单。
     @State private var leaveForm: LeaveFormView.Mode?
 
-    /// 进度区高度：已下班时换成「我还没走」按钮，高度保持一致 (AC-HOME-11)。
+    /// 进度区高度：已下班时换成「我还没走」按钮、白干中换成「终于下班了」按钮，高度保持一致 (AC-HOME-11)。
     private static let progressAreaHeight: CGFloat = 44
+    /// 情绪按钮行高度：白干中这一行可能没有按钮，固定高度让面板总高度不变 (AC-HOME-11)。
+    private static let moodRowHeight: CGFloat = 24
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -22,9 +24,11 @@ struct TodayPanelView: View {
                 header(panel)
                 switch panel.body {
                 case .attendance(let attendance):
-                    attendanceSection(attendance)
+                    attendanceSection(attendance, button: panel.unpaidWorkButton)
                 case .rest(let rest):
                     restSection(rest)
+                case .unpaidWork(let unpaidWork):
+                    unpaidWorkSection(unpaidWork, button: panel.unpaidWorkButton)
                 }
                 goalPlaceholder
                 Divider()
@@ -69,14 +73,9 @@ struct TodayPanelView: View {
     }
 
     @ViewBuilder
-    private func attendanceSection(_ attendance: AttendancePanel) -> some View {
+    private func attendanceSection(_ attendance: AttendancePanel, button: UnpaidWorkButton?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(attendance.headline)
-                .font(.system(size: 34, weight: .semibold, design: .rounded).monospacedDigit())
-            Text(attendance.caption)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
+            headline(attendance.headline, caption: attendance.caption)
             if let notice = attendance.notice {
                 Text(notice).font(.callout).foregroundStyle(.orange)
             }
@@ -85,15 +84,53 @@ struct TodayPanelView: View {
             if let progress = attendance.progress {
                 progressSection(progress)
             } else {
-                Button("我还没走") {}
-                    .disabled(true)
-                    .frame(maxWidth: .infinity)
+                unpaidWorkArea(button)
             }
         }
         .frame(height: Self.progressAreaHeight)
         statsRow(attendance.stats)
         if !attendance.deductions.isEmpty {
             deductionList(attendance.deductions)
+        }
+    }
+
+    /// 白干计时中：与上班中同样的结构，进度区换成「终于下班了」按钮 (F4 第 4 条)。
+    @ViewBuilder
+    private func unpaidWorkSection(_ unpaidWork: UnpaidWorkPanel, button: UnpaidWorkButton?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            headline(unpaidWork.headline, caption: unpaidWork.caption)
+        }
+        unpaidWorkArea(button)
+            .frame(height: Self.progressAreaHeight)
+        statsRow(unpaidWork.stats)
+    }
+
+    /// 主数字与下方一行小字。
+    @ViewBuilder
+    private func headline(_ headline: String, caption: String) -> some View {
+        Text(headline)
+            .font(.system(size: 34, weight: .semibold, design: .rounded).monospacedDigit())
+        Text(caption)
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
+            // 固定单行，上班中与白干中的面板总高度一致 (AC-HOME-11)。
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+    }
+
+    /// 进度区位置上的白干计时按钮 (我还没走、终于下班了)：文案和命令都取自快照，原样发出。不可用时留空占位。
+    @ViewBuilder
+    private func unpaidWorkArea(_ button: UnpaidWorkButton?) -> some View {
+        if let button {
+            Button {
+                send(button.command)
+            } label: {
+                Text(button.title).frame(maxWidth: .infinity)
+            }
+            .controlSize(.large)
+        } else {
+            Color.clear
         }
     }
 
@@ -187,12 +224,17 @@ struct TodayPanelView: View {
 
     /// 情绪按钮：应出勤日为扣钱、请假，休息日为被迫营业 (F4)。
     /// 「今天扣钱了」只在快照给出入口时出现 (AC-FINE-07)；请假入口与能否新请由核心决定 (PRD 4.3.5 #8)；
-    /// 被迫营业 (F7) 留给后续票，先占位。
+    /// 被迫营业 (F7) 的文案与可用与否取自快照；被迫营业计时中「终于下班了」在进度区，这一行不再放它。
     private func moodButtons(_ panel: TodayPanel) -> some View {
         HStack {
-            if panel.body.isRest {
-                Button("被迫营业") {}.disabled(true)
-            } else {
+            switch panel.body {
+            case .rest:
+                if let button = panel.unpaidWorkButton {
+                    Button(button.title) { send(button.command) }
+                }
+            case .unpaidWork(let unpaidWork) where unpaidWork.isRestDay:
+                EmptyView()
+            case .attendance, .unpaidWork:
                 if panel.deductionEntry != nil {
                     Button("今天扣钱了") { deductionForm = .add }
                 }
@@ -201,6 +243,7 @@ struct TodayPanelView: View {
                 Button("请假") { leaveForm = .request }
             }
         }
+        .frame(height: Self.moodRowHeight)
         // 与扣钱表单分开挂，避免同一视图上挂两个 sheet。
         .sheet(item: $leaveForm) { mode in
             LeaveFormView(mode: mode, actions: actions, dismiss: { leaveForm = nil })
@@ -229,11 +272,5 @@ private struct SegmentedProgressBar: View {
             }
         }
         .frame(height: 8)
-    }
-}
-
-private extension TodayPanel.Body {
-    var isRest: Bool {
-        if case .rest = self { true } else { false }
     }
 }
