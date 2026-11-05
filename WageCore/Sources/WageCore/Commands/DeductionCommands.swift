@@ -37,26 +37,30 @@ func addDeduction(_ input: DeductionInput, state: AppState, now: Moment) throws(
     return state.replacingDayRecord(record)
 }
 
-/// 改一笔已有的扣钱，日期和先后位置不变。
-func editDeduction(id: Int, _ input: DeductionInput, state: AppState) throws(CommandError) -> AppState {
+/// 改今天的一笔扣钱，先后位置不变。
+func editDeduction(id: Int, _ input: DeductionInput, state: AppState, now: Moment) throws(CommandError) -> AppState {
     if let error = Validation.deduction(input) { throw error }
-    guard var record = state.dayRecords.first(where: { $0.deductions.contains { $0.id == id } }) else {
-        throw .deductionNotFound
-    }
+    guard var record = state.todayRecord(containingDeduction: id, now: now) else { throw .deductionNotFound }
     record.deductions = record.deductions.map { $0.id == id ? Deduction(id: id, input: input) : $0 }
     return state.replacingDayRecord(record)
 }
 
-/// 删除一笔扣钱；日记录因此变空时一并删掉。
-func deleteDeduction(id: Int, state: AppState) throws(CommandError) -> AppState {
-    guard var record = state.dayRecords.first(where: { $0.deductions.contains { $0.id == id } }) else {
-        throw .deductionNotFound
-    }
+/// 删除今天的一笔扣钱；日记录因此变空时一并删掉。
+func deleteDeduction(id: Int, state: AppState, now: Moment) throws(CommandError) -> AppState {
+    guard var record = state.todayRecord(containingDeduction: id, now: now) else { throw .deductionNotFound }
     record.deductions.removeAll { $0.id == id }
     return state.replacingDayRecord(record)
 }
 
 extension AppState {
+    /// 今天的日记录，且其中有这笔扣钱；不在今天的视为找不到。
+    /// 本票只能改删今天的扣钱，过去的日子留给历史编辑 (#15) 放开。
+    func todayRecord(containingDeduction id: Int, now: Moment) -> DayRecord? {
+        dayRecord(on: now.localDate).flatMap { record in
+            record.deductions.contains { $0.id == id } ? record : nil
+        }
+    }
+
     /// 新扣钱记录的标识：比现有最大的大 1。
     var nextDeductionID: Int {
         (dayRecords.flatMap(\.deductions).map(\.id).max() ?? 0) + 1

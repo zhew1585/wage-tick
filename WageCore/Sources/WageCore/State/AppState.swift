@@ -24,7 +24,12 @@ public struct AppState: Sendable, Equatable, Codable {
         profile = try container.decodeIfPresent(Profile.self, forKey: .profile)
         settings = try container.decodeIfPresent(InterfaceSettings.self, forKey: .settings) ?? InterfaceSettings()
         // #7 之前的旧文件没有日记录。
-        dayRecords = try container.decodeIfPresent([DayRecord].self, forKey: .dayRecords) ?? []
+        let records = try container.decodeIfPresent([DayRecord].self, forKey: .dayRecords) ?? []
+        let ids = records.flatMap(\.deductions).map(\.id)
+        guard Set(records.map(\.date)).count == records.count, Set(ids).count == ids.count else {
+            throw DecodingError.dataCorruptedError(forKey: .dayRecords, in: container, debugDescription: "同一天有多条日记录，或扣钱记录标识重复")
+        }
+        dayRecords = records.sorted { $0.date < $1.date }
     }
 }
 

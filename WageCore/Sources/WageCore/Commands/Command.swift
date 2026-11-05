@@ -8,9 +8,9 @@ public enum Command: Sendable, Equatable {
     case toggleBossMode
     /// 给今天记一笔扣钱 (PRD 4.4.1、F5)。
     case addDeduction(DeductionInput)
-    /// 修改一笔扣钱记录。
+    /// 修改今天的一笔扣钱记录。
     case editDeduction(id: Int, DeductionInput)
-    /// 删除一笔扣钱记录。
+    /// 删除今天的一笔扣钱记录。
     case deleteDeduction(id: Int)
 }
 
@@ -75,9 +75,9 @@ public func apply(
     case .addDeduction(let input):
         return (try addDeduction(input, state: state, now: now), [])
     case .editDeduction(let id, let input):
-        return (try editDeduction(id: id, input, state: state), [])
+        return (try editDeduction(id: id, input, state: state, now: now), [])
     case .deleteDeduction(let id):
-        return (try deleteDeduction(id: id, state: state), [])
+        return (try deleteDeduction(id: id, state: state, now: now), [])
     }
 }
 

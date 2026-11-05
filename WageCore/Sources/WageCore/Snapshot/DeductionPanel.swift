@@ -35,7 +35,7 @@ private let overDeductedWarning = "今天已经白干了，再扣就倒贴了"
 extension DeductionEntry {
     init(settlement: DaySettlement) {
         capText = Format.money(settlement.cap)
-        warning = settlement.isOverDeducted ? overDeductedWarning : nil
+        warning = AttendancePanel.notice(settlement)
     }
 }
 

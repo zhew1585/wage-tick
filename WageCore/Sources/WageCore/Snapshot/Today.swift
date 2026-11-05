@@ -44,7 +44,7 @@ public struct Earnings: Sendable, Equatable {
     /// 上班中今日已赚每秒的增量 = 今日上限 ÷ 应有有效工时 (秒)。
     public let perSecond: Decimal
     /// 当日扣款 = 扣钱记录合计 (PRD 4.3.1)。
-    public let deduction: Decimal
+    public let deductionTotal: Decimal
 }
 
 extension Today {
@@ -92,7 +92,7 @@ extension Earnings {
         // 先乘后除，减少中间舍入。
         earned = cap * elapsed / total
         perSecond = cap * 1000 / total
-        deduction = settlement.deductionTotal
+        deductionTotal = settlement.deductionTotal
     }
 }
 

@@ -38,7 +38,7 @@ struct DeductionSettlementTests {
         let fined = try recordingDeduction(.percentOfDailyWage(10), on: try onboarded(), at: standardDay(15, 0))
         let earnings = try #require(snapshot(of: fined, at: standardDay(15, 0)).today?.earnings)
 
-        #expect(earnings.deduction == 100)
+        #expect(earnings.deductionTotal == 100)
         #expect(earnings.cap == 900)
     }
 
@@ -48,8 +48,8 @@ struct DeductionSettlementTests {
         let fined = try recordingDeduction(.percentOfDailyWage(10), on: try onboarded(), at: moment(2026, 5, 6, 15, 0))
         let earnings = try #require(snapshot(of: fined, at: moment(2026, 5, 6, 15, 0)).today?.earnings)
 
-        #expect(earnings.deduction == Decimal(2000) / 21)
-        #expect(rounded4(earnings.deduction) == Decimal(string: "95.2381")!)
+        #expect(earnings.deductionTotal == Decimal(2000) / 21)
+        #expect(rounded4(earnings.deductionTotal) == Decimal(string: "95.2381")!)
     }
 
     @Test("AC-FINE-04 同一天记 2 笔：当日扣款为两笔之和")
@@ -59,7 +59,7 @@ struct DeductionSettlementTests {
         state = try recordingDeduction(.percentOfDailyWage(10), on: state, at: standardDay(15, 0))
         let earnings = try #require(snapshot(of: state, at: standardDay(15, 0)).today?.earnings)
 
-        #expect(earnings.deduction == 150)
+        #expect(earnings.deductionTotal == 150)
         #expect(earnings.cap == 850)
     }
 
@@ -181,7 +181,7 @@ struct DeductionEditingTests {
         let edited = try apply(.editDeduction(id: ids[0], input), to: state, at: standardDay(15, 5)).state
         let body = try attendancePanel(edited, at: standardDay(15, 5))
 
-        #expect(try #require(snapshot(of: edited, at: standardDay(15, 5)).today?.earnings).deduction == 180)
+        #expect(try #require(snapshot(of: edited, at: standardDay(15, 5)).today?.earnings).deductionTotal == 180)
         #expect(body.deductions.map(\.id) == ids)
         #expect(body.deductions.first?.input == input)
     }
@@ -192,7 +192,7 @@ struct DeductionEditingTests {
         let one = try apply(.deleteDeduction(id: ids[0]), to: state, at: standardDay(15, 5)).state
         let none = try apply(.deleteDeduction(id: ids[1]), to: one, at: standardDay(15, 5)).state
 
-        #expect(try #require(snapshot(of: one, at: standardDay(15, 5)).today?.earnings).deduction == 100)
+        #expect(try #require(snapshot(of: one, at: standardDay(15, 5)).today?.earnings).deductionTotal == 100)
         #expect(try #require(snapshot(of: none, at: standardDay(15, 5)).today?.earnings).cap == 1000)
         #expect(none.dayRecords.isEmpty)
     }
@@ -208,6 +208,20 @@ struct DeductionEditingTests {
         }
         #expect(throws: CommandError.deductionNotFound) {
             try apply(.editDeduction(id: ids[0], input), to: gone, at: standardDay(15, 5))
+        }
+    }
+
+    @Test("本票只能改删今天的扣钱：第二天再改删昨天的一笔视为找不到，补记过去留给历史编辑")
+    func onlyToday() throws {
+        let (state, ids) = try twoDeductions()
+        let input = DeductionInput(amount: .fixed(80), reason: nil, note: "")
+        let tomorrow = moment(2026, 2, 12, 10, 0)
+
+        #expect(throws: CommandError.deductionNotFound) {
+            try apply(.editDeduction(id: ids[0], input), to: state, at: tomorrow)
+        }
+        #expect(throws: CommandError.deductionNotFound) {
+            try apply(.deleteDeduction(id: ids[0]), to: state, at: tomorrow)
         }
     }
 
@@ -243,5 +257,41 @@ struct DeductionPersistenceTests {
         """
 
         #expect(throws: DecodingError.self) { try JSONDecoder().decode(AppState.self, from: Data(json.utf8)) }
+    }
+}
+
+@Suite("读回状态时拒绝日记录冲突")
+struct DayRecordDecodingTests {
+    private func decode(_ records: String) throws -> AppState {
+        try JSONDecoder().decode(AppState.self, from: Data("{\"dayRecords\":[\(records)]}".utf8))
+    }
+
+    private static let feb11 = #"{"year":2026,"month":2,"day":11}"#
+    private static let feb12 = #"{"year":2026,"month":2,"day":12}"#
+
+    private static func record(_ date: String, ids: [Int]) -> String {
+        let items = ids.map { #"{"id":\#($0),"note":"","amount":{"method":"fixed","value":"50"}}"# }
+        return #"{"date":\#(date),"deductions":[\#(items.joined(separator: ","))]}"#
+    }
+
+    @Test("同一天有两条日记录：拒绝")
+    func duplicateDate() {
+        #expect(throws: DecodingError.self) {
+            try decode([Self.record(Self.feb11, ids: [1]), Self.record(Self.feb11, ids: [2])].joined(separator: ","))
+        }
+    }
+
+    @Test("扣钱记录标识重复：拒绝，免得编辑、删除改错一笔")
+    func duplicateDeductionID() {
+        #expect(throws: DecodingError.self) {
+            try decode([Self.record(Self.feb11, ids: [1]), Self.record(Self.feb12, ids: [1])].joined(separator: ","))
+        }
+    }
+
+    @Test("合法的日记录可以读回")
+    func validRecords() throws {
+        let state = try decode([Self.record(Self.feb12, ids: [2]), Self.record(Self.feb11, ids: [1])].joined(separator: ","))
+
+        #expect(state.dayRecords.map(\.date.day) == [11, 12])
     }
 }
