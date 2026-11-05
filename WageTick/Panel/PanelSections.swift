@@ -20,25 +20,24 @@ struct PanelDivider: View {
     }
 }
 
-/// 面板顶部：第一行日期与时间 (12/500，muted)；下面是醒目的日状态 (圆点 + 17/700，按状态着色，无底色)，
-/// 再往下接主数字的小标题 (今日已赚 / 今日结算 …)。
+/// 面板顶部一行：左边日期与时间 (12/500，muted)，右边醒目的日状态 (圆点 + 17/700，按状态着色，无底色)。
 struct PanelTopBar: View {
     let panel: TodayPanel
 
     private static let dotSize: CGFloat = 8
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s8) {
+        HStack {
             // 设计稿日期与时间之间空两格。
             Text("\(panel.dateText)  \(panel.timeText)")
                 .font(AppFont.label)
                 .foregroundStyle(Palette.muted)
+            Spacer()
             HStack(spacing: Spacing.s6) {
                 Circle().fill(tone).frame(width: Self.dotSize, height: Self.dotSize)
                 Text(panel.statusLabel).font(AppFont.ui(17, .bold)).foregroundStyle(tone)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(EdgeInsets(top: Spacing.s16, leading: Spacing.screen, bottom: 0, trailing: Spacing.screen))
     }
 
