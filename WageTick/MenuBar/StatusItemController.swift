@@ -15,6 +15,7 @@ final class StatusItemController: NSObject {
     private let openOnboarding: () -> Void
     private let openTodayPanel: () -> Void
     private let openSettings: () -> Void
+    private let openHistory: () -> Void
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
     private let bossModeItem = NSMenuItem(title: "老板路过", action: #selector(bossModeClicked), keyEquivalent: "")
@@ -30,17 +31,20 @@ final class StatusItemController: NSObject {
         model: AppModel,
         openOnboarding: @escaping () -> Void,
         openTodayPanel: @escaping () -> Void,
-        openSettings: @escaping () -> Void
+        openSettings: @escaping () -> Void,
+        openHistory: @escaping () -> Void
     ) {
         self.model = model
         self.openOnboarding = openOnboarding
         self.openTodayPanel = openTodayPanel
         self.openSettings = openSettings
+        self.openHistory = openHistory
         super.init()
         configureButton()
         bossModeItem.target = self
         menu.delegate = self
         menu.addItem(withTitle: "今日概览", action: #selector(todayPanelClicked), keyEquivalent: "1").target = self
+        menu.addItem(withTitle: "历史", action: #selector(historyClicked), keyEquivalent: "3").target = self
         menu.addItem(bossModeItem)
         menu.addItem(withTitle: "设置…", action: #selector(settingsClicked), keyEquivalent: ",").target = self
         menu.addItem(withTitle: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -145,6 +149,10 @@ final class StatusItemController: NSObject {
 
     @objc private func settingsClicked() {
         openSettings()
+    }
+
+    @objc private func historyClicked() {
+        openHistory()
     }
 }
 
