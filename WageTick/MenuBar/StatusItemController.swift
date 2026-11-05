@@ -12,16 +12,19 @@ final class StatusItemController: NSObject {
 
     private let model: AppModel
     private let openOnboarding: () -> Void
+    private let openTodayPanel: () -> Void
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
     private var timer: Timer?
     private var shown: MenuBarDisplay?
 
-    init(model: AppModel, openOnboarding: @escaping () -> Void) {
+    init(model: AppModel, openOnboarding: @escaping () -> Void, openTodayPanel: @escaping () -> Void) {
         self.model = model
         self.openOnboarding = openOnboarding
+        self.openTodayPanel = openTodayPanel
         super.init()
         configureButton()
+        menu.addItem(withTitle: "今日概览", action: #selector(todayPanelClicked), keyEquivalent: "1").target = self
         menu.addItem(withTitle: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         observeClockChanges()
         refresh()
@@ -79,5 +82,9 @@ final class StatusItemController: NSObject {
 
     @objc private func buttonClicked() {
         openOnboarding()
+    }
+
+    @objc private func todayPanelClicked() {
+        openTodayPanel()
     }
 }

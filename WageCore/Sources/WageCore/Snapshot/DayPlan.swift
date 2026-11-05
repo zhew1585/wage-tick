@@ -10,6 +10,11 @@ enum AttendanceRule {
     static func attendanceDayCount(in month: YearMonth) -> Int {
         month.days.filter(isAttendanceDay).count
     }
+
+    /// `day` 之后 (不含当天) 的第一个应出勤日；一年内都没有时为 nil。
+    static func nextAttendanceDay(after day: LocalDate) -> LocalDate? {
+        (1...366).lazy.map { day.adding(days: $0) }.first(where: isAttendanceDay)
+    }
 }
 
 /// 当日计划落到绝对时刻上的样子 (PRD 4.3.2)，用来推导日状态与有效工时。
@@ -31,6 +36,12 @@ struct DayPlan {
         if now >= end { return .offWork }
         if let lunch, now >= lunch.start, now < lunch.end { return .lunchBreak }
         return .working
+    }
+
+    /// 计入有效工时的时段：有午休时为上午、下午两段，关闭午休时为一整段。
+    var workPeriods: [(start: Date, end: Date)] {
+        guard let lunch else { return [(start, end)] }
+        return [(start, lunch.start), (lunch.end, end)]
     }
 
     /// 应有有效工时 (毫秒)：计划上下班之间扣除午休；关闭午休时全部计入 (PRD 4.2.3 #4)。

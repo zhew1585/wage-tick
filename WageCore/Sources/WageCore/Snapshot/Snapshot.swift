@@ -6,6 +6,8 @@ public struct Snapshot: Sendable, Equatable {
     public let menuBar: MenuBarDisplay
     /// 今天的推导结果；未完成引导时为 nil。
     public let today: Today?
+    /// 今日概览面板的展示内容；未完成引导时为 nil。
+    public let panel: TodayPanel?
 }
 
 /// 菜单栏内容：小牛姿势 + 可选数字 (PRD 4.7.1 第 1、2 条)。
@@ -32,8 +34,12 @@ public enum CowPose: Sendable, Equatable {
 /// 核心入口二：推导 `state` 在 `now` 时刻的快照，纯函数，不改状态。
 public func snapshot(of state: AppState, at now: Moment) -> Snapshot {
     guard let profile = state.profile else {
-        return Snapshot(menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil)
+        return Snapshot(menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, panel: nil)
     }
     let today = Today(profile: profile, now: now)
-    return Snapshot(menuBar: MenuBarDisplay(today: today), today: today)
+    return Snapshot(
+        menuBar: MenuBarDisplay(today: today),
+        today: today,
+        panel: TodayPanel(today: today, profile: profile, now: now)
+    )
 }
