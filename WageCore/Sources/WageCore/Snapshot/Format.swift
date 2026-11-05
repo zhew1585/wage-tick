@@ -15,6 +15,11 @@ enum Format {
         trimmingZeros(round(amount, scale: 4))
     }
 
+    /// 面板主数字：带 ¥，按 `rolling` 固定 4 位小数，如 `¥571.4286`。
+    static func rollingMoney(_ amount: Decimal) -> String {
+        "¥" + rolling(amount)
+    }
+
     /// 面板里滚动区域以外的金额：带 ¥，按 `trimmed` 取舍，如 `¥1000`。
     static func money(_ amount: Decimal) -> String {
         "¥" + trimmed(amount)

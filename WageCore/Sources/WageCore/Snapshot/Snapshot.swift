@@ -40,6 +40,6 @@ public func snapshot(of state: AppState, at now: Moment) -> Snapshot {
     return Snapshot(
         menuBar: MenuBarDisplay(today: today),
         today: today,
-        panel: TodayPanel(today: today, profile: profile, now: now)
+        panel: TodayPanel(today: today, now: now)
     )
 }

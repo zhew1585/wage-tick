@@ -11,23 +11,34 @@ enum AttendanceRule {
         month.days.filter(isAttendanceDay).count
     }
 
+    /// 找下一个应出勤日时最多往后看多少天。
+    private static let lookaheadDays = 366
+
     /// `day` 之后 (不含当天) 的第一个应出勤日；一年内都没有时为 nil。
     static func nextAttendanceDay(after day: LocalDate) -> LocalDate? {
-        (1...366).lazy.map { day.adding(days: $0) }.first(where: isAttendanceDay)
+        (1...lookaheadDays).lazy.map { day.adding(days: $0) }.first(where: isAttendanceDay)
     }
 }
 
-/// 当日计划落到绝对时刻上的样子 (PRD 4.3.2)，用来推导日状态与有效工时。
-struct DayPlan {
+/// 一段绝对时间 [start, end)。
+struct Period: Sendable, Equatable {
     let start: Date
     let end: Date
-    let lunch: (start: Date, end: Date)?
+
+    var length: TimeInterval { end.timeIntervalSince(start) }
+}
+
+/// 当日计划落到绝对时刻上的样子 (PRD 4.3.2)，用来推导日状态与有效工时。
+struct DayPlan: Sendable, Equatable {
+    let start: Date
+    let end: Date
+    let lunch: Period?
 
     /// 当日计划 = 作息 (本期没有半天假调整)。
     init(schedule: WorkSchedule, on day: LocalDate, now: Moment) {
         start = now.date(on: day, at: schedule.start)
         end = now.date(on: day, at: schedule.end)
-        lunch = schedule.lunch.map { (now.date(on: day, at: $0.start), now.date(on: day, at: $0.end)) }
+        lunch = schedule.lunch.map { Period(start: now.date(on: day, at: $0.start), end: now.date(on: day, at: $0.end)) }
     }
 
     /// 日状态：到达计划上班即上班中，到达午休开始即午休中，到达计划下班即已下班 (PRD 4.3.3)。
@@ -39,9 +50,10 @@ struct DayPlan {
     }
 
     /// 计入有效工时的时段：有午休时为上午、下午两段，关闭午休时为一整段。
-    var workPeriods: [(start: Date, end: Date)] {
-        guard let lunch else { return [(start, end)] }
-        return [(start, lunch.start), (lunch.end, end)]
+    /// 午休紧贴计划上班或下班时，那一侧没有时长，不算一段。
+    var workPeriods: [Period] {
+        guard let lunch else { return [Period(start: start, end: end)] }
+        return [Period(start: start, end: lunch.start), Period(start: lunch.end, end: end)].filter { $0.length > 0 }
     }
 
     /// 应有有效工时 (毫秒)：计划上下班之间扣除午休；关闭午休时全部计入 (PRD 4.2.3 #4)。

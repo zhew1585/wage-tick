@@ -24,6 +24,8 @@ public struct Today: Sendable, Equatable {
     public let attendedDays: Int
     /// 明天起第一个应出勤日。
     public let nextAttendanceDay: LocalDate?
+    /// 当日计划；休息日为 nil。面板据此推导进度与倒计时。
+    let plan: DayPlan?
 
     /// 今日已赚是否正在增长：只在上班中增长 (PRD 4.3.3 不变量 3)。外壳据此决定刷新频率。
     public var isEarning: Bool { status == .working }
@@ -56,13 +58,15 @@ extension Today {
         guard AttendanceRule.isAttendanceDay(day) else {
             status = .restDay
             earnings = nil
+            plan = nil
             monthToDate = wage * Decimal(attended)
             return
         }
-        let plan = DayPlan(schedule: profile.schedule, on: day, now: now)
-        let todayEarnings = Earnings(cap: wage, plan: plan, now: now.date)
-        status = plan.status(at: now.date)
+        let todayPlan = DayPlan(schedule: profile.schedule, on: day, now: now)
+        let todayEarnings = Earnings(cap: wage, plan: todayPlan, now: now.date)
+        status = todayPlan.status(at: now.date)
         earnings = todayEarnings
+        plan = todayPlan
         monthToDate = wage * Decimal(attended) + todayEarnings.earned
     }
 }

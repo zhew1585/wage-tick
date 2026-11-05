@@ -76,15 +76,14 @@ public struct ProgressSegment: Sendable, Equatable {
 }
 
 extension TodayPanel {
-    init(today: Today, profile: Profile, now: Moment) {
+    init(today: Today, now: Moment) {
         dateText = Format.date(today.date, relativeTo: today.date)
         timeText = Format.time(now)
         statusLabel = today.status.label
-        guard let earnings = today.earnings else {
+        guard let earnings = today.earnings, let plan = today.plan else {
             body = .rest(RestPanel(today: today))
             return
         }
-        let plan = DayPlan(schedule: profile.schedule, on: today.date, now: now)
         body = .attendance(AttendancePanel(today: today, earnings: earnings, plan: plan, now: now.date))
     }
 }
@@ -93,7 +92,7 @@ extension AttendancePanel {
     init(today: Today, earnings: Earnings, plan: DayPlan, now: Date) {
         let monthToDate = StatItem(title: "本月累计", value: Format.money(today.monthToDate))
         // 已下班时今日已赚 = 今日上限 = 今日结算 (PRD 4.3.4)。
-        headline = "¥" + Format.rolling(earnings.earned)
+        headline = Format.rollingMoney(earnings.earned)
         if today.status == .offWork {
             // 白干记录留给后续票，本期已下班一律是准点下班。
             caption = "准点下班，赢"
@@ -109,14 +108,13 @@ extension AttendancePanel {
 
 extension RestPanel {
     init(today: Today) {
-        var stats = [
+        let next = today.nextAttendanceDay.map {
+            StatItem(title: "下一个应出勤日", value: Format.date($0, relativeTo: today.date))
+        }
+        self.init(headline: "今天休息", stats: [
             StatItem(title: "本月已上班", value: "\(today.attendedDays) 天"),
             StatItem(title: "本月累计", value: Format.money(today.monthToDate)),
-        ]
-        if let next = today.nextAttendanceDay {
-            stats.append(StatItem(title: "下一个应出勤日", value: Format.date(next, relativeTo: today.date)))
-        }
-        self.init(headline: "今天休息", stats: stats)
+        ] + [next].compactMap { $0 })
     }
 }
 
@@ -126,11 +124,10 @@ extension WorkProgress {
         let total = Format.trimmed(Format.hours(milliseconds: plan.effectiveMilliseconds))
         label = "已工作 \(elapsed) / \(total) 小时"
         percent = Format.percent(progress)
-        let barLength = plan.workPeriods.map { $0.end.timeIntervalSince($0.start) }.reduce(0, +)
+        let barLength = plan.workPeriods.map(\.length).reduce(0, +)
         segments = plan.workPeriods.map { period in
-            let length = period.end.timeIntervalSince(period.start)
-            let walked = min(max(now.timeIntervalSince(period.start), 0), length)
-            return ProgressSegment(share: length / barLength, filled: walked / length)
+            let walked = min(max(now.timeIntervalSince(period.start), 0), period.length)
+            return ProgressSegment(share: period.length / barLength, filled: walked / period.length)
         }
     }
 }

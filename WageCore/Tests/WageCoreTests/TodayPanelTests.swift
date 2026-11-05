@@ -18,8 +18,9 @@ enum PanelError: Error { case wrongBody }
 struct TodayPanelWorkingTests {
     @Test("AC-HOME-01 15:00 打开：今日已赚 ¥571.4286，【已工作 4 / 7 小时】【57.14%】")
     func progressAt1500() throws {
-        let panel = try #require(snapshot(of: try onboarded(), at: standardDay(15, 0)).panel)
-        let body = try attendancePanel(try onboarded(), at: standardDay(15, 0))
+        let state = try onboarded()
+        let panel = try #require(snapshot(of: state, at: standardDay(15, 0)).panel)
+        let body = try attendancePanel(state, at: standardDay(15, 0))
 
         #expect(panel.statusLabel == "上班中")
         #expect(body.headline == "¥571.4286")
@@ -203,5 +204,19 @@ struct TodayPanelLayoutTests {
         let body = try attendancePanel(try onboarded(schedule: schedule), at: standardDay(12, 0))
 
         #expect(body.progress?.segments == [ProgressSegment(share: 1, filled: 0.25)])
+    }
+
+    @Test("PRD 4.3.5 #3 午休紧贴计划上班或下班时：进度条不出现零长度的段", arguments: [(10, 11), (17, 18)])
+    func lunchTouchingStartOrEndHasNoEmptySegment(lunch: (Int, Int)) throws {
+        // 午休落在上下班之内即合法，可以从计划上班开始或到计划下班结束。
+        let schedule = WorkSchedule(
+            start: TimeOfDay(hour: 10, minute: 0),
+            end: TimeOfDay(hour: 18, minute: 0),
+            lunch: LunchBreak(start: TimeOfDay(hour: lunch.0, minute: 0), end: TimeOfDay(hour: lunch.1, minute: 0))
+        )
+        let body = try attendancePanel(try onboarded(schedule: schedule), at: standardDay(14, 30))
+
+        #expect(body.progress?.segments.count == 1)
+        #expect(body.progress?.segments.allSatisfy { $0.share == 1 && $0.filled.isFinite } == true)
     }
 }
