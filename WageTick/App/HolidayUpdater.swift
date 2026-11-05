@@ -2,8 +2,8 @@ import AppKit
 import HolidaySource
 import WageCore
 
-/// 把节假日数据源适配器接到外壳：启动时立刻交出内置与缓存数据，再在后台补齐今年的数据。
-/// 今年数据缺失时每小时、以及唤醒或改系统时间后再试一次 (PRD 4.3.5 #10)；已有数据时 `ensure` 不联网。
+/// 把节假日数据源适配器接到外壳：启动时立刻交出内置与缓存数据，再在后台补齐需要的年份 (由适配器决定)。
+/// 缺失时每小时、以及唤醒或改系统时间后再试一次 (PRD 4.3.5 #10)；数据已有时 `update` 不联网。
 /// 拿到新数据后写进 `AppModel.holidays`，菜单栏与面板下一次刷新即按新表重算 (#16)。
 @MainActor
 final class HolidayUpdater {
@@ -36,11 +36,12 @@ final class HolidayUpdater {
         NotificationCenter.default.addObserver(self, selector: #selector(clockChanged), name: .NSSystemClockDidChange, object: nil)
     }
 
-    /// 确保系统当前年份有数据 (跨年后自然换成新一年)，完成后交给模型。
+    /// 按系统当前时区的今天补齐数据 (跨年后自然换成新一年)，完成后交给模型。
     private func update() {
-        let year = Calendar.current.component(.year, from: Date())
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        let today = LocalDate(year: parts.year!, month: parts.month!, day: parts.day!)
         Task {
-            await source.ensure(year: year)
+            await source.update(today: today)
             model.holidays = source.table
         }
     }

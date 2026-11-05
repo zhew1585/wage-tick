@@ -48,7 +48,8 @@ extension Today {
         let rule = AttendanceRule(holidays: holidays)
         let day = now.localDate
         let month = day.yearMonth
-        // 法定节假日最长的月份 (如国庆、春节) 也有十几个应出勤日，除数不会为 0；单日覆盖引入后见 PRD 4.3.5 #19。
+        // 真实放假安排下最少的月份 (如春节、国庆) 也有十几个应出勤日，适配器拒收日期离谱的数据；
+        // 应出勤日数为 0 的兜底 (PRD 4.3.5 #19) 随单日覆盖一起做。
         let wage = profile.salary(for: month) / Decimal(rule.attendanceDayCount(in: month))
         // 本期没有扣款，每个已过的应出勤日结算都等于日薪。
         let attended = month.days.filter { $0 < day && rule.isAttendanceDay($0) }.count

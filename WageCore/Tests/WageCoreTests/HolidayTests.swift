@@ -11,7 +11,7 @@ private func date(_ year: Int, _ month: Int, _ day: Int) -> LocalDate {
 
 /// 由放假日与调休上班日构造节假日表。
 private func table(off: [LocalDate], work: [LocalDate], missingYears: Set<Int> = []) -> HolidayTable {
-    let days = Dictionary(uniqueKeysWithValues: off.map { ($0, HolidayKind.holiday) } + work.map { ($0, HolidayKind.makeupWorkday) })
+    let days = Dictionary(uniqueKeysWithValues: off.map { ($0, HolidayKind.holiday) } + work.map { ($0, HolidayKind.makeupDay) })
     return HolidayTable(days: days, missingYears: missingYears)
 }
 

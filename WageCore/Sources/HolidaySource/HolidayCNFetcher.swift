@@ -16,10 +16,13 @@ public struct HolidayCNFetcher: HolidayFetching {
         "https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/%d.json",
     ]
 
-    /// 不带 cookie、不落 URL 缓存的会话；超时放短，失败交给之后的重试。
+    /// 单次请求超时 (秒)，放短一些，失败交给之后的重试。
+    private static let requestTimeout: TimeInterval = 15
+
+    /// 不带 cookie、不落 URL 缓存的会话。
     private static let session: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 15
+        configuration.timeoutIntervalForRequest = requestTimeout
         return URLSession(configuration: configuration)
     }()
 

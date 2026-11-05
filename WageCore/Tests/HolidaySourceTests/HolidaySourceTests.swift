@@ -54,12 +54,12 @@ struct BundledHolidayTests {
         let source = HolidaySource(bundledDirectory: fixtures, cacheDirectory: emptyCacheDirectory(), fetcher: FakeFetcher())
 
         #expect((1...7).allSatisfy { source.table.kind(on: date(2026, 10, $0)) == .holiday })
-        #expect(source.table.kind(on: date(2026, 10, 10)) == .makeupWorkday)
-        #expect(source.table.kind(on: date(2026, 2, 14)) == .makeupWorkday)
+        #expect(source.table.kind(on: date(2026, 10, 10)) == .makeupDay)
+        #expect(source.table.kind(on: date(2026, 2, 14)) == .makeupDay)
         #expect(source.table.kind(on: date(2026, 10, 8)) == nil)
         // 2026 年共 33 个放假日、6 个调休上班日。
         #expect(source.table.days.values.filter { $0 == .holiday }.count == 33)
-        #expect(source.table.days.values.filter { $0 == .makeupWorkday }.count == 6)
+        #expect(source.table.days.values.filter { $0 == .makeupDay }.count == 6)
         #expect(source.table.missingYears.isEmpty)
     }
 
@@ -68,7 +68,7 @@ struct BundledHolidayTests {
         let fetcher = FakeFetcher([2026: .success(try fixture("published-2027.json"))])
         let source = HolidaySource(bundledDirectory: fixtures, cacheDirectory: emptyCacheDirectory(), fetcher: fetcher)
 
-        await source.ensure(year: 2026)
+        await source.update(today: date(2026, 3, 2))
 
         #expect(await fetcher.requestedYears.isEmpty)
         #expect(source.table.kind(on: date(2026, 10, 1)) == .holiday)
@@ -83,11 +83,11 @@ struct FetchedHolidayTests {
         let fetcher = FakeFetcher([2027: .success(try fixture("published-2027.json"))])
         let source = HolidaySource(bundledDirectory: fixtures, cacheDirectory: emptyCacheDirectory(), fetcher: fetcher)
 
-        await source.ensure(year: 2027)
+        await source.update(today: date(2027, 3, 2))
 
         #expect(await fetcher.requestedYears == [2027])
         #expect(source.table.kind(on: date(2027, 1, 1)) == .holiday)
-        #expect(source.table.kind(on: date(2027, 1, 9)) == .makeupWorkday)
+        #expect(source.table.kind(on: date(2027, 1, 9)) == .makeupDay)
         #expect(source.table.kind(on: date(2026, 10, 1)) == .holiday)
         #expect(source.table.missingYears.isEmpty)
     }
@@ -96,13 +96,13 @@ struct FetchedHolidayTests {
     func cachedYearSurvivesRestartOffline() async throws {
         let cache = emptyCacheDirectory()
         let online = HolidaySource(bundledDirectory: fixtures, cacheDirectory: cache, fetcher: FakeFetcher([2027: .success(try fixture("published-2027.json"))]))
-        await online.ensure(year: 2027)
+        await online.update(today: date(2027, 3, 2))
 
         let offlineFetcher = FakeFetcher()
         let restarted = HolidaySource(bundledDirectory: fixtures, cacheDirectory: cache, fetcher: offlineFetcher)
         #expect(restarted.table.kind(on: date(2027, 1, 1)) == .holiday)
 
-        await restarted.ensure(year: 2027)
+        await restarted.update(today: date(2027, 3, 2))
         #expect(await offlineFetcher.requestedYears.isEmpty)
         #expect(restarted.table.missingYears.isEmpty)
     }
@@ -111,10 +111,10 @@ struct FetchedHolidayTests {
     func worksWithoutBundledDirectory() async throws {
         let cache = emptyCacheDirectory()
         let online = HolidaySource(bundledDirectory: nil, cacheDirectory: cache, fetcher: FakeFetcher([2027: .success(try fixture("published-2027.json"))]))
-        await online.ensure(year: 2027)
+        await online.update(today: date(2027, 3, 2))
 
         let restarted = HolidaySource(bundledDirectory: nil, cacheDirectory: cache, fetcher: FakeFetcher())
-        #expect(restarted.table.kind(on: date(2027, 1, 9)) == .makeupWorkday)
+        #expect(restarted.table.kind(on: date(2027, 1, 9)) == .makeupDay)
         #expect(restarted.table.kind(on: date(2026, 10, 1)) == nil)
     }
 }
@@ -126,7 +126,7 @@ struct FailedHolidayTests {
     func networkFailureReportsMissing() async {
         let source = HolidaySource(bundledDirectory: fixtures, cacheDirectory: emptyCacheDirectory(), fetcher: FakeFetcher())
 
-        await source.ensure(year: 2027)
+        await source.update(today: date(2027, 3, 2))
 
         #expect(source.table.missingYears == [2027])
         #expect(source.table.kind(on: date(2027, 1, 1)) == nil)
@@ -137,10 +137,10 @@ struct FailedHolidayTests {
     func retriesAfterFailure() async throws {
         let fetcher = FakeFetcher()
         let source = HolidaySource(bundledDirectory: fixtures, cacheDirectory: emptyCacheDirectory(), fetcher: fetcher)
-        await source.ensure(year: 2027)
+        await source.update(today: date(2027, 3, 2))
 
         await fetcher.respond(to: 2027, with: .success(try fixture("published-2027.json")))
-        await source.ensure(year: 2027)
+        await source.update(today: date(2027, 3, 2))
 
         #expect(await fetcher.requestedYears == [2027, 2027])
         #expect(source.table.missingYears.isEmpty)
@@ -152,13 +152,13 @@ struct FailedHolidayTests {
         let cache = emptyCacheDirectory()
         let fetcher = FakeFetcher([2027: .success(try fixture("unpublished-2027.json"))])
         let source = HolidaySource(bundledDirectory: fixtures, cacheDirectory: cache, fetcher: fetcher)
-        await source.ensure(year: 2027)
+        await source.update(today: date(2027, 3, 2))
 
         #expect(source.table.missingYears == [2027])
 
         let restartedFetcher = FakeFetcher()
         let restarted = HolidaySource(bundledDirectory: fixtures, cacheDirectory: cache, fetcher: restartedFetcher)
-        await restarted.ensure(year: 2027)
+        await restarted.update(today: date(2027, 3, 2))
         #expect(await restartedFetcher.requestedYears == [2027])
     }
 
@@ -167,7 +167,7 @@ struct FailedHolidayTests {
         let fetcher = FakeFetcher([2027: .success(try fixture("malformed-2027.json"))])
         let source = HolidaySource(bundledDirectory: fixtures, cacheDirectory: emptyCacheDirectory(), fetcher: fetcher)
 
-        await source.ensure(year: 2027)
+        await source.update(today: date(2027, 3, 2))
 
         #expect(source.table.missingYears == [2027])
         #expect(source.table.kind(on: date(2027, 1, 1)) == nil)
@@ -178,7 +178,7 @@ struct FailedHolidayTests {
         let fetcher = FakeFetcher([2028: .success(try fixture("published-2027.json"))])
         let source = HolidaySource(bundledDirectory: fixtures, cacheDirectory: emptyCacheDirectory(), fetcher: fetcher)
 
-        await source.ensure(year: 2028)
+        await source.update(today: date(2028, 3, 2))
 
         #expect(source.table.missingYears == [2028])
         #expect(source.table.kind(on: date(2027, 1, 1)) == nil)
@@ -192,10 +192,77 @@ struct FailedHolidayTests {
         let fetcher = FakeFetcher([2027: .success(try fixture("published-2027.json"))])
         let source = HolidaySource(bundledDirectory: fixtures, cacheDirectory: cache, fetcher: fetcher)
 
-        await source.ensure(year: 2027)
+        await source.update(today: date(2027, 3, 2))
 
         #expect(await fetcher.requestedYears == [2027])
         #expect(source.table.kind(on: date(2027, 1, 1)) == .holiday)
+    }
+}
+
+@MainActor
+@Suite("节假日数据源：提前获取新一年")
+struct NextYearHolidayTests {
+    @Test("11 月起顺带获取下一年，跨年前就备好，12 月底的下一个应出勤日也算得准")
+    func prefetchesNextYearFromNovember() async throws {
+        let fetcher = FakeFetcher([2027: .success(try fixture("published-2027.json"))])
+        let source = HolidaySource(bundledDirectory: fixtures, cacheDirectory: emptyCacheDirectory(), fetcher: fetcher)
+
+        await source.update(today: date(2026, 11, 5))
+
+        #expect(await fetcher.requestedYears == [2027])
+        #expect(source.table.kind(on: date(2027, 1, 1)) == .holiday)
+    }
+
+    @Test("11 月之前不获取下一年：国务院还没发布，不白白联网")
+    func noPrefetchBeforeNovember() async {
+        let fetcher = FakeFetcher()
+        let source = HolidaySource(bundledDirectory: fixtures, cacheDirectory: emptyCacheDirectory(), fetcher: fetcher)
+
+        await source.update(today: date(2026, 10, 31))
+
+        #expect(await fetcher.requestedYears.isEmpty)
+    }
+
+    @Test("下一年还没发布时记为缺失、之后重试，今年的数据不受影响")
+    func unpublishedNextYearIsRetried() async throws {
+        let fetcher = FakeFetcher([2027: .success(try fixture("unpublished-2027.json"))])
+        let source = HolidaySource(bundledDirectory: fixtures, cacheDirectory: emptyCacheDirectory(), fetcher: fetcher)
+
+        await source.update(today: date(2026, 12, 1))
+        await fetcher.respond(to: 2027, with: .success(try fixture("published-2027.json")))
+        await source.update(today: date(2026, 12, 1))
+
+        #expect(await fetcher.requestedYears == [2027, 2027])
+        #expect(source.table.missingYears.isEmpty)
+        #expect(source.table.kind(on: date(2026, 10, 1)) == .holiday)
+    }
+}
+
+@MainActor
+@Suite("节假日数据源：外部数据校验")
+struct HolidayDataValidationTests {
+    @Test("日期不在该年前后一年之内的数据当作坏数据：报告缺失，一条也不并入")
+    func outOfRangeDatesAreRejected() async {
+        let data = Data(#"{"year": 2027, "days": [{"name": "元旦", "date": "2027-01-01", "isOffDay": true}, {"name": "?", "date": "2031-05-01", "isOffDay": true}]}"#.utf8)
+        let source = HolidaySource(bundledDirectory: fixtures, cacheDirectory: emptyCacheDirectory(), fetcher: FakeFetcher([2027: .success(data)]))
+
+        await source.update(today: date(2027, 3, 2))
+
+        #expect(source.table.missingYears == [2027])
+        #expect(source.table.kind(on: date(2027, 1, 1)) == nil)
+    }
+
+    @Test("缓存文件名的年份与内容不符时不用它，重新联网获取")
+    func cacheFileWithWrongYearIsIgnored() async throws {
+        let cache = emptyCacheDirectory()
+        try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+        try fixture("published-2027.json").write(to: cache.appending(path: "holiday-cn-2028.json"))
+        let fetcher = FakeFetcher()
+        let source = HolidaySource(bundledDirectory: nil, cacheDirectory: cache, fetcher: fetcher)
+
+        #expect(source.table.kind(on: date(2027, 1, 1)) == nil)
+        await source.update(today: date(2027, 3, 2))
+        #expect(await fetcher.requestedYears == [2027])
     }
 }
 

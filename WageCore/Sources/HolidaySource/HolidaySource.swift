@@ -5,9 +5,9 @@ import WageCore
 /// 节假日数据源适配器：对核心只提供"节假日表" (`table`)，内置、缓存、联网、重试都藏在这里。
 ///
 /// 数据来源优先级：安装包内置 > 本机缓存 > 联网获取。
-/// 某年内置或缓存已有时不联网；没有时 `ensure(year:)` 联网获取 (只下载不上传)，成功后写入缓存，
-/// 之后离线重启也能用；失败时该年记为缺失 (核心据此按双休计算并提示)，下次调用 `ensure` 再试。
-/// 外壳负责在启动、唤醒和定时器里调用 `ensure`，决定重试节奏。
+/// 某年内置或缓存已有时不联网；没有时 `update(today:)` 联网获取 (只下载不上传)，成功后写入缓存，
+/// 之后离线重启也能用；失败时该年记为缺失 (核心据此按双休计算并提示)，下次调用 `update` 再试。
+/// 外壳负责在启动、唤醒和定时器里调用 `update`，决定重试节奏；要哪几年由这里决定。
 @MainActor
 public final class HolidaySource {
     /// 当前的节假日表：所有已知年份的数据，加上最近一次获取失败的年份。
@@ -21,6 +21,9 @@ public final class HolidaySource {
     private var missingYears: Set<Int> = []
     /// 正在联网获取的年份，避免启动和唤醒同时触发时重复下载。
     private var fetching: Set<Int> = []
+
+    /// 国务院一般在 10 月底到 11 月发布次年放假安排，从这个月起顺带获取下一年 (PRD 4.2.2「每年获取新一年数据」)。
+    private static let nextYearFromMonth = 11
 
     /// 文件名约定：内置与缓存目录里都是 `holiday-cn-<年份>.json`，内容为 holiday-cn 原始格式。
     private static let filePrefix = "holiday-cn-"
@@ -40,8 +43,17 @@ public final class HolidaySource {
         rebuildTable()
     }
 
+    /// 保证今年有数据；11 月起也保证下一年有，跨年前备好，离线跨年也不缺。
+    /// `today` 是系统当前时区的今天。
+    public func update(today: LocalDate) async {
+        await ensure(year: today.year)
+        if today.month >= Self.nextYearFromMonth {
+            await ensure(year: today.year + 1)
+        }
+    }
+
     /// 保证 `year` 有数据。已有时直接返回；否则联网获取一次，成功则并入并缓存，失败则记为缺失。
-    public func ensure(year: Int) async {
+    private func ensure(year: Int) async {
         guard files[year] == nil, !fetching.contains(year) else { return }
         fetching.insert(year)
         defer { fetching.remove(year) }
@@ -76,6 +88,10 @@ public final class HolidaySource {
             let url = directory.appending(path: name)
             do {
                 let file = try HolidayCNFile(data: Data(contentsOf: url))
+                let nameYear = Int(name.dropFirst(Self.filePrefix.count).dropLast(".json".count))
+                guard nameYear == file.year else {
+                    throw HolidayCNFileError.wrongYear(expected: nameYear ?? 0, actual: file.year)
+                }
                 result[file.year] = file
             } catch {
                 logger.error("跳过无法使用的节假日文件 \(url.path(), privacy: .public)：\(String(describing: error), privacy: .public)")

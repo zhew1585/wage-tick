@@ -20,8 +20,9 @@ struct HolidayCNFile: Sendable {
         guard !raw.days.isEmpty else { throw .notPublished(raw.year) }
         var days: [LocalDate: HolidayKind] = [:]
         for day in raw.days {
-            guard let date = Self.parseDate(day.date) else { throw .badDate(day.date) }
-            days[date] = day.isOffDay ? .holiday : .makeupWorkday
+            // 跨年假期最多涉及前后一年，更远的日期说明数据有问题，整份不用。
+            guard let date = Self.parseDate(day.date), abs(date.year - raw.year) <= 1 else { throw .badDate(day.date) }
+            days[date] = day.isOffDay ? .holiday : .makeupDay
         }
         year = raw.year
         self.days = days

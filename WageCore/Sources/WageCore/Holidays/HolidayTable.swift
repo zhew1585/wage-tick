@@ -5,7 +5,7 @@ public enum HolidayKind: Sendable, Equatable {
     /// 法定节假日：不应出勤。
     case holiday
     /// 调休上班日：应出勤，即使落在周六日。
-    case makeupWorkday
+    case makeupDay
 }
 
 /// 节假日表：由节假日数据源适配器提供，作为参数注入 `snapshot`，核心不自己读文件或联网。

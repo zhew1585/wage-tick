@@ -7,7 +7,7 @@ struct AttendanceRule {
 
     func isAttendanceDay(_ date: LocalDate) -> Bool {
         switch holidays.kind(on: date) {
-        case .makeupWorkday: true
+        case .makeupDay: true
         case .holiday: false
         case nil: !date.isWeekend
         }
