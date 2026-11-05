@@ -7,19 +7,23 @@ public struct AppState: Sendable, Equatable, Codable {
     public internal(set) var profile: Profile?
     /// 界面设置 (老板路过等)，引导前也有默认值。
     public internal(set) var settings: InterfaceSettings
+    /// 日记录 (PRD 4.3.1)，按日期索引；没有任何手动内容的日子没有记录。
+    public internal(set) var dayRecords: [LocalDate: DayRecord]
 
-    private enum CodingKeys: String, CodingKey { case profile, settings }
+    private enum CodingKeys: String, CodingKey { case profile, settings, dayRecords }
 
     public init() {
         profile = nil
         settings = InterfaceSettings()
+        dayRecords = [:]
     }
 
-    /// #2 写出的旧文件没有 `settings`，读入时取默认值，不当作损坏文件。
+    /// #2 写出的旧文件没有 `settings`、`dayRecords`，读入时取默认值，不当作损坏文件。
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         profile = try container.decodeIfPresent(Profile.self, forKey: .profile)
         settings = try container.decodeIfPresent(InterfaceSettings.self, forKey: .settings) ?? InterfaceSettings()
+        dayRecords = try container.decodeIfPresent([LocalDate: DayRecord].self, forKey: .dayRecords) ?? [:]
     }
 }
 

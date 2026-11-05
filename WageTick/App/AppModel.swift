@@ -22,9 +22,24 @@ final class AppModel {
         store.save(state)
     }
 
-    /// 按系统当前时间与时区取快照。
+    /// 先发「推进到此刻」处理随时间发生的变化 (白干到 23:59:59 自动停止)，再按同一此刻取快照。
+    /// 每次刷新都会调用，只在状态真的变了才落盘。
     func currentSnapshot() -> Snapshot {
-        snapshot(of: state, at: Self.now())
+        let now = Self.now()
+        advance(at: now)
+        return snapshot(of: state, at: now)
+    }
+
+    private func advance(at now: Moment) {
+        do {
+            let next = try apply(.advance, to: state, at: now).state
+            guard next != state else { return }
+            state = next
+            store.save(state)
+        } catch {
+            // 推进到此刻没有校验，不会被拒绝。
+            assertionFailure("推进到此刻失败：\(error.message)")
+        }
     }
 
     /// 时钟：系统当前时间与当前时区 (PRD 4.3.5 #11)。

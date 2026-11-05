@@ -11,7 +11,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         model = AppModel(store: StateStore())
-        todayPanel = TodayPanelWindowController(model: model)
+        todayPanel = TodayPanelWindowController(model: model) { [weak self] in
+            self?.statusItem.refresh()
+        }
         onboarding = OnboardingWindowController(model: model) { [weak self] in
             self?.statusItem.refresh()
         }

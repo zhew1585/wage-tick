@@ -6,15 +6,19 @@ public struct TodayPanel: Sendable, Equatable {
     public let dateText: String
     /// 顶部时间，如「15:07」。
     public let timeText: String
-    /// 顶部状态标签，如「上班中」。
+    /// 顶部状态标签，如「上班中」；白干计时中为「白干中」(只是展示，不是日状态)。
     public let statusLabel: String
     public let body: Body
+    /// 白干计时按钮 (F7)：已下班为「我还没走」、休息日为「被迫营业」、计时中为「终于下班了」；不可用时为 nil。
+    public let unpaidWorkButton: UnpaidWorkButton?
 
     public enum Body: Sendable, Equatable {
         /// 应出勤日：未上班、上班中、午休中、已下班。
         case attendance(AttendancePanel)
         /// 休息日。
         case rest(RestPanel)
+        /// 白干计时中 (我还没走或被迫营业)。
+        case unpaidWork(UnpaidWorkPanel)
     }
 }
 
@@ -79,7 +83,12 @@ extension TodayPanel {
     init(today: Today, now: Moment) {
         dateText = Format.date(today.date, relativeTo: today.date)
         timeText = Format.time(now)
-        statusLabel = today.status.label
+        statusLabel = today.unpaidWork.isRunning ? "白干中" : today.status.label
+        unpaidWorkButton = UnpaidWorkButton(today: today)
+        if today.unpaidWork.isRunning {
+            body = .unpaidWork(UnpaidWorkPanel(today: today, now: now))
+            return
+        }
         guard let earnings = today.earnings, let plan = today.plan else {
             body = .rest(RestPanel(today: today))
             return
@@ -94,15 +103,22 @@ extension AttendancePanel {
         // 已下班时今日已赚 = 今日上限 = 今日结算 (PRD 4.3.4)。
         headline = Format.rollingMoney(earnings.earned)
         if today.status == .offWork {
-            // 白干记录留给后续票，本期已下班一律是准点下班。
-            caption = "准点下班，赢"
+            caption = today.unpaidWork.offWorkCaption
             progress = nil
-            stats = [StatItem(title: "今日结算", value: Format.money(earnings.cap)), monthToDate]
+            stats = Self.offWorkStats(today: today, earnings: earnings)
         } else {
             caption = "今日上限 \(Format.money(earnings.cap)) · 每秒 +\(Format.trimmed(earnings.perSecond))"
             progress = WorkProgress(plan: plan, progress: earnings.progress, now: now)
             stats = [StatItem(title: "距离下班", value: Format.countdown(from: now, to: plan.end)), monthToDate]
         }
+    }
+
+    /// 已下班的统计行：今日结算、本月累计。白干计时中的统计行与它相同 (F4 第 5 条)。
+    static func offWorkStats(today: Today, earnings: Earnings) -> [StatItem] {
+        [
+            StatItem(title: "今日结算", value: Format.money(earnings.cap)),
+            StatItem(title: "本月累计", value: Format.money(today.monthToDate)),
+        ]
     }
 }
 

@@ -24,13 +24,14 @@ public struct MenuBarDisplay: Sendable, Equatable {
     }
 }
 
-/// 菜单栏小牛的姿势，与日状态一一对应 (PRD 4.3.3 主状态概览)。
+/// 菜单栏小牛的姿势，与日状态一一对应 (PRD 4.3.3 主状态概览)；白干计时中另有冒汗姿势。
 public enum CowPose: Sendable, Equatable {
     case sunbathing  // 晒太阳：休息日
     case yawning     // 打哈欠：未上班，也用于未完成引导
     case grinding    // 埋头拉磨：上班中
     case sleeping    // 趴着睡：午休中
     case lyingFlat   // 躺平：已下班
+    case sweating    // 边拉磨边冒汗：白干计时中，不论日状态
 }
 
 /// 核心入口二：推导 `state` 在 `now` 时刻的快照，纯函数，不改状态。
@@ -38,7 +39,7 @@ public func snapshot(of state: AppState, at now: Moment) -> Snapshot {
     guard let profile = state.profile else {
         return Snapshot(menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil)
     }
-    let today = Today(profile: profile, now: now)
+    let today = Today(profile: profile, dayRecords: state.dayRecords, now: now)
     return Snapshot(
         menuBar: MenuBarDisplay(today: today, settings: state.settings),
         today: today,

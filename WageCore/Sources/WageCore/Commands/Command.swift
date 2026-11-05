@@ -6,6 +6,13 @@ public enum Command: Sendable, Equatable {
     case completeOnboarding(OnboardingInput)
     /// 开启或关闭老板路过模式 (PRD 4.7.1 第 3 条)，由全局快捷键或左键菜单发出。
     case toggleBossMode
+    /// 开始白干计时 (PRD 4.4.3)："我还没走"或"被迫营业"。
+    case startUnpaidWork
+    /// 停止白干计时："终于下班了"。
+    case stopUnpaidWork
+    /// 推进到此刻：处理随时间发生的状态变化 (白干到 23:59:59 自动停止)。
+    /// 外壳每次刷新时先发它，再取快照。
+    case advance
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -31,6 +38,9 @@ public enum CommandError: Error, Sendable, Equatable {
     case endNotAfterStart
     case lunchOutsideWorkHours
     case alreadyOnboarded
+    case unpaidWorkUnavailable
+    case unpaidWorkAlreadyRunning
+    case unpaidWorkNotRunning
 
     public var message: String {
         switch self {
@@ -38,6 +48,10 @@ public enum CommandError: Error, Sendable, Equatable {
         case .endNotAfterStart: "下班时间要晚于上班时间"
         case .lunchOutsideWorkHours: "午休要在上下班时间之内"
         case .alreadyOnboarded: "已经完成过引导了"
+        // 以下三条 PRD 没给文案：外壳只在快照允许时才提供按钮，正常用不到。
+        case .unpaidWorkUnavailable: "下班后或休息日才能白干计时"
+        case .unpaidWorkAlreadyRunning: "已经在白干计时了"
+        case .unpaidWorkNotRunning: "没有在白干计时"
         }
     }
 }
@@ -56,6 +70,12 @@ public func apply(
         var next = state
         next.settings.bossMode.toggle()
         return (next, [])
+    case .startUnpaidWork:
+        return (try startUnpaidWork(state: state, now: now), [])
+    case .stopUnpaidWork:
+        return (try stopUnpaidWork(state: state, now: now), [])
+    case .advance:
+        return (advanceUnpaidWork(state: state, now: now), [])
     }
 }
 
