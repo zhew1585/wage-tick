@@ -63,6 +63,44 @@ struct OffWorkNoticeTriggerTests {
         #expect(makeup.events == [.offWork(message: "今日 952.381 元已到账，可以走了")])
     }
 
+    @Test("AC-NTF-03 全天请假日不发下班通知")
+    func fullDayLeave() throws {
+        let onLeave = try applied(.requestLeave(Leave(period: .fullDay, deductionPercent: 100)), to: try onboarded())
+        let result = try refreshes(onLeave, at: [standardDay(9, 30), standardDay(17, 0), standardDay(18, 0), standardDay(19, 0)])
+
+        #expect(result.events.isEmpty)
+    }
+
+    @Test("PRD 4.3.5 #18 上班中途改成全天请假：立即变休息日，到 18:00 也不发")
+    func fullDayLeaveMidway() throws {
+        let waiting = try refreshes(try onboarded(), at: [standardDay(15, 0)])
+        let onLeave = try applied(
+            .requestLeave(Leave(period: .fullDay, deductionPercent: 100)), to: waiting.state, at: standardDay(15, 0)
+        )
+
+        #expect(try refreshes(onLeave, at: [standardDay(15, 1), standardDay(18, 0)]).events.isEmpty)
+    }
+
+    @Test("AC-NTF-04 下午假 (默认 50%)：12:00 发下班通知，金额 500")
+    func afternoonLeave() throws {
+        let onLeave = try applied(.requestLeave(Leave(period: .afternoon, deductionPercent: 50)), to: try onboarded())
+        let result = try refreshes(onLeave, at: [standardDay(11, 0), standardDay(11, 59, 59)])
+        #expect(result.events.isEmpty)
+
+        let atEnd = try refreshes(result.state, at: [standardDay(12, 0), standardDay(18, 0)])
+        #expect(atEnd.events == [.offWork(message: "今日 500 元已到账，可以走了")])
+    }
+
+    @Test("PRD 4.3.4 通知金额是当日结算：记了一笔 50 元扣钱，18:00 为 950")
+    func settlementAfterDeduction() throws {
+        let fined = try applied(
+            .addDeduction(DeductionInput(amount: .fixed(50), reason: .late, note: "")), to: try onboarded(), at: standardDay(15, 0)
+        )
+        let result = try refreshes(fined, at: [standardDay(17, 0), standardDay(18, 0)])
+
+        #expect(result.events == [.offWork(message: "今日 950 元已到账，可以走了")])
+    }
+
     @Test("PRD 4.7.1 第 5 条 通知里的金额截掉末尾 0，不补 4 位小数")
     func trimmedAmount() throws {
         // 20001 ÷ 20 = 1000.05。

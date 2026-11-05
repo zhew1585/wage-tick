@@ -29,8 +29,18 @@ final class AppModel {
         deliver(result.events)
     }
 
-    /// 先发「推进到此刻」处理随时间发生的变化 (如跨过计划下班)，再按同一此刻、当前节假日表取快照。
-    /// 每次刷新都走这里。
+    /// 试算：在当前状态上执行命令但不保存，返回执行后的快照。表单实时预览用它，校验失败时返回错误。
+    func dryRun(_ command: Command) -> Result<Snapshot, CommandError> {
+        let now = Self.now()
+        do {
+            return .success(snapshot(of: try apply(command, to: state, at: now, holidays: holidays).state, at: now, holidays: holidays))
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    /// 先发「推进到此刻」处理随时间发生的变化 (白干到 23:59:59 自动停止、累计中目标达成、跨过计划下班)，
+    /// 再按同一此刻、当前节假日表取快照。每次刷新都走这里。
     func currentSnapshot() -> Snapshot {
         let now = Self.now()
         advance(at: now)

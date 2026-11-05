@@ -29,6 +29,7 @@ enum CowIcon {
         case .grinding: "gearshape.fill"   // 埋头拉磨
         case .sleeping: "zzz"              // 趴着睡
         case .lyingFlat: "bed.double.fill" // 躺平
+        case .sweating: "drop.fill"        // 边拉磨边冒汗：白干计时中
         }
     }
 

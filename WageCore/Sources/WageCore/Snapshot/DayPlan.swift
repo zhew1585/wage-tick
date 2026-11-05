@@ -40,7 +40,7 @@ struct DayPlan: Sendable, Equatable {
     let end: Date
     let lunch: Period?
 
-    /// 当日计划 = 作息 (本期没有半天假调整)。
+    /// 作息原样落到这一天；按半天假调整见 `init(schedule:leave:on:now:)`。
     init(schedule: WorkSchedule, on day: LocalDate, now: Moment) {
         start = now.date(on: day, at: schedule.start)
         end = now.date(on: day, at: schedule.end)
@@ -56,10 +56,11 @@ struct DayPlan: Sendable, Equatable {
     }
 
     /// 计入有效工时的时段：有午休时为上午、下午两段，关闭午休时为一整段。
-    /// 午休紧贴计划上班或下班时，那一侧没有时长，不算一段。
+    /// 没有时长的段不算 (午休紧贴计划上班或下班，或半天假后那半天没有工时)。
     var workPeriods: [Period] {
-        guard let lunch else { return [Period(start: start, end: end)] }
-        return [Period(start: start, end: lunch.start), Period(start: lunch.end, end: end)].filter { $0.length > 0 }
+        let periods = lunch.map { [Period(start: start, end: $0.start), Period(start: $0.end, end: end)] }
+            ?? [Period(start: start, end: end)]
+        return periods.filter { $0.length > 0 }
     }
 
     /// 应有有效工时 (毫秒)：计划上下班之间扣除午休；关闭午休时全部计入 (PRD 4.2.3 #4)。
