@@ -32,7 +32,12 @@ struct TodayPanelView: View {
                 case .unpaidWork(let unpaidWork):
                     unpaidWorkSection(unpaidWork, button: panel.unpaidWorkButton)
                 }
-                GoalCardView(card: panel.goal, openGoals: openGoals)
+                GoalCardView(
+                    card: panel.goal,
+                    queue: panel.goalQueue,
+                    openGoals: openGoals,
+                    toggleQueue: { send(.toggleGoalQueueExpanded) }
+                )
                 Divider()
                 currentLeaveRow
                 moodButtons(panel)
@@ -40,6 +45,12 @@ struct TodayPanelView: View {
         }
         .padding(20)
         .frame(width: 340)
+        // 盖在面板上，不改变面板高度 (AC-HOME-11)。
+        .overlay {
+            if let celebration = content.celebration {
+                CelebrationView(celebration: celebration) { content.celebration = nil }
+            }
+        }
         .sheet(item: $deductionForm) { request in
             DeductionFormView(
                 request: request,

@@ -2,6 +2,7 @@ import Foundation
 
 // 历史编辑 (PRD 4.6.1、F11，#15)：在单日详情里改某一天，或改某个月的月薪。
 // 一切推导内容 (日薪、结算、本月累计、目标累计额) 都从状态实时推导，编辑后自然重算；已完成目标只存完成时间，不受影响 (AC-GOAL-08)。
+// 编辑让当前目标达标时当场完成，见 `completingGoalsAfterEdit`。
 
 /// 对某一天的编辑 (PRD 4.6.1 可编辑内容)：
 /// - 过去和今天：扣钱、请假、白干段、单日覆盖
@@ -59,6 +60,13 @@ func editDay(
     case .deleteUnpaidWork(let index):
         return try deleteUnpaidWork(index: index, on: date, state: state)
     }
+}
+
+/// 历史编辑后当前目标的累计额随之变化 (PRD 4.5.2「编辑历史只影响当前累计中目标」)，因此达标的立即完成：
+/// 走目标完成的唯一入口 `completingReachedGoals` (发达成通知、排庆祝动画、激活下一个)；已完成目标冻结不动。
+/// 编辑可能改了单日覆盖，节假日表按编辑后的状态重新并一次。
+func completingGoalsAfterEdit(_ state: AppState, now: Moment, holidays: HolidayTable) -> (state: AppState, events: [DomainEvent]) {
+    completingReachedGoals(state, now: now, holidays: holidays.overlaying(state.dayRecords))
 }
 
 /// 改 `month` 的月薪，该月整月生效 (PRD 4.2.1)，限安装当月至本月。改本月时未来月份沿用 (4.2.1 #3)。

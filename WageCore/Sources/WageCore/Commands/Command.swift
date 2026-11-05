@@ -32,14 +32,26 @@ public enum Command: Sendable, Equatable {
     case startUnpaidWork
     /// 停止白干计时："终于下班了"。
     case stopUnpaidWork
-    /// 推进到此刻：处理随时间发生的状态变化，依次为白干到 23:59:59 自动停止、累计中目标达成、
+    /// 推进到此刻：处理随时间发生的状态变化，依次为白干到 23:59:59 自动停止、累计中目标达成 (产生一次达成事件)、
     /// 跨过当日计划下班 (产生一次下班事件，PRD 4.6.3)。
     /// 外壳每次刷新时先发它，再取快照。
     case advance
-    /// 新建目标 (PRD 4.5.2)，名称与金额未经校验。
+    /// 新建目标 (PRD 4.5.2)，名称与金额未经校验。队列为空时直接累计，否则排到队尾。
     case createGoal(name: String, amount: Decimal)
+    /// 编辑排队中或累计中目标的名称和金额 (PRD 4.5.2)，未经校验；改小金额导致累计额已达标时立即完成并激活下一个。
+    case editGoal(id: Int, name: String, amount: Decimal)
+    /// 删除目标 (PRD 4.5.2)：删除累计中目标时下一个排队目标继承其起算基准，已累计的钱不丢【D5】。
+    case deleteGoal(id: Int)
+    /// 调整队列顺序 (PRD 4.5.2)：`ids` 是累计中和排队中目标的新顺序，累计中必须在最前【D6】。
+    case reorderGoals(ids: [Int])
+    /// 切换面板目标区的展开或收起 (PRD F9)，会被记住【O3】。
+    case toggleGoalQueueExpanded
     /// 开关下班通知 (PRD 4.7.2)。
     case setOffWorkNotification(Bool)
+    /// 开关目标达成通知 (PRD 4.7.2)。
+    case setGoalReachedNotification(Bool)
+    /// 面板开始播放目标达成庆祝动画时确认，同一目标不再播放 (AC-GPRG-04)。
+    case acknowledgeCelebration(goalID: Int)
     /// 历史编辑 (PRD 4.6.1、F11)：在单日详情里改某一天，可编辑范围见 `DayEdit`。
     case editDay(LocalDate, DayEdit)
     /// 在历史里改某个月的月薪 (PRD 4.2.1、4.6.1)，限安装当月至本月：过去的月份只影响该月；
@@ -64,6 +76,8 @@ public struct OnboardingInput: Sendable, Equatable {
 public enum DomainEvent: Sendable, Equatable {
     /// 到达当日计划下班 (PRD 4.6.3)。`message` 是通知正文，已按老板路过模式决定是否含金额，外壳原样发出。
     case offWork(message: String)
+    /// 累计中目标完成 (PRD 4.6.3)。`message` 是通知正文，不含金额，外壳原样发出。
+    case goalReached(message: String)
 }
 
 /// 命令被拒绝的原因，`message` 是直接展示给牛马的提示文案 (PRD 4.3.5)。
@@ -84,7 +98,9 @@ public enum CommandError: Error, Sendable, Equatable {
     case unpaidWorkAlreadyRunning
     case unpaidWorkNotRunning
     case invalidGoal
-    case goalAlreadyAccumulating
+    case goalNotFound
+    case goalCompleted
+    case goalOrderLocked
     case dateOutOfRange
     case futureDate
     case unpaidWorkEndNotAfterStart
@@ -111,8 +127,11 @@ public enum CommandError: Error, Sendable, Equatable {
         case .unpaidWorkAlreadyRunning: "已经在白干计时了"
         case .unpaidWorkNotRunning: "没有在白干计时"
         case .invalidGoal: "给目标起个名字，金额得大于 0"
-        // PRD 没给文案：排队属于目标队列 (#12)，本期外壳在已有累计中目标时也提供新建入口，由这条提示拦下。
-        case .goalAlreadyAccumulating: "先攒完当前这个目标吧"
+        // 以下三条 PRD 没给文案：外壳只对快照允许的行提供编辑、删除，排队中目标只能在排队中一组里拖动，
+        // 正常只在列表过期 (如目标刚好达成) 时用到。
+        case .goalNotFound: "这个目标已经不在了"
+        case .goalCompleted: "已完成的目标不能再改"
+        case .goalOrderLocked: "累计中的目标固定在最前"
         // 以下为历史编辑 (#15) 的提示，PRD 没给文案。`futureDate` 也作为单日详情里入口不可用的原因展示。
         case .dateOutOfRange: "这天不在历史范围内"
         case .futureDate: "还没到这一天，只能请假或设置单日覆盖"
@@ -174,12 +193,26 @@ public func apply(
         return advance(state, now: now, holidays: holidays)
     case .createGoal(let name, let amount):
         return (try createGoal(name: name, amount: amount, state: state, now: now, holidays: holidays), [])
+    case .editGoal(let id, let name, let amount):
+        return try editGoal(id: id, name: name, amount: amount, state: state, now: now, holidays: holidays)
+    case .deleteGoal(let id):
+        return try deleteGoal(id: id, state: state, now: now, holidays: holidays)
+    case .reorderGoals(let ids):
+        return (try reorderGoals(ids: ids, state: state), [])
+    case .toggleGoalQueueExpanded:
+        var next = state
+        next.settings.goalQueueExpanded.toggle()
+        return (next, [])
     case .setOffWorkNotification(let enabled):
         return (setOffWorkNotification(enabled, state: state), [])
+    case .setGoalReachedNotification(let enabled):
+        return (setGoalReachedNotification(enabled, state: state), [])
+    case .acknowledgeCelebration(let goalID):
+        return (acknowledgeCelebration(goalID: goalID, state: state), [])
     case .editDay(let date, let edit):
-        return (try editDay(date, edit, state: state, now: now, holidays: holidays), [])
+        return completingGoalsAfterEdit(try editDay(date, edit, state: state, now: now, holidays: holidays), now: now, holidays: holidays)
     case .setMonthlySalary(let month, let amount):
-        return (try setMonthlySalary(amount, for: month, state: state, now: now), [])
+        return completingGoalsAfterEdit(try setMonthlySalary(amount, for: month, state: state, now: now), now: now, holidays: holidays)
     }
 }
 

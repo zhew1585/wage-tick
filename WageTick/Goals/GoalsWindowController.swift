@@ -37,9 +37,9 @@ final class GoalsWindowController: NSObject, NSWindowDelegate {
         timer = nil
     }
 
-    /// 新建目标，成功后立即刷新列表。校验失败时抛出 `CommandError`，由表单展示提示。
-    private func create(name: String, amount: Decimal) throws(CommandError) {
-        try model.send(.createGoal(name: name, amount: amount))
+    /// 执行目标命令 (新建、编辑、删除、排序)，成功后立即刷新列表。校验失败时抛出 `CommandError`，由视图展示提示。
+    private func send(_ command: Command) throws(CommandError) {
+        try model.send(command)
         refresh()
     }
 
@@ -54,8 +54,8 @@ final class GoalsWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow() -> NSWindow {
-        let view = GoalsView(content: content) { [weak self] (name: String, amount: Decimal) throws(CommandError) in
-            try self?.create(name: name, amount: amount)
+        let view = GoalsView(content: content) { [weak self] (command: Command) throws(CommandError) in
+            try self?.send(command)
         }
         let window = NSWindow(contentViewController: NSHostingController(rootView: view))
         window.title = "目标"

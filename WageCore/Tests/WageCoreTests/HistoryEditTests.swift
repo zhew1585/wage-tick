@@ -349,12 +349,62 @@ struct HistoryEditGoalTests {
 
     @Test("本月没有要上班的日子时，目标预计完成不按日薪 0 去除")
     func estimateWithoutAttendanceDays() throws {
-        var state = try creatingGoal("键盘", 1000, in: try installedFebruary2(), at: moment(2026, 2, 2, 9, 0))
+        var state = try creatingGoal("键盘", 100_000, in: try installedFebruary2(), at: moment(2026, 2, 2, 9, 0))
         for day in 1...28 where !LocalDate(year: 2026, month: 2, day: day).isSaturdayOrSunday {
             state = try editing(feb(day), .setOverride(.dayOff), in: state)
         }
 
         #expect(try activeGoal(state, at: standardDay(15, 0)).estimate == "本月没有要上班的日子，暂时没法预计")
+    }
+
+    @Test("#12 遗留 本月没有应出勤日时排队中目标也不按日薪 0 去除：展开后显示「排队中 · 暂时没法预计」")
+    func queuedEstimateWithoutAttendanceDays() throws {
+        var state = try creatingGoal("键盘", 100_000, in: try installedFebruary2(), at: moment(2026, 2, 2, 9, 0))
+        state = try creatingGoal("Switch 2", 3000, in: state, at: moment(2026, 2, 2, 9, 0))
+        state = try apply(.toggleGoalQueueExpanded, to: state, at: standardDay(15, 0)).state
+        for day in 1...28 where !LocalDate(year: 2026, month: 2, day: day).isSaturdayOrSunday {
+            state = try editing(feb(day), .setOverride(.dayOff), in: state)
+        }
+        let queue = try #require(snapshot(of: state, at: standardDay(15, 0)).panel?.goalQueue)
+
+        #expect(queue.queued.map(\.estimate) == ["排队中 · 暂时没法预计"])
+    }
+
+    @Test("历史编辑让当前目标达标：立即完成，发达成通知、排庆祝动画，下一个目标接着累计；已完成目标不变")
+    func editReachesGoal() throws {
+        // 2 月 2 日 9:00 新建 1100 的目标，3 日 9:00 累计 1000 还差 100；把周日 2 月 1 日改成上班日后
+        // 本月 21 天，2 月 1 日、2 日各 952.381，累计 1904.76 达标。
+        var state = try creatingGoal("键盘", 1100, in: try installedFebruary2(), at: moment(2026, 2, 2, 9, 0))
+        state = try creatingGoal("Switch 2", 5000, in: state, at: moment(2026, 2, 2, 9, 0))
+        let now = moment(2026, 2, 3, 9, 0)
+        state = try apply(.advance, to: state, at: now).state
+        #expect(try #require(snapshot(of: state, at: now).goals).map(\.statusLabel) == ["累计中", "排队中"])
+
+        let result = try apply(.editDay(feb(1), .setOverride(.attendanceDay)), to: state, at: now)
+        let rows = try #require(snapshot(of: result.state, at: now).goals)
+
+        #expect(result.events == [.goalReached(message: "🎉 目标「键盘」达成")])
+        #expect(snapshot(of: result.state, at: now).celebration?.goalID == 1)
+        #expect(rows.map(\.statusLabel) == ["累计中", "已完成"])
+        #expect(rows.map(\.name) == ["Switch 2", "键盘"])
+        // 零头结转：1904.7619 - 1100 = 804.7619。
+        #expect(rows.first?.detail == "¥804.7619 / ¥5000")
+
+        // 再撤销覆盖让累计收入回落：已完成目标冻结，不会变回累计中。
+        let undone = try apply(.editDay(feb(1), .clearOverride), to: result.state, at: now)
+        #expect(undone.events.isEmpty)
+        #expect(try #require(snapshot(of: undone.state, at: now).goals).map(\.statusLabel) == ["累计中", "已完成"])
+    }
+
+    @Test("在历史里改月薪让当前目标达标：同样立即完成")
+    func salaryEditReachesGoal() throws {
+        var state = try creatingGoal("键盘", 1500, in: try installedFebruary2(), at: moment(2026, 2, 2, 9, 0))
+        let now = moment(2026, 2, 3, 9, 0)
+        state = try apply(.advance, to: state, at: now).state
+        let result = try apply(.setMonthlySalary(february, 40000), to: state, at: now)
+
+        #expect(result.events == [.goalReached(message: "🎉 目标「键盘」达成")])
+        #expect(try #require(snapshot(of: result.state, at: now).goals).map(\.statusLabel) == ["已完成"])
     }
 }
 
