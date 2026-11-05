@@ -1,8 +1,8 @@
 import SwiftUI
 import WageCore
 
-/// 设置页 (PRD F12，页面 P6)：月薪、作息、菜单栏显示模式、老板路过快捷键、开机自启。
-/// 只管排版，动作与提示都在 `SettingsFormModel`。通知开关留给 #10。
+/// 设置页 (PRD F12，页面 P6)：月薪、作息、菜单栏显示模式、老板路过快捷键、开机自启、下班通知。
+/// 只管排版，动作与提示都在 `SettingsFormModel`。目标达成通知开关留给 #13。
 struct SettingsView: View {
     @Bindable var form: SettingsFormModel
 
@@ -21,10 +21,28 @@ struct SettingsView: View {
                 Toggle("开机自动启动", isOn: Binding(get: { form.launchAtLogin }, set: { form.setLaunchAtLogin($0) }))
                 messageRow(form.launchMessage)
             }
+            notificationSection
         }
         .formStyle(.grouped)
-        .frame(width: 420, height: 760)
+        .frame(width: 420, height: 820)
     }
+
+    private var notificationSection: some View {
+        Section("通知") {
+            Toggle(
+                "下班通知",
+                isOn: Binding(get: { form.offWorkNotification }, set: { form.setOffWorkNotification($0) })
+            )
+            if form.notificationDenied {
+                HStack {
+                    Text(NotificationCopy.permissionDenied).font(.callout).foregroundStyle(.red)
+                    Spacer()
+                    Button("打开系统设置") { form.openNotificationSettings() }
+                }
+            }
+        }
+    }
+
 
     private var salarySection: some View {
         Section {

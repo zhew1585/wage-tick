@@ -32,7 +32,8 @@ public enum Command: Sendable, Equatable {
     case startUnpaidWork
     /// 停止白干计时："终于下班了"。
     case stopUnpaidWork
-    /// 推进到此刻：处理随时间发生的状态变化，依次为白干到 23:59:59 自动停止、累计中目标达成。
+    /// 推进到此刻：处理随时间发生的状态变化，依次为白干到 23:59:59 自动停止、累计中目标达成、
+    /// 跨过当日计划下班 (产生一次下班事件，PRD 4.6.3)。
     /// 外壳每次刷新时先发它，再取快照。
     case advance
     /// 新建目标 (PRD 4.5.2)，名称与金额未经校验。队列为空时直接累计，否则排到队尾。
@@ -45,6 +46,8 @@ public enum Command: Sendable, Equatable {
     case reorderGoals(ids: [Int])
     /// 切换面板目标区的展开或收起 (PRD F9)，会被记住【O3】。
     case toggleGoalQueueExpanded
+    /// 开关下班通知 (PRD 4.7.2)。
+    case setOffWorkNotification(Bool)
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -61,8 +64,10 @@ public struct OnboardingInput: Sendable, Equatable {
 }
 
 /// 命令执行后产生的领域事件，外壳据此发系统通知。
-/// 本期还没有任何事件 (下班、目标达成留给后续票)。
-public enum DomainEvent: Sendable, Equatable {}
+public enum DomainEvent: Sendable, Equatable {
+    /// 到达当日计划下班 (PRD 4.6.3)。`message` 是通知正文，已按老板路过模式决定是否含金额，外壳原样发出。
+    case offWork(message: String)
+}
 
 /// 命令被拒绝的原因，`message` 是直接展示给牛马的提示文案 (PRD 4.3.5)。
 public enum CommandError: Error, Sendable, Equatable {
@@ -161,15 +166,17 @@ public func apply(
     case .createGoal(let name, let amount):
         return (try createGoal(name: name, amount: amount, state: state, now: now, holidays: holidays), [])
     case .editGoal(let id, let name, let amount):
-        return (try editGoal(id: id, name: name, amount: amount, state: state, now: now, holidays: holidays), [])
+        return try editGoal(id: id, name: name, amount: amount, state: state, now: now, holidays: holidays)
     case .deleteGoal(let id):
-        return (try deleteGoal(id: id, state: state, now: now, holidays: holidays), [])
+        return try deleteGoal(id: id, state: state, now: now, holidays: holidays)
     case .reorderGoals(let ids):
         return (try reorderGoals(ids: ids, state: state), [])
     case .toggleGoalQueueExpanded:
         var next = state
         next.settings.goalQueueExpanded.toggle()
         return (next, [])
+    case .setOffWorkNotification(let enabled):
+        return (setOffWorkNotification(enabled, state: state), [])
     }
 }
 

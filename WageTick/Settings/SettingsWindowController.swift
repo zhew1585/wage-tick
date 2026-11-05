@@ -29,6 +29,11 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         form.endRecordingHotkey()
     }
 
+    /// 从系统设置改完通知权限切回来时，提示随之更新。
+    func windowDidBecomeKey(_ notification: Notification) {
+        form.refreshNotificationPermission()
+    }
+
     private func makeWindow() -> NSWindow {
         let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(form: form)))
         window.title = "设置"

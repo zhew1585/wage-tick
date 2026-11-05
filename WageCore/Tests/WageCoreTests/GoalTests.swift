@@ -136,7 +136,7 @@ struct GoalEstimateTests {
 
 @Suite("目标：累计与达成")
 struct GoalProgressTests {
-    /// 在 `now` 时刻推进到此刻。
+    /// 在 `now` 时刻推进到此刻。推进还会记下下班事件进度 (#10)，所以"没变"只比较目标。
     private func advanced(_ state: AppState, at now: Moment) throws -> AppState {
         try apply(.advance, to: state, at: now).state
     }
@@ -155,15 +155,15 @@ struct GoalProgressTests {
     func completesExactlyAtAmount() throws {
         let state = try creatingGoal("键盘", 1000, in: try onboarded(), at: standardDay(9, 0))
 
-        #expect(try advanced(state, at: standardDay(17, 59, 59)) == state)
+        #expect(try advanced(state, at: standardDay(17, 59, 59)).goals == state.goals)
         #expect(try advanced(state, at: standardDay(18, 0)).goals.map(\.status) == [.completed(at: standardDay(18, 0).date)])
     }
 
-    @Test("PRD 4.5.2 未达标时推进到此刻不改变状态")
+    @Test("PRD 4.5.2 未达标时推进到此刻不改变目标")
     func notYetReached() throws {
         let state = try creatingGoal("键盘", 500, in: try onboarded(), at: standardDay(9, 0))
 
-        #expect(try advanced(state, at: standardDay(11, 0)) == state)
+        #expect(try advanced(state, at: standardDay(11, 0)).goals == state.goals)
     }
 
     @Test("PRD 4.5.2 不变量 3 已完成目标冻结：之后再推进，完成时间不变")
@@ -171,7 +171,7 @@ struct GoalProgressTests {
         let state = try creatingGoal("键盘", 500, in: try onboarded(), at: standardDay(9, 0))
         let done = try advanced(state, at: standardDay(15, 0))
 
-        #expect(try advanced(done, at: moment(2026, 3, 2, 15, 0)) == done)
+        #expect(try advanced(done, at: moment(2026, 3, 2, 15, 0)).goals == done.goals)
     }
 
     @Test("PRD 4.5.1 累计收入跨月：2 月 26 日下班后新建，3 月 3 日 09:00 累计额 = 2 月 27 日 1000 + 3 月 2 日 20000/22")

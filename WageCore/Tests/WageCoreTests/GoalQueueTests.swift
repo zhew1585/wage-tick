@@ -76,6 +76,20 @@ struct GoalQueueCreationTests {
         #expect(try activeGoal(done, at: standardDay(18, 0)).amountText == "¥200 / ¥3000")
     }
 
+    @Test("spec #1 推进到此刻依次处理：跨过 18:00 的一次推进里 A、B 连续完成、C 激活，下班事件照常产生")
+    func advanceCompletesQueueAndNotifiesOffWork() throws {
+        let state = try creatingGoals([("A", 500), ("B", 300), ("C", 3000)], in: try onboarded(), at: standardDay(9, 0))
+        // 10:00 还没赚钱，什么都不发生；下一次刷新直接到 18:00 (如睡眠恢复)，累计额 1000。
+        let before = try apply(.advance, to: state, at: standardDay(10, 0))
+        #expect(before.state.goals == state.goals)
+        #expect(before.events.isEmpty)
+        let atEnd = try apply(.advance, to: before.state, at: standardDay(18, 0))
+
+        #expect(atEnd.events == [.offWork(message: "今日 1000 元已到账，可以走了")])
+        #expect(atEnd.state.goals.map(\.status).filter(\.isQueued).isEmpty)
+        #expect(try activeGoal(atEnd.state, at: standardDay(18, 0)).amountText == "¥200 / ¥3000")
+    }
+
     @Test("PRD 4.5.2 不变量 3 / AC-GOAL-08 完成后当天再扣钱：已完成目标不变，只有当前目标累计额减少")
     func completedGoalFrozenAfterDeduction() throws {
         // A 500 在 15:00 完成 (今日已赚 571.4286)，B 带着 71.4286 开始。

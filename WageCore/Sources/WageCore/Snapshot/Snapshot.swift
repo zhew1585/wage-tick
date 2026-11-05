@@ -16,6 +16,8 @@ public struct Snapshot: Sendable, Equatable {
     public let leaveForm: LeaveForm?
     /// 目标管理页的目标列表 (PRD F8)；未完成引导时为 nil。
     public let goals: [GoalRow]?
+    /// 历史 (PRD 4.6.1) 的推导输入；未完成引导时为 nil。只带输入不推导，见 `historyMonths()`。
+    var history: HistoryInputs? = nil
 }
 
 /// 菜单栏内容：小牛姿势 + 可选数字 (PRD 4.7.1 第 1、2 条)。
@@ -62,6 +64,7 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
         ),
         settingsForm: SettingsForm(profile: profile, today: today.date),
         leaveForm: LeaveForm(today: today, now: now),
-        goals: GoalRow.rows(state: state, active: activeGoal, today: today, now: now)
+        goals: GoalRow.rows(state: state, active: activeGoal, today: today, now: now),
+        history: HistoryInputs(profile: profile, dayRecords: state.dayRecords, today: today, now: now, holidays: holidays)
     )
 }
