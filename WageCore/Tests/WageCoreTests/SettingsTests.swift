@@ -377,4 +377,19 @@ struct SettingsFormTests {
         #expect(snapshot(of: state, at: standardDay(15, 0)).settingsForm?.monthlySalaryText == "22000")
         #expect(snapshot(of: state, at: moment(2026, 3, 2, 9, 0)).settingsForm?.monthlySalaryText == "22000")
     }
+
+    @Test("显示模式各段下面的预览 (设计稿 P6 · 760)：15:00 金额 571.4286、进度 57.14%、仅图标「—」，与当前模式和老板路过无关")
+    func menuBarPreviews() throws {
+        let state = try applied(.toggleBossMode, to: try applied(.setMenuBarMode(.iconOnly), to: try onboarded(), at: standardDay(9, 0)), at: standardDay(9, 0))
+        let form = try #require(snapshot(of: state, at: standardDay(15, 0)).settingsForm)
+
+        #expect(MenuBarMode.allCases.map(form.menuBarPreview) == ["571.4286", "57.14%", "—"])
+    }
+
+    @Test("休息日菜单栏不显示数字，预览都是「—」")
+    func menuBarPreviewsOnRestDay() throws {
+        let form = try #require(snapshot(of: try onboarded(), at: moment(2026, 2, 14, 11, 0)).settingsForm)
+
+        #expect(MenuBarMode.allCases.map(form.menuBarPreview) == ["—", "—", "—"])
+    }
 }

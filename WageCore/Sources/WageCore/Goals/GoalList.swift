@@ -38,7 +38,7 @@ public struct CompletedGoalRow: Sendable, Equatable, Identifiable {
     public let name: String
     /// 目标金额，如「¥500」。
     public let amountText: String
-    /// 如「2月11日达成」，不在今年时带年份「2026年12月30日达成」。
+    /// 完成时刻，如「2月11日 15:00 达成」，不在今年时带年份「2026年12月30日 15:00 达成」。
     public let completedText: String
 
     public init(id: Int, name: String, amountText: String, completedText: String) {
@@ -67,10 +67,10 @@ extension GoalList {
             if case .completed(let at) = goal.status { (goal, at) } else { nil }
         }
         let done = completed.sorted { $0.1 > $1.1 }.map { goal, at in
-            let day = Moment(date: at, timeZone: now.timeZone).localDate
+            let moment = Moment(date: at, timeZone: now.timeZone)
             return CompletedGoalRow(
                 id: goal.id, name: goal.name, amountText: Format.money(goal.amount),
-                completedText: "\(Format.monthDay(day, relativeTo: today.date))达成"
+                completedText: "\(Format.monthDay(moment.localDate, relativeTo: today.date)) \(Format.time(moment)) 达成"
             )
         }
         self.init(queue: queue, completed: done)

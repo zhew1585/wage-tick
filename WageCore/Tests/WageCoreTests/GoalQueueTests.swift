@@ -473,7 +473,7 @@ struct GoalQueueListTests {
             ["B", "¥3000.5", "3000.5"],
             ["C", "¥2500", "2500"],
         ])
-        #expect(list.completed.map { [$0.name, $0.amountText, $0.completedText] } == [["D", "¥100", "2月11日达成"]])
+        #expect(list.completed.map { [$0.name, $0.amountText, $0.completedText] } == [["D", "¥100", "2月11日 11:00 达成"]])
     }
 
     @Test("F8 攒钱队列第一个带累计中的进度、累计额、预计完成，与面板目标区同一份")

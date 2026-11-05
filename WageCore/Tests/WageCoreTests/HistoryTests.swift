@@ -36,7 +36,7 @@ struct HistoryMonthListTests {
 
         #expect(snap.historyMonths().map(\.title) == ["2026年4月", "2026年3月", "2026年2月"])
         #expect(snap.historyMonths().map(\.isCurrentMonth) == [true, false, false])
-        #expect(snap.historyMonths().map(\.badge) == ["本月", nil, nil])
+        #expect(snap.historyMonths().map(\.badge) == ["本月 · 进行中", nil, "安装当月"])
     }
 
     @Test("未完成引导时没有历史")
@@ -129,8 +129,8 @@ struct HistoryCalendarTests {
 
         #expect(kinds == [.fullAttendance, .deducted, .leave, .rest, .fullAttendance, .fullAttendance, .upcoming])
         #expect(try [10, 11, 12].map { try day(snap, feb($0)).isToday } == [false, true, false])
-        #expect(CalendarDayKind.allCases.map(\.label) == ["满勤", "被扣钱", "请假", "休息日", "单日覆盖", "未到"])
-        #expect(CalendarDayKind.legend.map(\.label) == ["满勤", "被扣钱", "请假", "休息日", "单日覆盖", "未到"])
+        #expect(CalendarDayKind.allCases.map(\.label) == ["满勤", "被扣钱", "请假", "休息日", "改成不上班", "未到"])
+        #expect(CalendarDayKind.legend.map(\.label) == ["满勤", "被扣钱", "请假", "改成不上班"])
         #expect(CalendarDayKind.todayLabel == "今天")
     }
 
@@ -165,14 +165,14 @@ struct HistoryCalendarTests {
 
 @Suite("历史：单日详情")
 struct HistoryDayDetailTests {
-    @Test("被扣钱的一天：结算 ¥950，扣款明细迟到 −¥50，判定来源双休")
+    @Test("被扣钱的一天：结算 ¥950，扣款明细迟到 −¥50，判定来源工作日")
     func deductedDay() throws {
         let detail = try day(snapshot(of: try februaryWithRecords(), at: moment(2026, 3, 10, 15, 0)), feb(4)).detail
 
         #expect(detail.title == "2月4日 周三")
-        #expect(detail.source == .weekend)
-        #expect(detail.source.label == "双休")
-        #expect(detail.sourceItem == StatItem(title: "判定来源", value: "双休"))
+        #expect(detail.source == .workday)
+        #expect(detail.source.label == "工作日")
+        #expect(detail.sourceItem == StatItem(title: "判定来源", value: "工作日"))
         #expect(detail.stats == [StatItem(title: "结算", value: "¥950")])
         #expect(detail.deductions.map(\.title) == ["迟到"])
         #expect(detail.deductions.map(\.amount) == ["−¥50"])
@@ -189,11 +189,11 @@ struct HistoryDayDetailTests {
         #expect(detail.stats == [StatItem(title: "结算", value: "¥500")])
     }
 
-    @Test("有白干的一天：白干段 18:00 至 19:30 共 1:30，白干 1:30 · 倒贴 ¥214.2857，结算仍是 ¥1000")
+    @Test("有白干的一天：白干段 18:00 – 19:30 共 1h30m，白干 1:30 · 倒贴 ¥214.2857，结算仍是 ¥1000")
     func unpaidWorkDay() throws {
         let detail = try day(snapshot(of: try februaryWithRecords(), at: moment(2026, 3, 10, 15, 0)), feb(9)).detail
 
-        #expect(detail.unpaidWork == [HistoryLine(title: "18:00 至 19:30", detail: nil, value: "1:30")])
+        #expect(detail.unpaidWork == [HistoryLine(title: "18:00 – 19:30", detail: nil, value: "1h30m")])
         #expect(detail.unpaidWorkSummary == "白干 1:30 · 倒贴 ¥214.2857")
         #expect(detail.stats == [StatItem(title: "结算", value: "¥1000")])
     }
@@ -202,7 +202,7 @@ struct HistoryDayDetailTests {
     func suspectedAllNighter() throws {
         let running = try applied(.startUnpaidWork, to: try onboarded(), at: moment(2026, 2, 9, 18, 0))
         let advanced = try applied(.advance, to: running, at: moment(2026, 2, 10, 9, 0))
-        let expected = [HistoryLine(title: "18:00 至 23:59", detail: "疑似通宵", value: "5:59")]
+        let expected = [HistoryLine(title: "18:00 – 23:59", detail: "疑似通宵", value: "5h59m")]
 
         #expect(try day(snapshot(of: advanced, at: moment(2026, 2, 10, 9, 0)), feb(9)).detail.unpaidWork == expected)
         // 还没推进时按已在 23:59:59 自动停止推导，与推进后一致。
@@ -214,7 +214,7 @@ struct HistoryDayDetailTests {
         let running = try applied(.startUnpaidWork, to: try onboarded(), at: standardDay(18, 0))
         let detail = try day(snapshot(of: running, at: standardDay(19, 0)), feb(11)).detail
 
-        #expect(detail.unpaidWork == [HistoryLine(title: "18:00 起", detail: "计时中", value: "1:00")])
+        #expect(detail.unpaidWork == [HistoryLine(title: "18:00 起", detail: "计时中", value: "1h00m")])
     }
 
     @Test("今天还没结算：显示今日已赚与今日上限；未来的应出勤日显示预计结算")

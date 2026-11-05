@@ -71,6 +71,8 @@ enum AppFont {
     static let chip = ui(11, .semibold)
     /// 最小字 10/400，图例、角注。
     static let tiny = ui(10)
+    /// 子页面 (目标、历史、设置) 页头标题 17/700 (760 设计稿)。
+    static let pageTitle = ui(17, .bold)
 
     // MARK: 数字预设 (font-num)
 

@@ -224,7 +224,7 @@ struct GoalScopeTests {
 
 @Suite("目标：目标管理列表")
 struct GoalListTests {
-    @Test("F8 列表：累计中在最前，已完成按完成时间倒序，带金额与完成日期")
+    @Test("F8 列表：累计中在最前，已完成按完成时间倒序，带金额与完成时刻 (设计稿 P3 · 760)")
     func rowsInOrder() throws {
         let first = try creatingGoal("键盘", 500, in: try onboarded(), at: standardDay(9, 0))
         let firstDone = try apply(.advance, to: first, at: standardDay(15, 0)).state
@@ -236,8 +236,8 @@ struct GoalListTests {
         // 2 月 12 日 15:00 新建，当天还剩 428.5714，加上 13 日 11:00 已赚 142.8571。
         #expect(list.queue.map { [$0.name, $0.asFirst.amountText] } == [["Switch 2", "¥571.4286 / ¥3000"]])
         #expect(list.completed.map { [$0.name, $0.amountText, $0.completedText] } == [
-            ["耳机", "¥300", "2月12日达成"],
-            ["键盘", "¥500", "2月11日达成"],
+            ["耳机", "¥300", "2月12日 15:00 达成"],
+            ["键盘", "¥500", "2月11日 15:00 达成"],
         ])
     }
 
@@ -247,7 +247,7 @@ struct GoalListTests {
         let state = try creatingGoal("键盘", 100, in: try onboarded(at: created), at: created)
         let done = try apply(.advance, to: state, at: moment(2026, 12, 30, 15, 0)).state
 
-        #expect(try #require(snapshot(of: done, at: moment(2027, 1, 4, 9, 0)).goals).completed.map(\.completedText) == ["2026年12月30日达成"])
+        #expect(try #require(snapshot(of: done, at: moment(2027, 1, 4, 9, 0)).goals).completed.map(\.completedText) == ["2026年12月30日 15:00 达成"])
     }
 
     @Test("F8 没有目标时列表为空；引导前没有列表")

@@ -1,8 +1,8 @@
 import SwiftUI
 import WageCore
 
-/// 设置页 (PRD F12，设计稿 P6)：钱与作息 (月薪、上下班、午休，点开弹表单改)，菜单栏 (显示模式、老板路过快捷键)，
-/// 通知与启动 (下班通知、目标达成通知、开机自启)，系统拒绝通知时的提示条。
+/// 设置页 (PRD F12，设计稿 P6 设置 · 760)：钱与作息 (月薪、上下班、午休，点开弹表单改)，菜单栏 (显示模式与各模式预览、老板路过快捷键)，
+/// 通知与启动 (下班通知、目标达成通知、开机自启)，系统拒绝通知时的提示条，数据 (清空数据并重启)。一屏放得下，放不下时滚动。
 /// 只管排版，动作与提示都在 `SettingsFormModel`。
 struct SettingsView: View {
     @Bindable var form: SettingsFormModel
@@ -20,7 +20,7 @@ struct SettingsView: View {
         VStack(spacing: 0) {
             PageHeader("设置", back: close)
             ScrollBody {
-                VStack(alignment: .leading, spacing: Spacing.s18) {
+                VStack(alignment: .leading, spacing: 22) {
                     moneySection
                     menuBarSection
                     notificationSection
@@ -29,9 +29,7 @@ struct SettingsView: View {
                     }
                     dataSection
                 }
-                .padding(.horizontal, Spacing.screen)
-                .padding(.top, Spacing.s16)
-                .padding(.bottom, Spacing.screen)
+                .padding(Spacing.screen)
             }
         }
         .frame(width: Spacing.pageWidth)
@@ -73,13 +71,13 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: Spacing.s8) {
                     Text("显示模式").font(AppFont.body).foregroundStyle(Palette.ink)
                     ThemeSegmented(
-                        options: MenuBarMode.allCases.map { .init(id: $0, title: $0.label) },
+                        options: MenuBarMode.allCases.map { .init(id: $0, title: $0.label, subtitle: form.menuBarPreviews[$0]) },
                         selection: form.menuBarMode,
                         select: form.setMenuBarMode
                     )
                 }
                 .padding(.horizontal, Spacing.s14)
-                .padding(.vertical, Spacing.s12)
+                .padding(.vertical, Spacing.s12 - 1)
                 CardDivider()
                 hotkeyRow
             }
@@ -123,7 +121,7 @@ struct SettingsView: View {
             .help(form.isRecordingHotkey ? "取消录制" : "点一下录制新的快捷键")
         }
         .padding(.horizontal, Spacing.s14)
-        .padding(.vertical, Spacing.s12)
+        .padding(.vertical, Spacing.s12 - 1)
     }
 
     // MARK: 通知与启动
@@ -143,11 +141,11 @@ struct SettingsView: View {
 
     // MARK: 数据
 
-    /// 清空数据并重启：先弹确认，确认后重启回到引导 (测试流程用)。
+    /// 清空数据并重启：先弹确认，确认后重启回到引导 (测试流程用)。surface 底、loss 色字，高 40。
     private var dataSection: some View {
         SettingsGroup("数据") {
             Button(role: .destructive) { confirmingReset = true } label: {
-                Text("清空数据并重启")
+                Text("清空数据并重启").frame(maxWidth: .infinity, minHeight: ControlHeight.wideButton)
             }
             .buttonStyle(.secondary(fullWidth: true))
             .alert("清空全部数据？", isPresented: $confirmingReset) {
@@ -168,9 +166,7 @@ struct SettingsView: View {
     private var notificationWarning: some View {
         Button(action: form.openNotificationSettings) {
             HStack(spacing: Spacing.s8) {
-                Image(systemName: "bell.slash")
-                    .font(.system(size: 12, weight: .medium))
-                    .frame(width: 14, height: 14)
+                PhosphorIcon(.bellSlash, size: 14)
                 Text(NotificationCopy.permissionDenied).font(AppFont.ui(12, .medium))
                 Spacer(minLength: 0)
             }
@@ -193,7 +189,7 @@ struct SettingsView: View {
     }
 }
 
-/// 设置页的一组：11/600 muted 小标题，下面是卡片。
+/// 设置页的一组：11/600 muted 小标题 (字距 0.5)，下面是卡片。
 private struct SettingsGroup<Content: View>: View {
     let title: String
     @ViewBuilder let content: () -> Content
@@ -205,7 +201,7 @@ private struct SettingsGroup<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s6) {
-            GroupLabel(title: title, font: AppFont.ui(11, .semibold))
+            GroupLabel(title: title, font: AppFont.ui(11, .semibold), tracking: 0.5)
             content()
         }
     }
@@ -225,13 +221,10 @@ private struct NavigationRow: View {
                 Text(title).font(AppFont.body).foregroundStyle(Palette.ink)
                 Spacer(minLength: Spacing.s8)
                 Text(value).font(AppFont.numCaption).foregroundStyle(emphasized ? Palette.ink : Palette.muted)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Palette.muted)
-                    .frame(width: 12, height: 12)
+                PhosphorIcon(.caretRight, size: 12).foregroundStyle(Palette.muted)
             }
             .padding(.horizontal, Spacing.s14)
-            .padding(.vertical, Spacing.s10)
+            .padding(.vertical, Spacing.s10 + 1)
             .contentShape(Rectangle())
         }
         .buttonStyle(.highlight(radius: 0))

@@ -6,7 +6,7 @@ import SwiftUI
 ///
 /// 两种标题栏高度：
 /// - `.standard`：系统默认 28 高，红绿灯在左上角 (今日概览面板、引导)。
-/// - `.tall`：挂一个空的 unified 工具栏，标题栏 52 高，红绿灯垂直居中，正好和 54 高的 `PageHeader` 排成一行 (目标、历史、设置)。
+/// - `.tall`：挂一个空的 unified 工具栏，标题栏 52 高，红绿灯垂直居中，正好和同高的 `PageHeader` 排成一行 (目标、历史、设置)。
 ///
 /// 用法 (建窗口时)：`WindowChrome.makeWindow(title: "目标", titlebar: .tall, rootView: view)`；
 /// 打开位置交给 `WindowPlacement`。

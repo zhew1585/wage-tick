@@ -61,7 +61,8 @@ struct OverrideTests {
         #expect(try monthStat(state, february, "应出勤日数") == "21 天")
         #expect(try detail(state, feb(9)).stats == [StatItem(title: "结算", value: "¥952.381")])
         #expect(saturday.detail.stats == [StatItem(title: "结算", value: "¥952.381")])
-        #expect(saturday.kind == .override)
+        // 改成上班的日子按上班日标颜色 (设计稿 760)，判定来源仍是单日覆盖。
+        #expect(saturday.kind == .fullAttendance)
         #expect(saturday.detail.source == .override)
         #expect(saturday.detail.sourceItem == StatItem(title: "判定来源", value: "单日覆盖"))
         #expect(snap.today?.dailyWage == Decimal(20000) / 21)
@@ -89,7 +90,8 @@ struct OverrideTests {
         let makeup = try #require(snap.historyDay(LocalDate(year: 2026, month: 10, day: 10)))
 
         #expect(holiday.detail.source == .override)
-        #expect(holiday.kind == .override)
+        #expect(holiday.kind == .fullAttendance)
+        #expect(makeup.kind == .override)
         #expect(holiday.detail.stats == [StatItem(title: "结算", value: "¥1111.1111")])
         #expect(makeup.detail.source == .override)
         #expect(makeup.detail.stats.isEmpty)
@@ -345,7 +347,7 @@ struct HistoryEditGoalTests {
         #expect(before.queue.map(\.asFirst.amountText) == ["¥2000 / ¥5000"])
         #expect(after.queue.map(\.asFirst.amountText) == ["¥1950 / ¥5000"])
         #expect(after.completed == before.completed)
-        #expect(after.completed.map { [$0.name, $0.amountText, $0.completedText] } == [["键盘", "¥1000", "2月3日达成"]])
+        #expect(after.completed.map { [$0.name, $0.amountText, $0.completedText] } == [["键盘", "¥1000", "2月3日 09:00 达成"]])
     }
 
     @Test("本月没有要上班的日子时，目标预计完成不按日薪 0 去除")
@@ -406,7 +408,7 @@ struct HistoryEditGoalTests {
 
         #expect(result.events == [.goalReached(message: "🎉 目标「键盘」达成")])
         #expect(try #require(snapshot(of: result.state, at: now).goals) == GoalList(
-            queue: [], completed: [CompletedGoalRow(id: 1, name: "键盘", amountText: "¥1500", completedText: "2月3日达成")]
+            queue: [], completed: [CompletedGoalRow(id: 1, name: "键盘", amountText: "¥1500", completedText: "2月3日 09:00 达成")]
         ))
     }
 }
@@ -422,7 +424,7 @@ struct UnpaidWorkEditTests {
         let state = try editing(feb(9), .addUnpaidWork(segment(18, 0, 19, 30)), in: try installedFebruary2())
         let day = try detail(state, feb(9))
 
-        #expect(day.unpaidWork == [HistoryLine(title: "18:00 至 19:30", detail: nil, value: "1:30")])
+        #expect(day.unpaidWork == [HistoryLine(title: "18:00 – 19:30", detail: nil, value: "1h30m")])
         #expect(day.unpaidWorkSummary == "白干 1:30 · 倒贴 ¥214.2857")
         #expect(day.stats == [StatItem(title: "结算", value: "¥1000")])
     }
@@ -431,7 +433,7 @@ struct UnpaidWorkEditTests {
     func editAndDelete() throws {
         var state = try editing(feb(7), .addUnpaidWork(segment(14, 0, 15, 0)), in: try installedFebruary2())
         state = try editing(feb(7), .addUnpaidWork(segment(9, 0, 10, 0)), in: state)
-        #expect(try detail(state, feb(7)).unpaidWork.map(\.title) == ["09:00 至 10:00", "14:00 至 15:00"])
+        #expect(try detail(state, feb(7)).unpaidWork.map(\.title) == ["09:00 – 10:00", "14:00 – 15:00"])
 
         state = try editing(feb(7), .editUnpaidWork(index: 1, segment(14, 0, 16, 30)), in: state)
         #expect(try detail(state, feb(7)).unpaidWorkSummary?.hasPrefix("白干 3:30") == true)
@@ -447,7 +449,7 @@ struct UnpaidWorkEditTests {
         state = try apply(.advance, to: state, at: moment(2026, 2, 10, 9, 0)).state
         state = try editing(feb(9), .editUnpaidWork(index: 0, segment(18, 0, 22, 0)), in: state)
 
-        #expect(try detail(state, feb(9)).unpaidWork == [HistoryLine(title: "18:00 至 22:00", detail: nil, value: "4:00")])
+        #expect(try detail(state, feb(9)).unpaidWork == [HistoryLine(title: "18:00 – 22:00", detail: nil, value: "4h00m")])
     }
 
     @Test("白干段校验：结束要晚于开始，不能和已有的段重叠，今天的不能晚于此刻，编号要存在")

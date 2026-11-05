@@ -41,13 +41,37 @@ public struct HistoryMonthSummary: Sendable, Equatable, Identifiable {
     public let title: String
     /// 是否本月：本月结算总额等于本月累计 (AC-HIS-01)。
     public let isCurrentMonth: Bool
+    /// 是否安装当月：最早的一个月，月中安装时前面的日子按满勤补齐 (AC-PRE-01)。
+    public let isInstallMonth: Bool
     /// 结算总额、应出勤日数、扣款合计、请假天数、白干时长 (AC-HIS-02)，按此顺序。
     public let stats: [StatItem]
+    /// 结算总额，如「¥19450」(设计稿放在月份右边)。
+    public let total: String
+    /// 结算总额以外的四项，用设计稿的短标题：应出勤、扣款、请假、白干 (如「1h30m」)。
+    /// 扣款不带负号，有扣款时 `isLoss` 标亏钱色。
+    public let figures: [HistoryFigure]
 
     public var id: YearMonth { month }
 
-    /// 标题旁的标签：本月为「本月」，其余为 nil。
-    public var badge: String? { isCurrentMonth ? "本月" : nil }
+    /// 标题旁的标签：本月为「本月 · 进行中」，安装当月 (不是本月时) 为「安装当月」，其余为 nil。
+    public var badge: String? {
+        if isCurrentMonth { return "本月 · 进行中" }
+        return isInstallMonth ? "安装当月" : nil
+    }
+}
+
+/// 历史里的一项汇总数字：短标题 + 数值，如「扣款」「¥550」。
+public struct HistoryFigure: Sendable, Equatable {
+    public let title: String
+    public let value: String
+    /// 是亏掉的钱 (扣款不为零)：外壳用亏钱色。
+    public let isLoss: Bool
+
+    public init(title: String, value: String, isLoss: Bool = false) {
+        self.title = title
+        self.value = value
+        self.isLoss = isLoss
+    }
 }
 
 /// 一次历史推导用到的输入、规则与索引，推导时现建现用。

@@ -28,6 +28,13 @@ enum Phosphor: String {
     case trendDown = "trend-down"
     case umbrella
     case warning
+    // 目标、历史、设置 (760 设计稿) 用到的。
+    case bellSlash = "bell-slash"
+    case checkCircle = "check-circle"
+    case drop
+    case list
+    case plus
+    case swap
 
     var image: Image {
         Image("Phosphor/\(rawValue)").renderingMode(.template)

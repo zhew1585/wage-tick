@@ -49,3 +49,11 @@ enum Spacing {
 enum WindowMetrics {
     static let size = CGSize(width: 360, height: 760)
 }
+
+/// 控件高度 token (设计稿里直接写的高度)。
+enum ControlHeight {
+    /// 子页面底部整宽主按钮 (目标页「新目标」)，760 设计稿 44。
+    static let footerButton: CGFloat = 44
+    /// 设置页「清空数据并重启」整宽按钮，760 设计稿 40。
+    static let wideButton: CGFloat = 40
+}

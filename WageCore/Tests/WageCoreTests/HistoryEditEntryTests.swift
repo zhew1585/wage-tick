@@ -112,7 +112,7 @@ struct HistoryEditEntryTests {
         let items = try #require(snapshot(of: state, at: standardDay(19, 0)).historyDay(feb(11))).detail.editing.unpaidWorkItems
 
         #expect(items.map(\.index) == [0, 1])
-        #expect(items.map(\.line.title) == ["08:00 至 09:15", "18:00 起"])
+        #expect(items.map(\.line.title) == ["08:00 – 09:15", "18:00 起"])
         #expect(items.map(\.input) == [UnpaidWorkInput(start: TimeOfDay(hour: 8, minute: 0), end: TimeOfDay(hour: 9, minute: 15)), nil])
     }
 
