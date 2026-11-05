@@ -10,10 +10,14 @@ import WageCore
 final class HistoryContent {
     var snapshot: Snapshot?
     /// 正在看的月份；nil 时显示月列表。
-    var selectedMonth: YearMonth?
+    var selectedMonth: YearMonth? {
+        didSet { if selectedMonth != oldValue { selectedDay = nil } }
+    }
+    /// 正在看的那一天 (单日详情)；nil 时显示月日历。
+    var selectedDay: LocalDate?
 }
 
-/// 历史窗口 (PRD F10、F11，页面 P4、P5)，从左键菜单「历史 ⌘3」打开，可编辑历史 (#15)。
+/// 历史窗口 (PRD F10、F11，页面 P4、P5)，从左键菜单「历史 ⌘3」打开，可编辑历史 (#15)。外观见 `PageWindow`。
 /// 只在窗口可见时每秒刷新一次：本月结算总额含今日已赚，要跟着本月累计走 (AC-HIS-01)。
 @MainActor
 final class HistoryWindowController: NSObject, NSWindowDelegate {
@@ -44,6 +48,7 @@ final class HistoryWindowController: NSObject, NSWindowDelegate {
         // 关窗即丢掉快照，下次打开重新推导，并回到月列表。
         content.snapshot = nil
         content.selectedMonth = nil
+        content.selectedDay = nil
     }
 
     private func refresh() {
@@ -67,11 +72,7 @@ final class HistoryWindowController: NSObject, NSWindowDelegate {
                 onStateChange()
             }
         )
-        let window = NSWindow(contentViewController: NSHostingController(rootView: HistoryView(content: content, actions: actions)))
-        window.title = "历史"
-        window.styleMask = [.titled, .closable]
-        window.isReleasedWhenClosed = false
-        window.delegate = self
-        return window
+        let view = HistoryView(content: content, actions: actions, close: { [weak self] in self?.window.close() })
+        return PageWindow.make(title: "历史", rootView: view, delegate: self)
     }
 }

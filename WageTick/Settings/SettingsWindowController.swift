@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// 设置窗口 (PRD F12，页面 P6)，从左键菜单「设置… ⌘,」打开。每次打开都按最新状态填好表单。
+/// 设置窗口 (PRD F12，页面 P6)，从左键菜单「设置… ⌘,」打开。每次打开都按最新状态填好表单。外观见 `PageWindow`。
 @MainActor
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let form: SettingsFormModel
@@ -35,11 +35,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow() -> NSWindow {
-        let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(form: form)))
-        window.title = "设置"
-        window.styleMask = [.titled, .closable]
-        window.isReleasedWhenClosed = false
-        window.delegate = self
-        return window
+        let view = SettingsView(form: form, close: { [weak self] in self?.window.close() })
+        return PageWindow.make(title: "设置", rootView: view, delegate: self)
     }
 }
