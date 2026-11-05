@@ -8,9 +8,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: StatusItemController!
     private var onboarding: OnboardingWindowController!
     private var todayPanel: TodayPanelWindowController!
+    private var holidayUpdater: HolidayUpdater!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         model = AppModel(store: StateStore())
+        // 先交出内置与缓存的节假日数据，菜单栏第一次刷新就按它计算。
+        holidayUpdater = HolidayUpdater(model: model)
+        holidayUpdater.start()
         todayPanel = TodayPanelWindowController(model: model)
         onboarding = OnboardingWindowController(model: model) { [weak self] in
             self?.statusItem.refresh()

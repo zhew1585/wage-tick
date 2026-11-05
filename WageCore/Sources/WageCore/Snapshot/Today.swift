@@ -44,18 +44,19 @@ public struct Earnings: Sendable, Equatable {
 }
 
 extension Today {
-    init(profile: Profile, now: Moment) {
+    init(profile: Profile, now: Moment, holidays: HolidayTable) {
+        let rule = AttendanceRule(holidays: holidays)
         let day = now.localDate
         let month = day.yearMonth
-        // 当月至少有 20 个应出勤日 (只按双休时)，除数不会为 0；单日覆盖引入后见 PRD 4.3.5 #19。
-        let wage = profile.salary(for: month) / Decimal(AttendanceRule.attendanceDayCount(in: month))
+        // 法定节假日最长的月份 (如国庆、春节) 也有十几个应出勤日，除数不会为 0；单日覆盖引入后见 PRD 4.3.5 #19。
+        let wage = profile.salary(for: month) / Decimal(rule.attendanceDayCount(in: month))
         // 本期没有扣款，每个已过的应出勤日结算都等于日薪。
-        let attended = month.days.filter { $0 < day && AttendanceRule.isAttendanceDay($0) }.count
+        let attended = month.days.filter { $0 < day && rule.isAttendanceDay($0) }.count
         date = day
         dailyWage = wage
         attendedDays = attended
-        nextAttendanceDay = AttendanceRule.nextAttendanceDay(after: day)
-        guard AttendanceRule.isAttendanceDay(day) else {
+        nextAttendanceDay = rule.nextAttendanceDay(after: day)
+        guard rule.isAttendanceDay(day) else {
             status = .restDay
             earnings = nil
             plan = nil
