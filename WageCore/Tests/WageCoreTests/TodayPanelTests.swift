@@ -42,6 +42,15 @@ struct TodayPanelWorkingTests {
         ])
     }
 
+    @Test("AC-HOME-02 未上班时不倒计时：距离下班显示 -")
+    func noCountdownBeforeWork() throws {
+        let state = try onboarded()
+        let panel = try #require(snapshot(of: state, at: standardDay(9, 30)).panel)
+
+        #expect(panel.statusLabel == "未上班")
+        #expect(try attendancePanel(state, at: standardDay(9, 30)).stats.first == StatItem(title: "距离下班", value: "-"))
+    }
+
     @Test("AC-HOME-02 不足一秒的剩余时间向上取整，到计划下班前不会提前显示 0:00:00")
     func countdownRoundsUpPartialSecond() throws {
         let almostSix = Moment(date: standardDay(17, 59, 59).date.addingTimeInterval(0.5), timeZone: shanghai)

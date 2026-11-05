@@ -4,7 +4,7 @@ import WageCore
 /// 目标管理 (PRD F8，设计稿 P3 目标管理 · 760)：攒钱队列、已完成两组，底部「新目标」。
 /// 攒钱队列整组可拖动排序【D6】，第一行是累计中 (进度条、累计额、预计完成)，其余排队中，见 `GoalQueueList`；
 /// 已完成沉底、冻结只能删。编辑、删除在悬停时出现的按钮或右键菜单里，点整行不做任何事。
-/// 没有任何目标时页头与底部按钮之间只居中放一个大旗子图标。
+/// 没有任何目标时页头与底部按钮之间居中放一个大旗子图标和一行提示。
 /// 校验与排序规则交给核心，失败时展示 `CommandError.message`；文字原样取自快照。
 struct GoalsView: View {
     let content: GoalsContent
@@ -61,14 +61,17 @@ struct GoalsView: View {
         }
     }
 
-    /// 没有任何目标：居中一个大旗子图标，文案 (如「给自己定个目标吧」) 留给悬停提示和读屏。
+    /// 没有任何目标 (设计稿 Empty)：居中一个大旗子图标，下面一行提示，如「给自己定个目标吧」。
     private var emptyState: some View {
-        PhosphorIcon(.flagBanner, size: 56)
-            .foregroundStyle(Palette.line)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .help(content.emptyText ?? "")
-            .accessibilityElement()
-            .accessibilityLabel(content.emptyText ?? "")
+        VStack(spacing: Spacing.s14) {
+            PhosphorIcon(.flagBanner, size: 56)
+                .foregroundStyle(Palette.line)
+                .accessibilityHidden(true)
+            if let text = content.emptyText {
+                Text(text).font(AppFont.body).foregroundStyle(Palette.muted)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func group(_ title: String, count: Int, @ViewBuilder content: () -> some View) -> some View {

@@ -140,13 +140,18 @@ extension AttendancePanel {
             caption = "满勤日薪 \(Format.money(today.dailyWage)) · 时薪 \(Format.money(today.hourlyWage))"
             progress = WorkProgress(plan: plan, progress: earnings.progress, now: now)
             stats = [
-                StatItem(title: "距离下班", value: Format.countdown(from: now.date, to: plan.end)),
+                StatItem(title: "距离下班", value: Self.countdownText(today: today, plan: plan, now: now)),
                 Self.deductionStat(settlement),
                 monthToDate,
             ]
         }
         deductions = settlement.deductions.map(DeductionItem.init)
         notice = Self.notice(settlement)
+    }
+
+    /// 距离下班：未上班时还没开始倒计时，显示「-」；上班中、午休中为计划下班前的剩余时间。
+    static func countdownText(today: Today, plan: DayPlan, now: Moment) -> String {
+        today.status == .notStarted ? "-" : Format.countdown(from: now.date, to: plan.end)
     }
 
     /// 已下班的统计行：今日结算、今日扣款 (没有时 ¥0)、本月累计。白干计时中的统计行与它相同 (F4 第 5 条)。

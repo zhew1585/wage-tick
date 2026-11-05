@@ -3,10 +3,9 @@ import SwiftUI
 import WageCore
 
 /// 第 1 步 · 月薪 (设计稿 P1 引导 · 1 月薪 · 760)：大小牛、标题、月薪大号输入框。
-/// 设计稿里小牛实例框是 104，但图形没跟着放大，画出来仍是 72 靠左上；这里照画出来的样子：72 的图占 104 的位置。
+/// 小牛照设计稿实例框画满 104，等比缩放。
 struct OnboardingSalaryStep: View {
-    private static let mascotSize: CGFloat = 72
-    private static let mascotSlot: CGFloat = 104
+    private static let mascotSize: CGFloat = 104
 
     @Binding var salaryText: String
     let errorMessage: String?
@@ -16,8 +15,8 @@ struct OnboardingSalaryStep: View {
         VStack(alignment: .leading, spacing: 0) {
             Image(.cowMascot)
                 .resizable()
-                .frame(width: Self.mascotSize, height: Self.mascotSize)
-                .frame(width: Self.mascotSlot, height: Self.mascotSlot, alignment: .topLeading)
+                .scaledToFit()
+                .frame(width: Self.mascotSize, height: Self.mascotSize, alignment: .topLeading)
                 .padding(.top, OnboardingLayout.firstTop)
                 .padding(.horizontal, OnboardingLayout.side)
             OnboardingIntro(
