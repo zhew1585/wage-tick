@@ -145,9 +145,9 @@ struct SettingsView: View {
     private var dataSection: some View {
         SettingsGroup("数据") {
             Button(role: .destructive) { confirmingReset = true } label: {
-                Text("清空数据并重启").frame(maxWidth: .infinity, minHeight: ControlHeight.wideButton)
+                Text("清空数据并重启")
             }
-            .buttonStyle(.secondary(fullWidth: true))
+            .buttonStyle(.secondary(fullWidth: true, height: ControlHeight.wideButton))
             .alert("清空全部数据？", isPresented: $confirmingReset) {
                 Button("清空并重启", role: .destructive, action: form.resetAndRelaunch)
                 Button("取消", role: .cancel) {}

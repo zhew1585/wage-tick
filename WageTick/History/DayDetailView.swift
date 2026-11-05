@@ -178,7 +178,7 @@ struct DayDetailView: View {
                     .init(id: choice, title: choice.title, isEnabled: choices.command(for: choice) != nil)
                 },
                 selection: choices.selected,
-                fontSize: 13
+                size: .large
             ) { choice in
                 if let command = choices.command(for: choice) { send(command) }
             }

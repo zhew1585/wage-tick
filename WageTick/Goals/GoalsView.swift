@@ -83,11 +83,8 @@ struct GoalsView: View {
             if let listError {
                 Text(listError).font(AppFont.caption).foregroundStyle(Palette.loss)
             }
-            Button { form = .create } label: {
-                Label { Text("新目标") } icon: { PhosphorIcon(.plus) }
-                    .frame(maxWidth: .infinity, minHeight: ControlHeight.footerButton)
-            }
-            .buttonStyle(.primary(fullWidth: true))
+            Button { form = .create } label: { Label { Text("新目标") } icon: { PhosphorIcon(.plus) } }
+                .buttonStyle(.primary(fullWidth: true, height: ControlHeight.footerButton))
         }
         .padding(.horizontal, Spacing.screen)
         .padding(.top, Spacing.s12)
