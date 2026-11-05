@@ -57,6 +57,7 @@ struct TodayPanelWorkingTests {
         #expect(body.caption == "今日上限 ¥1000 · 每秒 +0.0397")
         #expect(body.stats == [
             StatItem(title: "距离下班", value: "3:00:00"),
+            StatItem(title: "扣款", value: "¥0"),
             StatItem(title: "本月累计", value: "¥9571.4286"),
         ])
     }
@@ -115,7 +116,7 @@ struct TodayPanelRestDayTests {
 
 @Suite("今日概览：已下班")
 struct TodayPanelOffWorkTests {
-    @Test("AC-HOME-05 无白干记录 18:30 打开：主数字为今日结算，显示【准点下班，赢】，统计行为今日结算与本月累计，无倒计时")
+    @Test("AC-HOME-05 无白干记录 18:30 打开：主数字为今日结算，显示【准点下班，赢】，统计行为今日结算、扣款 ¥0 与本月累计，无倒计时")
     func offWorkOnTime() throws {
         // 2026-02-11 是 2 月第 8 个应出勤日：前 7 天 7000 + 今日结算 1000。
         let state = try onboarded()
@@ -128,6 +129,7 @@ struct TodayPanelOffWorkTests {
         #expect(body.progress == nil)
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥1000"),
+            StatItem(title: "扣款", value: "¥0"),
             StatItem(title: "本月累计", value: "¥8000"),
         ])
     }
@@ -154,6 +156,7 @@ struct TodayPanelFormatTests {
         #expect(offWork.headline == "¥952.3810")
         #expect(offWork.stats == [
             StatItem(title: "今日结算", value: "¥952.381"),
+            StatItem(title: "扣款", value: "¥0"),
             // 4 × 20000 ÷ 21 = 3809.5238…
             StatItem(title: "本月累计", value: "¥3809.5238"),
         ])

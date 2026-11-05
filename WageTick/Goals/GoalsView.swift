@@ -55,12 +55,15 @@ struct GoalsView: View {
                     }
                 }
             }
+            // 没有任何目标时只放一个大旗子图标，文案留给悬停提示和读屏。
             if list.isEmpty, let emptyText = content.emptyText {
-                Text(emptyText)
-                    .font(AppFont.body)
-                    .foregroundStyle(Palette.muted)
+                PhosphorIcon(.flagBanner, size: 56)
+                    .foregroundStyle(Palette.line)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, Spacing.s24)
+                    .padding(.top, 180)
+                    .help(emptyText)
+                    .accessibilityElement()
+                    .accessibilityLabel(emptyText)
             }
         }
     }

@@ -102,6 +102,7 @@ struct HolidayDataTests {
         let before = try attendancePanel(state, at: at)
         #expect(before.stats == [
             StatItem(title: "今日结算", value: "¥818.1818"),
+            StatItem(title: "扣款", value: "¥0"),
             StatItem(title: "本月累计", value: "¥5727.2727"),
         ])
 
@@ -110,6 +111,7 @@ struct HolidayDataTests {
         #expect(after.headline == "¥1000.0000")
         #expect(after.stats == [
             StatItem(title: "今日结算", value: "¥1000"),
+            StatItem(title: "扣款", value: "¥0"),
             StatItem(title: "本月累计", value: "¥2000"),
         ])
     }

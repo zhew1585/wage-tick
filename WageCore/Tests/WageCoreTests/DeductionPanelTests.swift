@@ -18,14 +18,15 @@ struct DeductionPanelTests {
         ])
     }
 
-    @Test("PRD 4.3.4 上班中有扣钱：小字今日上限按扣款后的数显示，统计行仍是倒计时与本月累计")
+    @Test("PRD 4.3.4 上班中有扣钱：小字今日上限按扣款后的数显示，统计行为倒计时、扣款合计与本月累计")
     func workingWithDeduction() throws {
         let fined = try recordingDeduction(.fixed(50), on: try onboarded(), at: standardDay(15, 0))
         let body = try attendancePanel(fined, at: standardDay(15, 0))
 
         #expect(body.headline == "¥542.8571")
         #expect(body.caption == "今日上限 ¥950 · 每秒 +0.0377")
-        #expect(body.stats.map(\.title) == ["距离下班", "本月累计"])
+        #expect(body.stats.map(\.title) == ["距离下班", "扣款", "本月累计"])
+        #expect(body.stats[1].value == "−¥50")
     }
 
     @Test("AC-FINE-04 同一天记 2 笔：明细分别展示原因、金额与说明")
@@ -53,13 +54,13 @@ struct DeductionPanelTests {
         #expect(item.detail == "日薪 12.5% · 提前走")
     }
 
-    @Test("没有扣钱时：无明细、无提示，已下班统计行不出现扣款")
+    @Test("没有扣钱时：无明细、无提示，统计行扣款显示 ¥0")
     func noDeduction() throws {
         let body = try attendancePanel(try onboarded(), at: standardDay(18, 30))
 
         #expect(body.deductions.isEmpty)
         #expect(body.notice == nil)
-        #expect(!body.stats.map(\.title).contains("扣款"))
+        #expect(body.stats.contains(StatItem(title: "扣款", value: "¥0")))
     }
 
     @Test("AC-FINE-05 记 1200 元：提示【今天已经白干了，再扣就倒贴了】，今日上限 ¥0")

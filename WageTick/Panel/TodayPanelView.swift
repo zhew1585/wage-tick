@@ -122,15 +122,8 @@ struct TodayPanelView: View {
             }
         }
         PanelDivider()
+        // 扣款只在统计行里显示合计，明细在历史的单日详情里看和改。
         PanelStatsRow(stats: attendance.stats)
-        if !attendance.deductions.isEmpty {
-            PanelDivider()
-            PanelDeductionList(
-                items: attendance.deductions,
-                edit: { content.route = .deduction(.edit($0)) },
-                delete: { send(.deleteDeduction(id: $0.id)) }
-            )
-        }
     }
 
     /// 白干计时中：与上班中同样的结构，主数字为今日已倒贴，进度区换成「终于下班了」(F4 第 4 条)。

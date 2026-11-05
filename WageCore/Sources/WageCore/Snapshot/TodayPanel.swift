@@ -125,17 +125,21 @@ extension AttendancePanel {
         } else {
             caption = "今日上限 \(Format.money(earnings.cap)) · 每秒 +\(Format.trimmed(earnings.perSecond))"
             progress = WorkProgress(plan: plan, progress: earnings.progress, now: now)
-            stats = [StatItem(title: "距离下班", value: Format.countdown(from: now, to: plan.end)), monthToDate]
+            stats = [
+                StatItem(title: "距离下班", value: Format.countdown(from: now, to: plan.end)),
+                Self.deductionStat(settlement),
+                monthToDate,
+            ]
         }
         deductions = settlement.deductions.map(DeductionItem.init)
         notice = Self.notice(settlement)
     }
 
-    /// 已下班的统计行：今日结算、扣款 (有扣款才显示)、本月累计。白干计时中的统计行与它相同 (F4 第 5 条)。
+    /// 已下班的统计行：今日结算、扣款 (没有时 ¥0)、本月累计。白干计时中的统计行与它相同 (F4 第 5 条)。
     static func offWorkStats(today: Today, earnings: Earnings, settlement: DaySettlement) -> [StatItem] {
         let settled = StatItem(title: "今日结算", value: Format.money(earnings.cap))
         let monthToDate = StatItem(title: "本月累计", value: Format.money(today.monthToDate))
-        return [settled, deductionStat(settlement), monthToDate].compactMap { $0 }
+        return [settled, deductionStat(settlement), monthToDate]
     }
 }
 

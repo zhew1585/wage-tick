@@ -60,10 +60,10 @@ extension DeductionItem {
 }
 
 extension AttendancePanel {
-    /// 统计行里的「扣款 −¥50」；没有扣款时不出现。
-    static func deductionStat(_ settlement: DaySettlement) -> StatItem? {
-        guard settlement.deductionTotal > 0 else { return nil }
-        return StatItem(title: "扣款", value: Format.deduction(settlement.deductionTotal))
+    /// 统计行里的扣款：有扣款时「−¥50」，没有时「¥0」。面板上只看合计，明细在历史的单日详情里。
+    static func deductionStat(_ settlement: DaySettlement) -> StatItem {
+        let total = settlement.deductionTotal
+        return StatItem(title: "扣款", value: total > 0 ? Format.deduction(total) : Format.money(0))
     }
 
     /// 当日扣款超过日薪时面板上的提示。

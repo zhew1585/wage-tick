@@ -223,6 +223,7 @@ struct UnpaidWorkPanelTests {
             caption: "18:00 起 · 已白干 1:05:12 · 每秒 +0.0397",
             stats: [
                 StatItem(title: "今日结算", value: "¥1000"),
+                StatItem(title: "扣款", value: "¥0"),
                 StatItem(title: "本月累计", value: "¥8000"),
             ],
             isRestDay: false
