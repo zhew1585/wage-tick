@@ -45,6 +45,21 @@ final class StateStore {
         }
     }
 
+    /// 清空数据：把状态文件挪成 `state.before-reset.json` (只留最近一份，覆盖上一份)，下次读出时就是首次打开。
+    func reset() {
+        let backup = fileURL.deletingLastPathComponent().appending(path: "state.before-reset.json")
+        let manager = FileManager.default
+        guard manager.fileExists(atPath: fileURL.path(percentEncoded: false)) else { return }
+        do {
+            if manager.fileExists(atPath: backup.path(percentEncoded: false)) {
+                try manager.removeItem(at: backup)
+            }
+            try manager.moveItem(at: fileURL, to: backup)
+        } catch {
+            logger.error("清空数据时移走状态文件失败：\(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     private func quarantineUnreadableFile() {
         let stamp = Int(Date().timeIntervalSince1970)
         let backup = fileURL.deletingPathExtension().appendingPathExtension("unreadable-\(stamp).json")

@@ -51,6 +51,14 @@ final class SettingsFormModel {
         self.notifier = notifier
     }
 
+    /// 清空数据并重启：状态文件挪成备份 (`state.before-reset.json`)，清掉偏好 (窗口位置、钉住)，重启后从引导开始。
+    /// 节假日缓存与系统登录项不动。
+    func resetAndRelaunch() {
+        model.resetAllData()
+        UserDefaults.standard.removePersistentDomain(forName: AppIdentity.bundleID)
+        AppRelaunch.relaunch()
+    }
+
     /// 打开设置页时按最新快照填好各项，清掉上次的提示。
     func reload() {
         let snap = model.currentSnapshot()

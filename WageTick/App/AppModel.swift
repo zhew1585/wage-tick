@@ -13,6 +13,8 @@ final class AppModel {
     /// 「推进到此刻」产生的领域事件 (下班、目标达成) 交给它发系统通知。
     var onEvents: (([DomainEvent]) -> Void)?
     private let logger = Logger(subsystem: AppIdentity.bundleID, category: "AppModel")
+    /// 清空数据后到退出前不再落盘，免得刷新把旧状态写回去。
+    private var isResetting = false
 
     init(store: StateStore) {
         self.store = store
@@ -25,8 +27,19 @@ final class AppModel {
     func send(_ command: Command) throws(CommandError) {
         let result = try apply(command, to: state, at: Self.now(), holidays: holidays)
         state = result.state
-        store.save(state)
+        save()
         deliver(result.events)
+    }
+
+    /// 清空全部数据 (设置页「清空数据并重启」)：状态文件挪成备份，之后不再落盘，调用方随即重启 App。
+    func resetAllData() {
+        isResetting = true
+        store.reset()
+    }
+
+    private func save() {
+        guard !isResetting else { return }
+        store.save(state)
     }
 
     /// 试算：在当前状态上执行命令但不保存，返回执行后的快照。表单实时预览用它，校验失败时返回错误。
@@ -53,7 +66,7 @@ final class AppModel {
             let result = try apply(.advance, to: state, at: now, holidays: holidays)
             if result.state != state {
                 state = result.state
-                store.save(state)
+                save()
             }
             deliver(result.events)
         } catch {

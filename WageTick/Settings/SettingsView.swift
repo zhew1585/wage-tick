@@ -9,6 +9,7 @@ struct SettingsView: View {
     let close: () -> Void
 
     @State private var sheet: Sheet?
+    @State private var confirmingReset = false
 
     private enum Sheet: Identifiable {
         case salary, schedule
@@ -26,6 +27,7 @@ struct SettingsView: View {
                     if form.notificationDenied {
                         notificationWarning
                     }
+                    dataSection
                 }
                 .padding(.horizontal, Spacing.screen)
                 .padding(.top, Spacing.s16)
@@ -136,6 +138,24 @@ struct SettingsView: View {
                 toggle("开机自动启动", isOn: Binding(get: { form.launchAtLogin }, set: { form.setLaunchAtLogin($0) }))
             }
             message(form.launchMessage)
+        }
+    }
+
+    // MARK: 数据
+
+    /// 清空数据并重启：先弹确认，确认后重启回到引导 (测试流程用)。
+    private var dataSection: some View {
+        SettingsGroup("数据") {
+            Button(role: .destructive) { confirmingReset = true } label: {
+                Text("清空数据并重启")
+            }
+            .buttonStyle(.secondary(fullWidth: true))
+            .alert("清空全部数据？", isPresented: $confirmingReset) {
+                Button("清空并重启", role: .destructive, action: form.resetAndRelaunch)
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("月薪、作息、扣钱、请假、白干和目标都会清掉，App 重启后从引导开始。上一份数据会留一份备份。")
+            }
         }
     }
 
