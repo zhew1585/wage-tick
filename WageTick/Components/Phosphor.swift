@@ -33,17 +33,23 @@ enum Phosphor: String {
 }
 
 /// 一个方形的 Phosphor 图标；不给 `size` 时撑满外面给的框。
+/// 也可直接传资源目录里的模板图 (如 `.OnboardingIcon.calculator`)，颜色同样跟随 `foregroundStyle`。
 struct PhosphorIcon: View {
-    let icon: Phosphor
+    private let image: Image
     var size: CGFloat?
 
     init(_ icon: Phosphor, size: CGFloat? = nil) {
-        self.icon = icon
+        image = icon.image
+        self.size = size
+    }
+
+    init(_ resource: ImageResource, size: CGFloat? = nil) {
+        image = Image(resource).renderingMode(.template)
         self.size = size
     }
 
     var body: some View {
-        icon.image
+        image
             .resizable()
             .scaledToFit()
             .frame(width: size, height: size)
