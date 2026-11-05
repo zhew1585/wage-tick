@@ -227,13 +227,21 @@ private struct GoalQueueList: View {
         return drag.offset - CGFloat(index - drag.from) * Self.slot
     }
 
+    /// 拖动距离夹在列表范围内：被拖的行最多到第一行或最后一行的位置，不会拖出卡片。
+    private func clamped(_ translation: CGFloat) -> CGFloat {
+        guard let drag else { return translation }
+        let up = -CGFloat(drag.from) * Self.slot
+        let down = CGFloat(rows.count - 1 - drag.from) * Self.slot
+        return min(max(translation, up), down)
+    }
+
     private func dragGesture(for row: GoalRow) -> some Gesture {
         DragGesture(minimumDistance: 3, coordinateSpace: .named(Self.space))
             .onChanged { value in
                 if drag == nil, let from = rows.firstIndex(where: { $0.id == row.id }) {
                     drag = (row.id, from, 0)
                 }
-                drag?.offset = value.translation.height
+                drag?.offset = clamped(value.translation.height)
             }
             .onEnded { _ in
                 guard drag != nil else { return }
