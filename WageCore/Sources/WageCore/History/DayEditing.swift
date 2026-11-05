@@ -68,12 +68,14 @@ extension Snapshot {
 }
 
 extension HistoryLedger {
-    func editing(_ day: DayLedger, dailyWage: Decimal, unpaidWorkLines: [HistoryLine]) -> DayEditing {
+    func editing(_ day: DayLedger, unpaidWorkLines: [HistoryLine]) -> DayEditing {
         let isFuture = day.date > today
         let restReason = CommandError.notAttendanceDay.message
         let futureReason = CommandError.futureDate.message
         let deduction: EditEntry<DeductionEntry> = if let settlement = day.settlement {
-            isFuture ? .unavailable(reason: futureReason) : .available(DeductionEntry(settlement: settlement))
+            isFuture
+                ? .unavailable(reason: futureReason)
+                : .available(DeductionEntry(settlement: settlement, capTitle: incomeTitle(day.date)))
         } else {
             .unavailable(reason: restReason)
         }
@@ -90,9 +92,9 @@ extension HistoryLedger {
         )
     }
 
-    /// 这天的请假表单，汇总里的收入项与详情同口径：过去为「结算」，今天为「今日上限」，未来为「预计结算」。
+    /// 这天的请假表单，汇总里的收入项标题与详情同口径 (见 `incomeTitle`)。
     private func leaveForm(_ day: DayLedger, settlement: DaySettlement) -> LeaveForm {
-        let capTitle = day.date < today ? "结算" : (day.date == today ? "今日上限" : "预计结算")
+        let capTitle = incomeTitle(day.date)
         let leave = day.record?.leave
         let plan = DayPlan(schedule: inputs.profile.schedule(on: day.date), leave: leave?.period, on: day.date, now: inputs.now)
         return LeaveForm(leave: leave, settlement: settlement, plan: plan, capTitle: capTitle, now: inputs.now)
@@ -119,7 +121,7 @@ extension HistoryLedger {
         } else if day.isAttendanceDay {
             ("改成不上班日", .setOverride(.dayOff))
         } else {
-            ("改成上班日", .setOverride(.workday))
+            ("改成上班日", .setOverride(.attendanceDay))
         }
         return EditButton(title: edit.0, command: .editDay(day.date, edit.1))
     }

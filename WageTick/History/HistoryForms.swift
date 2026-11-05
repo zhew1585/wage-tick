@@ -86,15 +86,21 @@ struct SalaryFormView: View {
     let month: YearMonth
     /// 如「2026年1月」。
     let title: String
+    /// 是否本月：本月的新月薪未来月份也沿用 (PRD 4.2.1 #3)，过去的月份只改这个月。
+    let isCurrentMonth: Bool
     let actions: PanelActions
     let dismiss: () -> Void
 
     @State private var text: String
     @State private var errorMessage: String?
 
-    init(month: YearMonth, title: String, current: Decimal, actions: PanelActions, dismiss: @escaping () -> Void) {
+    init(
+        month: YearMonth, title: String, isCurrentMonth: Bool, current: Decimal, actions: PanelActions,
+        dismiss: @escaping () -> Void
+    ) {
         self.month = month
         self.title = title
+        self.isCurrentMonth = isCurrentMonth
         self.actions = actions
         self.dismiss = dismiss
         _text = State(initialValue: NSDecimalNumber(decimal: current).stringValue)
@@ -103,7 +109,7 @@ struct SalaryFormView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("\(title)的月薪").font(.title3.bold())
-            Text("只改这个月，其他月份不受影响").font(.callout).foregroundStyle(.secondary)
+            Text(hint).font(.callout).foregroundStyle(.secondary)
             HStack {
                 TextField("月薪", text: $text)
                     .textFieldStyle(.roundedBorder)
@@ -122,6 +128,10 @@ struct SalaryFormView: View {
         .padding(20)
         .frame(width: 280)
         .onChange(of: text) { errorMessage = nil }
+    }
+
+    private var hint: String {
+        isCurrentMonth ? "整月生效，之后的月份也沿用" : "只改这个月，其他月份不受影响"
     }
 
     /// 不是数字的写法按 0 交给核心，得到「月薪得是个正数」。

@@ -6,6 +6,14 @@ enum FormTarget: Equatable {
     case today
     case day(LocalDate)
 
+    /// 要发的命令：今天发面板原有的命令 `today`，历史某天包成 `.editDay(那天, edit)`。
+    func command(today: Command, _ edit: DayEdit) -> Command {
+        switch self {
+        case .today: today
+        case .day(let date): .editDay(date, edit)
+        }
+    }
+
     /// 扣钱表单的预览起点或终点：今天取面板的扣钱入口，历史取那一天的编辑入口。
     func deductionEntry(in snap: Snapshot) -> DeductionEntry? {
         switch self {

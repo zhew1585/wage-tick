@@ -64,12 +64,12 @@ struct HistoryEditEntryTests {
         #expect(editing.deduction == .unavailable(reason: blockedRest))
         #expect(editing.leave == .unavailable(reason: blockedRest))
         #expect(editing.unpaidWork.isAvailable)
-        #expect(editing.overrideButton == EditButton(title: "改成上班日", command: .editDay(feb(7), .setOverride(.workday))))
+        #expect(editing.overrideButton == EditButton(title: "改成上班日", command: .editDay(feb(7), .setOverride(.attendanceDay))))
     }
 
     @Test("已有单日覆盖的日子：按钮为撤销单日覆盖")
     func overriddenDay() throws {
-        let state = try editing(feb(7), .setOverride(.workday), in: try onboarded())
+        let state = try editing(feb(7), .setOverride(.attendanceDay), in: try onboarded())
         let editing = try entries(state, feb(7))
 
         #expect(editing.overrideButton == EditButton(title: "撤销单日覆盖", command: .editDay(feb(7), .clearOverride)))
@@ -120,7 +120,20 @@ struct HistoryEditEntryTests {
     func monthSalary() throws {
         let month = try #require(snapshot(of: try onboarded(), at: standardDay(15, 0)).historyMonth(YearMonth(year: 2026, month: 2)))
 
-        #expect(month.salary == StatItem(title: "月薪", value: "¥20000"))
+        #expect(month.salaryItem == StatItem(title: "月薪", value: "¥20000"))
         #expect(month.monthlySalary == 20000)
+    }
+}
+
+@Suite("历史编辑：扣钱预览")
+struct HistoryDeductionPreviewTests {
+    @Test("补记过去的日子：预览写「结算 ¥1000」；今天仍是「今日上限」")
+    func previewTitle() throws {
+        let snap = snapshot(of: try onboarded(), at: standardDay(15, 0))
+        let past = try #require(snap.historyDay(LocalDate(year: 2026, month: 2, day: 4))?.detail.editing.deduction.content)
+        let today = try #require(snap.panel?.deductionEntry)
+
+        #expect(past.previewLine(to: nil) == "结算 ¥1000")
+        #expect(today.previewLine(to: nil) == "今日上限 ¥1000")
     }
 }

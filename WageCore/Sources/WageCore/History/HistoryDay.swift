@@ -9,7 +9,7 @@ public struct HistoryMonth: Sendable, Equatable {
     /// 当月每一天，按日期升序。
     public let days: [HistoryDay]
     /// 该月月薪，如「月薪 ¥20000」；任意月份可在这里改 (PRD 4.2.1 #2、4.6.1)。
-    public let salary: StatItem
+    public let salaryItem: StatItem
     /// 该月月薪的数值，改月薪表单据此预填。
     public let monthlySalary: Decimal
 
@@ -122,7 +122,7 @@ extension HistoryLedger {
             // weekday 1 为周日、2 为周一：换成从周一起数的 0 至 6。
             leadingBlanks: (monthLedger.days[0].date.weekday + 5) % 7,
             days: monthLedger.days.map { day($0, dailyWage: monthLedger.dailyWage) },
-            salary: StatItem(title: "月薪", value: Format.money(salary)),
+            salaryItem: StatItem(title: "月薪", value: Format.money(salary)),
             monthlySalary: salary
         )
     }
@@ -145,7 +145,7 @@ extension HistoryLedger {
                 unpaidWork: unpaidWork,
                 unpaidWorkSummary: unpaidWorkSummary(day, dailyWage: dailyWage),
                 notice: staleNotice(day),
-                editing: editing(day, dailyWage: dailyWage, unpaidWorkLines: unpaidWork)
+                editing: editing(day, unpaidWorkLines: unpaidWork)
             )
         )
     }
@@ -161,16 +161,18 @@ extension HistoryLedger {
 
     private func stats(_ day: DayLedger) -> [StatItem] {
         guard let settlement = day.settlement else { return [] }
-        if day.date > today {
-            return [StatItem(title: "预计结算", value: Format.money(settlement.cap))]
-        }
         if day.date == today, let earnings = inputs.today.earnings {
             return [
                 StatItem(title: "今日已赚", value: Format.money(earnings.earned)),
-                StatItem(title: "今日上限", value: Format.money(earnings.cap)),
+                StatItem(title: incomeTitle(day.date), value: Format.money(earnings.cap)),
             ]
         }
-        return [StatItem(title: "结算", value: Format.money(settlement.cap))]
+        return [StatItem(title: incomeTitle(day.date), value: Format.money(settlement.cap))]
+    }
+
+    /// 某天收入项的标题：过去为「结算」，今天为「今日上限」，未来为「预计结算」。详情、请假与扣钱表单共用。
+    func incomeTitle(_ date: LocalDate) -> String {
+        date < today ? "结算" : (date == today ? "今日上限" : "预计结算")
     }
 
     private func leaveLine(_ day: DayLedger, settlement: DaySettlement?) -> HistoryLine? {

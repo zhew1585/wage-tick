@@ -45,14 +45,15 @@ struct MonthCalendarView: View {
     /// 该月月薪与「改月薪」入口 (PRD 4.2.1 #2)。
     private var salaryRow: some View {
         HStack {
-            Text(month.salary.title).font(.callout).foregroundStyle(.secondary)
-            Text(month.salary.value).font(.callout.weight(.medium)).monospacedDigit()
+            Text(month.salaryItem.title).font(.callout).foregroundStyle(.secondary)
+            Text(month.salaryItem.value).font(.callout.weight(.medium)).monospacedDigit()
             Spacer()
             Button("改月薪") { editingSalary = true }
         }
         .sheet(isPresented: $editingSalary) {
             SalaryFormView(
-                month: month.summary.month, title: month.summary.title, current: month.monthlySalary, actions: actions,
+                month: month.summary.month, title: month.summary.title, isCurrentMonth: month.summary.isCurrentMonth,
+                current: month.monthlySalary, actions: actions,
                 dismiss: { editingSalary = false }
             )
         }

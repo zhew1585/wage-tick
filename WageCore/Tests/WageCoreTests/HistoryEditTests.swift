@@ -54,7 +54,7 @@ private let fifty = DeductionInput(amount: .fixed(50), reason: .late, note: "")
 struct OverrideTests {
     @Test("AC-CAL-01 把周六 2 月 7 日改成上班日：本月应出勤日 21，各满勤日结算变为 952.381")
     func saturdayBecomesWorkday() throws {
-        let state = try editing(feb(7), .setOverride(.workday), in: try installedFebruary2())
+        let state = try editing(feb(7), .setOverride(.attendanceDay), in: try installedFebruary2())
         let snap = snapshot(of: state, at: standardDay(15, 0))
         let saturday = try #require(snap.historyDay(feb(7)))
 
@@ -69,7 +69,7 @@ struct OverrideTests {
 
     @Test("AC-CAL-02 撤销上一条覆盖：恢复为 20 天、1000")
     func undo() throws {
-        let overridden = try editing(feb(7), .setOverride(.workday), in: try installedFebruary2())
+        let overridden = try editing(feb(7), .setOverride(.attendanceDay), in: try installedFebruary2())
         let state = try editing(feb(7), .clearOverride, in: overridden)
 
         #expect(try monthStat(state, february, "应出勤日数") == "20 天")
@@ -82,7 +82,7 @@ struct OverrideTests {
     func beatsHolidayTable() throws {
         let now = moment(2026, 10, 20, 15, 0)
         var state = try onboarded(at: moment(2026, 10, 9, 9, 0))
-        state = try editing(LocalDate(year: 2026, month: 10, day: 2), .setOverride(.workday), in: state, at: now, holidays: nationalDay2026)
+        state = try editing(LocalDate(year: 2026, month: 10, day: 2), .setOverride(.attendanceDay), in: state, at: now, holidays: nationalDay2026)
         state = try editing(LocalDate(year: 2026, month: 10, day: 10), .setOverride(.dayOff), in: state, at: now, holidays: nationalDay2026)
         let snap = snapshot(of: state, at: now, holidays: nationalDay2026)
         let holiday = try #require(snap.historyDay(LocalDate(year: 2026, month: 10, day: 2)))
@@ -134,7 +134,7 @@ struct OverrideTests {
 
     @Test("单日覆盖可以设在未来，也随状态文件存取")
     func futureAndPersistence() throws {
-        let state = try editing(LocalDate(year: 2026, month: 5, day: 9), .setOverride(.workday), in: try installedFebruary2())
+        let state = try editing(LocalDate(year: 2026, month: 5, day: 9), .setOverride(.attendanceDay), in: try installedFebruary2())
         let restored = try JSONDecoder().decode(AppState.self, from: JSONEncoder().encode(state))
 
         #expect(restored == state)
@@ -179,7 +179,7 @@ struct BackfillTests {
     func percentFollowsDailyWage() throws {
         let percent = Command.addDeduction(DeductionInput(amount: .percentOfDailyWage(10), reason: nil, note: ""))
         let fined = try apply(percent, to: try installedFebruary2(), at: standardDay(15, 0)).state
-        let state = try editing(feb(7), .setOverride(.workday), in: fined)
+        let state = try editing(feb(7), .setOverride(.attendanceDay), in: fined)
 
         #expect(try attendancePanel(fined, at: standardDay(15, 0)).deductions.map(\.amount) == ["−¥100"])
         #expect(try attendancePanel(state, at: standardDay(15, 0)).deductions.map(\.amount) == ["−¥95.2381"])
@@ -236,9 +236,9 @@ struct BackfillTests {
         let state = try installedFebruary2()
 
         #expect(try rejection(LocalDate(year: 2026, month: 1, day: 30), .addDeduction(fifty), in: state) == .dateOutOfRange)
-        #expect(try rejection(LocalDate(year: 2026, month: 1, day: 30), .setOverride(.workday), in: state) == .dateOutOfRange)
+        #expect(try rejection(LocalDate(year: 2026, month: 1, day: 30), .setOverride(.attendanceDay), in: state) == .dateOutOfRange)
         // 安装当月、安装日之前的日子可以补记。
-        #expect(throws: Never.self) { try editing(feb(1), .setOverride(.workday), in: state) }
+        #expect(throws: Never.self) { try editing(feb(1), .setOverride(.attendanceDay), in: state) }
     }
 }
 
@@ -303,8 +303,8 @@ struct HistorySalaryTests {
         #expect(try monthStat(state, january, "结算总额") == "¥22000")
         #expect(try monthStat(try installedJanuary(), january, "结算总额") == "¥20000")
         #expect(snap.today?.dailyWage == 1000)
-        #expect(try #require(snap.historyMonth(january)).salary == StatItem(title: "月薪", value: "¥22000"))
-        #expect(try #require(snap.historyMonth(february)).salary == StatItem(title: "月薪", value: "¥20000"))
+        #expect(try #require(snap.historyMonth(january)).salaryItem == StatItem(title: "月薪", value: "¥22000"))
+        #expect(try #require(snap.historyMonth(february)).salaryItem == StatItem(title: "月薪", value: "¥20000"))
         // 3 月起沿用最近一次设置的月薪 (本月的 20000)。
         #expect(snapshot(of: state, at: moment(2026, 3, 10, 15, 0)).today?.dailyWage == Decimal(20000) / 22)
     }

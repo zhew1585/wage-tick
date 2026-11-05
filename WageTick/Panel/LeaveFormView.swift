@@ -2,7 +2,7 @@ import SwiftUI
 import WageCore
 
 /// 请假表单 (PRD F6)，从今日概览面板 (今天) 或历史单日详情 (那一天，#15) 弹出：
-/// 时段、扣日薪的百分比，下方汇总当日计划、请假扣薪、今日上限。
+/// 时段、扣日薪的百分比，下方汇总当日计划、请假扣薪、收入项 (今天为今日上限，历史为结算或预计结算)。
 /// 汇总与校验提示都来自核心：每次改动都把待保存的命令交给 `PanelActions.dryRun` 试算。
 struct LeaveFormView: View {
     /// 新请一条 (与已有的另一半天假合并) 还是修改已有的那条 (整条替换)。
@@ -121,20 +121,13 @@ struct LeaveFormView: View {
             return .failure(Validation.leaveDeductionPercent(nil) ?? .leavePercentOutOfRange)
         }
         let leave = Leave(period: period, deductionPercent: percent)
-        let command: Command = switch (mode, target) {
-        case (.request, .today): .requestLeave(leave)
-        case (.edit, .today): .editLeave(leave)
-        case (.request, .day(let date)): .editDay(date, .requestLeave(leave))
-        case (.edit, .day(let date)): .editDay(date, .editLeave(leave))
-        }
-        return .success(command)
+        return .success(mode == .request
+            ? target.command(today: .requestLeave(leave), .requestLeave(leave))
+            : target.command(today: .editLeave(leave), .editLeave(leave)))
     }
 
     private var cancelCommand: Command {
-        switch target {
-        case .today: .cancelLeave
-        case .day(let date): .editDay(date, .cancelLeave)
-        }
+        target.command(today: .cancelLeave, .cancelLeave)
     }
 
     /// 试算结果：命令被核心拒绝时为对应提示；那天没有请假表单时 (理论上不会) 为 nil。

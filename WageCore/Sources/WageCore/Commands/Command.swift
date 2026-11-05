@@ -42,7 +42,8 @@ public enum Command: Sendable, Equatable {
     case setOffWorkNotification(Bool)
     /// 历史编辑 (PRD 4.6.1、F11)：在单日详情里改某一天，可编辑范围见 `DayEdit`。
     case editDay(LocalDate, DayEdit)
-    /// 改某个月的月薪 (PRD 4.2.1 #2、4.6.1)：只影响该月，限安装当月至本月。
+    /// 在历史里改某个月的月薪 (PRD 4.2.1、4.6.1)，限安装当月至本月：过去的月份只影响该月；
+    /// 本月与 `changeMonthlySalary` 相同，未来月份沿用。
     case setMonthlySalary(YearMonth, Decimal)
 }
 
@@ -112,7 +113,7 @@ public enum CommandError: Error, Sendable, Equatable {
         case .invalidGoal: "给目标起个名字，金额得大于 0"
         // PRD 没给文案：排队属于目标队列 (#12)，本期外壳在已有累计中目标时也提供新建入口，由这条提示拦下。
         case .goalAlreadyAccumulating: "先攒完当前这个目标吧"
-        // 以下为历史编辑 (#15) 的提示，PRD 没给文案。外壳只在快照允许时提供入口，前两条正常用不到。
+        // 以下为历史编辑 (#15) 的提示，PRD 没给文案。`futureDate` 也作为单日详情里入口不可用的原因展示。
         case .dateOutOfRange: "这天不在历史范围内"
         case .futureDate: "还没到这一天，只能请假或设置单日覆盖"
         case .unpaidWorkEndNotAfterStart: "结束时间要晚于开始时间"

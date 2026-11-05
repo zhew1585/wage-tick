@@ -95,7 +95,7 @@ extension TodayPanel {
         timeText = Format.time(now)
         statusLabel = today.unpaidWork.isRunning ? "白干中" : today.status.label
         notices = [holidays.missingNotice(on: today.date), noAttendanceNotice(today.date, holidays: holidays)].compactMap { $0 }
-        deductionEntry = today.settlement.map(DeductionEntry.init(settlement:))
+        deductionEntry = today.settlement.map { DeductionEntry(settlement: $0) }
         unpaidWorkButton = UnpaidWorkButton(today: today)
         self.goal = goal
         if today.unpaidWork.isRunning {

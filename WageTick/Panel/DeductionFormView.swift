@@ -151,11 +151,9 @@ struct DeductionFormView: View {
 
     private var command: Command {
         let input = DeductionInput(amount: amount, reason: reason, note: note)
-        return switch (request, target) {
-        case (.add, .today): .addDeduction(input)
-        case (.edit(let item), .today): .editDeduction(id: item.id, input)
-        case (.add, .day(let date)): .editDay(date, .addDeduction(input))
-        case (.edit(let item), .day(let date)): .editDay(date, .editDeduction(id: item.id, input))
+        return switch request {
+        case .add: target.command(today: .addDeduction(input), .addDeduction(input))
+        case .edit(let item): target.command(today: .editDeduction(id: item.id, input), .editDeduction(id: item.id, input))
         }
     }
 
