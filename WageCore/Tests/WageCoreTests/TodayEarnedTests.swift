@@ -17,7 +17,7 @@ struct StandardRow: Sendable, CustomTestStringConvertible {
 @Suite("今日已赚：标准算例")
 struct TodayEarnedTests {
     @Test(
-        "PRD 4.3.4 标准算例 / AC-BAR-01 至 04：今日已赚、日状态与小牛",
+        "PRD 4.3.4 标准算例 (无扣钱各行，18:00 行按无扣钱取 1000) / AC-BAR-01 至 04：今日已赚、日状态与小牛",
         arguments: [
             StandardRow(hour: 9, minute: 30, status: .notStarted, pose: .yawning, progress: "0", menuBarText: "0.0000"),
             StandardRow(hour: 11, minute: 0, status: .working, pose: .grinding, progress: "0.1429", menuBarText: "142.8571"),
@@ -32,10 +32,10 @@ struct TodayEarnedTests {
         let snap = snapshot(of: state, at: standardDay(row.hour, row.minute))
 
         let today = try #require(snap.today)
-        let work = try #require(today.work)
+        let earnings = try #require(today.earnings)
         #expect(today.status == row.status)
-        #expect(work.cap == 1000)
-        #expect(rounded4(work.progress) == Decimal(string: row.progress)!)
+        #expect(earnings.cap == 1000)
+        #expect(rounded4(earnings.progress) == Decimal(string: row.progress)!)
         #expect(snap.menuBar == MenuBarDisplay(pose: row.pose, text: row.menuBarText))
     }
 }
@@ -48,7 +48,7 @@ struct DailyWageTests {
 
         let today = try #require(snap.today)
         #expect(today.dailyWage == 1000)
-        #expect(rounded4(try #require(today.work).perSecond) == Decimal(string: "0.0397")!)
+        #expect(rounded4(try #require(today.earnings).perSecond) == Decimal(string: "0.0397")!)
     }
 
     @Test("PRD 4.2.4 日薪精度：月薪 20000、应出勤 22 天，日薪保留完整精度")
@@ -66,7 +66,7 @@ struct DailyWageTests {
         let snap = snapshot(of: try onboarded(), at: moment(2026, 2, 14, 11, 0))
 
         #expect(snap.today?.status == .restDay)
-        #expect(snap.today?.work == nil)
+        #expect(snap.today?.earnings == nil)
         #expect(snap.menuBar == MenuBarDisplay(pose: .sunbathing, text: nil))
     }
 
@@ -76,7 +76,7 @@ struct DailyWageTests {
         let start = standardDay(11, 0).date
         let earned = try [0, 0.1, 1, 10].map { offset in
             let now = Moment(date: start.addingTimeInterval(offset), timeZone: shanghai)
-            return try #require(snapshot(of: state, at: now).today?.work).earned
+            return try #require(snapshot(of: state, at: now).today?.earnings).earned
         }
 
         #expect(earned == earned.sorted())
@@ -109,7 +109,7 @@ struct DailyWageTests {
 
         // 10:00 至 12:30 共 2.5 小时，占 8 小时的 31.25%。
         #expect(snap.today?.status == .working)
-        #expect(snap.today?.work?.progress == Decimal(string: "0.3125")!)
+        #expect(snap.today?.earnings?.progress == Decimal(string: "0.3125")!)
         #expect(snap.menuBar == MenuBarDisplay(pose: .grinding, text: "312.5000"))
     }
 
@@ -124,5 +124,29 @@ struct DailyWageTests {
                 #expect(text.wholeMatch(of: digitsOnly) != nil, "菜单栏出现了多余字符：\(text)")
             }
         }
+    }
+}
+
+@Suite("今日已赚：是否在增长")
+struct IsEarningTests {
+    @Test("PRD 4.3.3 不变量 3 今日已赚只在上班中增长", arguments: [
+        (9, 30, false), (11, 0, true), (12, 30, false), (18, 30, false),
+    ])
+    func onlyGrowsWhileWorking(hour: Int, minute: Int, expected: Bool) throws {
+        let snap = snapshot(of: try onboarded(), at: standardDay(hour, minute))
+
+        #expect(snap.today?.isEarning == expected)
+    }
+}
+
+@Suite("今日已赚：展示取舍")
+struct RollingFormatTests {
+    @Test("PRD 4.7.1 #5 滚动区域四舍五入到 4 位：恰好 0.00005 进位为 0.0001")
+    func roundsHalfUp() throws {
+        // 月薪 28.8 ÷ 20 天 = 日薪 1.44；10:00 至 18:00 不午休共 28800 秒，第 1 秒正好赚 0.00005。
+        let schedule = WorkSchedule(start: TimeOfDay(hour: 10, minute: 0), end: TimeOfDay(hour: 18, minute: 0), lunch: nil)
+        let state = try onboarded(salary: Decimal(string: "28.8")!, schedule: schedule)
+
+        #expect(snapshot(of: state, at: standardDay(10, 0, 1)).menuBar.text == "0.0001")
     }
 }

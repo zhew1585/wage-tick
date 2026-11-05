@@ -33,7 +33,7 @@ final class StatusItemController: NSObject {
         // 引导完成前没有菜单，点击直接走 `buttonClicked`。
         item.menu = model.isOnboarded ? menu : nil
         render(snap.menuBar)
-        scheduleNextRefresh(rolling: snap.today?.status == .working)
+        scheduleNextRefresh(rolling: snap.today?.isEarning == true)
     }
 
     private func configureButton() {

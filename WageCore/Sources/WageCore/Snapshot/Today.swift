@@ -16,11 +16,14 @@ public struct Today: Sendable, Equatable {
     /// 当月日薪 = 当月月薪 ÷ 当月应出勤日数，保留完整精度 (PRD 4.2.4)。
     public let dailyWage: Decimal
     /// 应出勤日的收入数字；休息日为 nil。
-    public let work: WorkdayFigures?
+    public let earnings: Earnings?
+
+    /// 今日已赚是否正在增长：只在上班中增长 (PRD 4.3.3 不变量 3)。外壳据此决定刷新频率。
+    public var isEarning: Bool { status == .working }
 }
 
 /// 应出勤日当天的收入相关数字 (PRD 4.3.4)。
-public struct WorkdayFigures: Sendable, Equatable {
+public struct Earnings: Sendable, Equatable {
     /// 今日上限 = 日薪 - 当日扣款，最低为 0。
     public let cap: Decimal
     /// 工作进度：已过有效工时 ÷ 应有有效工时，0 至 1。
@@ -35,22 +38,22 @@ extension Today {
     init(profile: Profile, now: Moment) {
         let day = now.localDate
         let month = day.yearMonth
-        // 当月至少有 20 个工作日 (只按双休时)，除数不会为 0；单日覆盖引入后见 PRD 4.3.5 #19。
-        let wage = profile.salary(for: month) / Decimal(WorkdayRule.workdayCount(in: month))
+        // 当月至少有 20 个应出勤日 (只按双休时)，除数不会为 0；单日覆盖引入后见 PRD 4.3.5 #19。
+        let wage = profile.salary(for: month) / Decimal(AttendanceRule.attendanceDayCount(in: month))
         date = day
         dailyWage = wage
-        guard WorkdayRule.isWorkday(day) else {
+        guard AttendanceRule.isAttendanceDay(day) else {
             status = .restDay
-            work = nil
+            earnings = nil
             return
         }
         let plan = DayPlan(schedule: profile.schedule, on: day, now: now)
         status = plan.status(at: now.date)
-        work = WorkdayFigures(cap: wage, plan: plan, now: now.date)
+        earnings = Earnings(cap: wage, plan: plan, now: now.date)
     }
 }
 
-extension WorkdayFigures {
+extension Earnings {
     /// 本期没有扣款，今日上限 = 日薪。
     init(cap: Decimal, plan: DayPlan, now: Date) {
         let total = Decimal(plan.effectiveMilliseconds)
@@ -73,6 +76,6 @@ extension MenuBarDisplay {
         case .lunchBreak: .sleeping
         case .offWork: .lyingFlat
         }
-        self.init(pose: pose, text: today.work.map { Format.rolling($0.earned) })
+        self.init(pose: pose, text: today.earnings.map { Format.rolling($0.earned) })
     }
 }

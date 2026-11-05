@@ -107,10 +107,10 @@ struct OnboardingView: View {
         self.step = step
     }
 
-    /// 只接受最多 2 位小数的正数写法 (PRD 4.2.1)；其他写法视为未填。
+    /// 只认纯数字写法，其他写法视为未填；正数、小数位等规则交给核心的 `Validation`。
     private var parsedSalary: Decimal? {
         let text = salaryText.trimmingCharacters(in: .whitespaces)
-        guard text.wholeMatch(of: /[0-9]+(\.[0-9]{1,2})?/) != nil else { return nil }
+        guard text.wholeMatch(of: /[0-9]+(\.[0-9]+)?/) != nil else { return nil }
         return Decimal(string: text, locale: Locale(identifier: "en_US_POSIX"))
     }
 

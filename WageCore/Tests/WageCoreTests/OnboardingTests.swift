@@ -41,6 +41,16 @@ struct OnboardingValidationTests {
         #expect(error?.message == "月薪得是个正数")
     }
 
+    @Test("PRD 4.2.1 月薪最多 2 位小数", arguments: ["20000.123", "0.001"])
+    func salaryHasAtMostTwoDecimals(text: String) {
+        #expect(complete(salary: Decimal(string: text)!) == .salaryNotPositive)
+    }
+
+    @Test("PRD 4.2.1 月薪 2 位小数以内可以保存", arguments: ["20000.12", "0.01", "8000"])
+    func salaryWithTwoDecimalsIsAccepted(text: String) {
+        #expect(complete(salary: Decimal(string: text)!) == nil)
+    }
+
     @Test("AC-ONB-03 / PRD 4.3.5 #2 下班不晚于上班：提示「下班时间要晚于上班时间」", arguments: [8, 9])
     func endMustBeAfterStart(end: Int) {
         let error = complete(schedule: schedule(9, end, lunch: nil))
@@ -51,7 +61,7 @@ struct OnboardingValidationTests {
 
     @Test(
         "PRD 4.3.5 #3 午休不在上下班之内或结束不晚于开始：提示「午休要在上下班时间之内」",
-        arguments: [(8, 13), (12, 19), (13, 12), (12, 12)]
+        arguments: [(8, 13), (12, 19), (13, 12), (12, 12), (9, 18)]
     )
     func lunchMustBeInsideWorkHours(lunch: (Int, Int)) {
         let error = complete(schedule: schedule(9, 18, lunch: lunch))

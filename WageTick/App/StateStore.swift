@@ -9,7 +9,7 @@ final class StateStore {
     /// 当前文件格式版本。改动 `AppState` 的编码结构时 +1 并补迁移。
     private static let currentVersion = 1
     private let fileURL: URL
-    private let logger = Logger(subsystem: "com.zhew1585.WageTick", category: "StateStore")
+    private let logger = Logger(subsystem: AppIdentity.bundleID, category: "StateStore")
 
     init(directory: URL = StateStore.defaultDirectory) {
         fileURL = directory.appending(path: "state.json")
@@ -56,7 +56,7 @@ final class StateStore {
 
     private static var defaultDirectory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return base.appending(path: Bundle.main.bundleIdentifier ?? "com.zhew1585.WageTick")
+        return base.appending(path: AppIdentity.bundleID)
     }
 }
 

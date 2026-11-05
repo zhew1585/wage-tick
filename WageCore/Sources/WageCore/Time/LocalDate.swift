@@ -65,9 +65,26 @@ public struct TimeOfDay: Sendable, Hashable, Comparable, Codable {
 
     /// 越界的时分属于编程错误，直接中止。
     public init(hour: Int, minute: Int) {
-        precondition((0...23).contains(hour) && (0...59).contains(minute), "时刻越界：\(hour):\(minute)")
+        precondition(Self.isValid(hour: hour, minute: minute), "时刻越界：\(hour):\(minute)")
         self.hour = hour
         self.minute = minute
+    }
+
+    /// 从文件读入时不信任内容：越界的时分抛解码错误，不中止。
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let hour = try container.decode(Int.self, forKey: .hour)
+        let minute = try container.decode(Int.self, forKey: .minute)
+        guard Self.isValid(hour: hour, minute: minute) else {
+            throw DecodingError.dataCorruptedError(forKey: .hour, in: container, debugDescription: "时刻越界：\(hour):\(minute)")
+        }
+        self.init(hour: hour, minute: minute)
+    }
+
+    private enum CodingKeys: String, CodingKey { case hour, minute }
+
+    private static func isValid(hour: Int, minute: Int) -> Bool {
+        (0...23).contains(hour) && (0...59).contains(minute)
     }
 
     var minutesSinceMidnight: Int { hour * 60 + minute }

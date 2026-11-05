@@ -10,12 +10,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         model = AppModel(store: StateStore())
-        onboarding = OnboardingWindowController(model: model)
+        onboarding = OnboardingWindowController(model: model) { [weak self] in
+            self?.statusItem.refresh()
+        }
         statusItem = StatusItemController(model: model) { [weak self] in
             self?.onboarding.show()
-        }
-        onboarding.onComplete = { [weak self] in
-            self?.statusItem.refresh()
         }
         if !model.isOnboarded {
             onboarding.show()

@@ -2,13 +2,13 @@ import Foundation
 
 /// 应出勤日判定 (PRD 4.2.2)。
 /// 本期只按双休：周六、周日不应出勤，其余应出勤；节假日与单日覆盖留给后续票。
-enum WorkdayRule {
-    static func isWorkday(_ date: LocalDate) -> Bool {
+enum AttendanceRule {
+    static func isAttendanceDay(_ date: LocalDate) -> Bool {
         !date.isWeekend
     }
 
-    static func workdayCount(in month: YearMonth) -> Int {
-        month.days.filter(isWorkday).count
+    static func attendanceDayCount(in month: YearMonth) -> Int {
+        month.days.filter(isAttendanceDay).count
     }
 }
 

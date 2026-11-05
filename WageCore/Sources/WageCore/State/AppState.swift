@@ -15,10 +15,34 @@ public struct AppState: Sendable, Equatable, Codable {
 public struct Profile: Sendable, Equatable, Codable {
     /// 安装日期，即完成引导那天；历史从这个月开始 (PRD 4.1.1)。
     public let installDate: LocalDate
-    /// 按月份记录的月薪，按月份升序。未来月份沿用最近一次设置 (PRD 4.2.1)。
+    /// 按月份记录的月薪，按月份升序，至少一条。未来月份沿用最近一次设置 (PRD 4.2.1)。
     public internal(set) var salaries: [MonthlySalary]
     public internal(set) var schedule: WorkSchedule
     public internal(set) var launchAtLogin: Bool
+
+    private enum CodingKeys: String, CodingKey { case installDate, salaries, schedule, launchAtLogin }
+
+    init(installDate: LocalDate, salaries: [MonthlySalary], schedule: WorkSchedule, launchAtLogin: Bool) {
+        self.installDate = installDate
+        self.salaries = salaries
+        self.schedule = schedule
+        self.launchAtLogin = launchAtLogin
+    }
+
+    /// 从文件读入时至少要有一条月薪，并按月份排好序，供 `salary(for:)` 查找。
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let salaries = try container.decode([MonthlySalary].self, forKey: .salaries)
+        guard !salaries.isEmpty else {
+            throw DecodingError.dataCorruptedError(forKey: .salaries, in: container, debugDescription: "没有任何月薪记录")
+        }
+        self.init(
+            installDate: try container.decode(LocalDate.self, forKey: .installDate),
+            salaries: salaries.sorted { $0.month < $1.month },
+            schedule: try container.decode(WorkSchedule.self, forKey: .schedule),
+            launchAtLogin: try container.decode(Bool.self, forKey: .launchAtLogin)
+        )
+    }
 
     /// 某月适用的月薪：该月及之前最近一次设置的月薪。
     /// 系统时间被拨回到安装月之前时 (PRD 4.3.5 #11)，退回最早一条。
@@ -45,8 +69,9 @@ public struct MonthlySalary: Sendable, Equatable, Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         month = try container.decode(YearMonth.self, forKey: .month)
         let text = try container.decode(String.self, forKey: .amount)
-        guard let amount = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")) else {
-            throw DecodingError.dataCorruptedError(forKey: .amount, in: container, debugDescription: "月薪不是合法数字：\(text)")
+        guard let amount = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")),
+              Validation.monthlySalary(amount) == nil else {
+            throw DecodingError.dataCorruptedError(forKey: .amount, in: container, debugDescription: "月薪不是正数：\(text)")
         }
         self.amount = amount
     }

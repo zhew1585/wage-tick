@@ -13,6 +13,21 @@ public struct WorkSchedule: Sendable, Equatable, Codable {
         self.lunch = lunch
     }
 
+    /// 从文件读入时按引导同一套规则校验 (PRD 4.3.5 #2、#3)，不合法抛解码错误。
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            start: try container.decode(TimeOfDay.self, forKey: .start),
+            end: try container.decode(TimeOfDay.self, forKey: .end),
+            lunch: try container.decodeIfPresent(LunchBreak.self, forKey: .lunch)
+        )
+        if let error = Validation.schedule(self) {
+            throw DecodingError.dataCorruptedError(forKey: .end, in: container, debugDescription: error.message)
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey { case start, end, lunch }
+
     /// 引导里的默认作息：09:00 至 18:00，午休 12:00 至 13:00 (AC-ONB-01)。
     public static let `default` = WorkSchedule(
         start: TimeOfDay(hour: 9, minute: 0),
