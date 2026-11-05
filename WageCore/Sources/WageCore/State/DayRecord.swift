@@ -27,24 +27,10 @@ public struct UnpaidWorkSegment: Sendable, Equatable, Codable {
     /// 疑似通宵：到 23:59:59 被自动停止时为 true (PRD 4.3.5 #12)。
     public internal(set) var suspectedAllNighter: Bool
 
-    private enum CodingKeys: String, CodingKey { case start, end, suspectedAllNighter }
-
+    /// 文件里结束早于开始的段不拒绝读入 (那样整个状态文件都会被隔离)：推导时长时按 0 计。
     init(start: Date, end: Date? = nil, suspectedAllNighter: Bool = false) {
         self.start = start
         self.end = end
         self.suspectedAllNighter = suspectedAllNighter
-    }
-
-    /// 从文件读入时不信任内容：结束早于开始的段抛解码错误。
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(
-            start: try container.decode(Date.self, forKey: .start),
-            end: try container.decodeIfPresent(Date.self, forKey: .end),
-            suspectedAllNighter: try container.decode(Bool.self, forKey: .suspectedAllNighter)
-        )
-        if let end, end < start {
-            throw DecodingError.dataCorruptedError(forKey: .end, in: container, debugDescription: "白干段结束早于开始")
-        }
     }
 }

@@ -42,6 +42,15 @@ extension UnpaidWorkToday {
     }
 }
 
+extension Moment {
+    /// 白干自动停止时刻：`day` 当天 23:59:59 (PRD 参数表「白干自动停止时刻」)，按此刻所在时区。
+    /// 计时中切换时区时按新时区推导、不追溯修正 (PRD 4.3.5 #11)：向东切可能让那段在开始时刻就结束，
+    /// 向西切到前一天时今天的快照看不到那段计时 (此时开始会被拒绝)。都属罕见边界，接受。
+    func unpaidWorkCutoff(on day: LocalDate) -> Date {
+        calendar.date(from: DateComponents(year: day.year, month: day.month, day: day.day, hour: 23, minute: 59, second: 59))!
+    }
+}
+
 extension WorkSchedule {
     /// 标准工时 (毫秒) = 计划下班 - 计划上班 - 午休时长 (PRD 4.2.3)，不受半天假影响。
     var standardMilliseconds: Int {

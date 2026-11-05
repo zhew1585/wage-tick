@@ -143,26 +143,31 @@ struct TodayPanelView: View {
     }
 
     /// 情绪按钮：应出勤日为扣钱、请假 (F5、F6，后续票，先占位)；休息日为被迫营业 (F7)。
-    /// 白干计时中「终于下班了」在进度区，这一行留空。
+    /// 白干计时中「终于下班了」在进度区；被迫营业时这一行留空。
     @ViewBuilder
     private func moodButtons(_ panel: TodayPanel) -> some View {
         HStack {
             switch panel.body {
             case .attendance:
-                Group {
-                    Button("今天扣钱了") {}
-                    Button("请假") {}
-                }
-                .disabled(true)
+                attendanceMoodButtons
+            case .unpaidWork(let unpaidWork):
+                if !unpaidWork.isRestDay { attendanceMoodButtons }
             case .rest:
                 if let button = panel.unpaidWorkButton {
                     Button(button.title) { content.send(button.command) }
                 }
-            case .unpaidWork:
-                EmptyView()
             }
         }
         .frame(height: Self.moodRowHeight)
+    }
+
+    /// 扣钱、请假占位 (F5、F6，后续票)。
+    private var attendanceMoodButtons: some View {
+        Group {
+            Button("今天扣钱了") {}
+            Button("请假") {}
+        }
+        .disabled(true)
     }
 }
 

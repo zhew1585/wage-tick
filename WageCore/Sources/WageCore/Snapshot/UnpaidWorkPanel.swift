@@ -8,11 +8,14 @@ public struct UnpaidWorkPanel: Sendable, Equatable {
     public let caption: String
     /// 统计行：今日结算、本月累计，与已下班相同。
     public let stats: [StatItem]
+    /// 是否休息日的被迫营业：外壳据此决定情绪按钮行 (应出勤日仍有扣钱、请假)。
+    public let isRestDay: Bool
 
-    public init(headline: String, caption: String, stats: [StatItem]) {
+    public init(headline: String, caption: String, stats: [StatItem], isRestDay: Bool) {
         self.headline = headline
         self.caption = caption
         self.stats = stats
+        self.isRestDay = isRestDay
     }
 }
 
@@ -33,6 +36,7 @@ extension UnpaidWorkPanel {
         let start = Format.time(Moment(date: unpaidWork.runningSince ?? now.date, timeZone: now.timeZone))
         headline = Format.rollingMoney(unpaidWork.owed)
         caption = "\(start) 起 · 已白干 \(Format.elapsed(milliseconds: unpaidWork.milliseconds)) · 每秒 +\(Format.trimmed(unpaidWork.perSecond))"
+        isRestDay = today.status == .restDay
         // 被迫营业的休息日没有收入，今日结算为 0 (AC-OT-04)。
         stats = today.earnings.map { AttendancePanel.offWorkStats(today: today, earnings: $0) } ?? [
             StatItem(title: "今日结算", value: Format.money(0)),

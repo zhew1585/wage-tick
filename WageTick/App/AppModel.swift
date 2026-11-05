@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import WageCore
 
 /// 外壳持有的唯一状态容器："命令进、快照出"。
@@ -7,6 +8,7 @@ import WageCore
 final class AppModel {
     private let store: StateStore
     private var state: AppState
+    private let logger = Logger(subsystem: AppIdentity.bundleID, category: "AppModel")
 
     init(store: StateStore) {
         self.store = store
@@ -37,8 +39,8 @@ final class AppModel {
             state = next
             store.save(state)
         } catch {
-            // 推进到此刻没有校验，不会被拒绝。
-            assertionFailure("推进到此刻失败：\(error.message)")
+            // 推进到此刻没有校验，正常不会被拒绝；万一被拒，状态不变，下次刷新再推进。
+            logger.error("推进到此刻失败：\(error.message, privacy: .public)")
         }
     }
 

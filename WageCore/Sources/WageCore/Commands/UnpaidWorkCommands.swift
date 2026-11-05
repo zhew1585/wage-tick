@@ -37,34 +37,27 @@ func advanceUnpaidWork(state: AppState, now: Moment) -> AppState {
     }
 }
 
-/// 计时中那段白干的位置。
-struct RunningUnpaidWork {
+/// 某段白干在日记录里的位置。
+struct UnpaidWorkPosition {
     let date: LocalDate
     let index: Int
 }
 
 extension AppState {
     /// 计时中 (结束时刻为空) 的那段白干；同一时间最多一段。
-    var runningUnpaidWork: RunningUnpaidWork? {
+    var runningUnpaidWork: UnpaidWorkPosition? {
         for (date, record) in dayRecords {
             if let index = record.unpaidWork.firstIndex(where: { $0.end == nil }) {
-                return RunningUnpaidWork(date: date, index: index)
+                return UnpaidWorkPosition(date: date, index: index)
             }
         }
         return nil
     }
 
     /// 返回改好了 `running` 那段之后的新状态。
-    func updatingSegment(_ running: RunningUnpaidWork, _ change: (inout UnpaidWorkSegment) -> Void) -> AppState {
+    func updatingSegment(_ running: UnpaidWorkPosition, _ change: (inout UnpaidWorkSegment) -> Void) -> AppState {
         var next = self
         change(&next.dayRecords[running.date, default: DayRecord()].unpaidWork[running.index])
         return next
-    }
-}
-
-extension Moment {
-    /// 白干自动停止时刻：`day` 当天 23:59:59 (PRD 参数表「白干自动停止时刻」)，按此刻所在时区。
-    func unpaidWorkCutoff(on day: LocalDate) -> Date {
-        calendar.date(from: DateComponents(year: day.year, month: day.month, day: day.day, hour: 23, minute: 59, second: 59))!
     }
 }

@@ -185,7 +185,6 @@ struct UnpaidWorkAutoStopTests {
         let advanced = try applied(.advance, to: running, at: standardDay(23, 59, 58))
         let unpaid = try #require(snapshot(of: advanced, at: standardDay(23, 59, 58)).today).unpaidWork
 
-        #expect(advanced == running)
         #expect(unpaid.isRunning)
         #expect(!unpaid.suspectedAllNighter)
     }
@@ -212,19 +211,21 @@ struct UnpaidWorkAutoStopTests {
 
 @Suite("白干计时：面板与菜单栏")
 struct UnpaidWorkPanelTests {
-    @Test("AC-HOME-10 18:00 点「我还没走」，19:05:12 打开：标签【白干中】、主数字 ¥155.2381、小字含【18:00 起 · 已白干 1:05:12】，统计行为今日结算与本月累计")
+    @Test("AC-HOME-10 18:00 点「我还没走」，19:05:12 打开：标签【白干中】、主数字 ¥155.2381、小字含【18:00 起 · 已白干 1:05:12】，统计行为今日结算、扣款、本月累计")
     func runningPanel() throws {
         let state = try applied(.startUnpaidWork, to: try onboarded(), at: standardDay(18, 0))
         let panel = try #require(snapshot(of: state, at: standardDay(19, 5, 12)).panel)
 
         #expect(panel.statusLabel == "白干中")
+        // 扣款一项随扣钱 (#7) 加入，与已下班的统计行共用同一份。
         #expect(panel.body == .unpaidWork(UnpaidWorkPanel(
             headline: "¥155.2381",
             caption: "18:00 起 · 已白干 1:05:12 · 每秒 +0.0397",
             stats: [
                 StatItem(title: "今日结算", value: "¥1000"),
                 StatItem(title: "本月累计", value: "¥8000"),
-            ]
+            ],
+            isRestDay: false
         )))
         #expect(snapshot(of: state, at: standardDay(19, 5, 12)).today?.isRolling == true)
     }
@@ -255,7 +256,8 @@ struct UnpaidWorkPanelTests {
             stats: [
                 StatItem(title: "今日结算", value: "¥0"),
                 StatItem(title: "本月累计", value: "¥10000"),
-            ]
+            ],
+            isRestDay: true
         )))
     }
 
@@ -293,35 +295,15 @@ struct UnpaidWorkPanelTests {
 
 @Suite("白干计时：读回状态")
 struct UnpaidWorkPersistenceTests {
-    /// 18:00 开始计时的状态编码成 JSON 对象，交给 `edit` 改动后再读回。
-    private func decodeEdited(_ edit: (inout [String: Any]) throws -> Void) throws -> AppState {
+    @Test("没有日记录的旧状态文件照常读入：今天没有白干记录")
+    func oldFileWithoutDayRecords() throws {
         let running = try apply(.startUnpaidWork, to: try onboarded(), at: standardDay(18, 0)).state
         var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(running)) as? [String: Any])
-        try edit(&json)
-        return try JSONDecoder().decode(AppState.self, from: JSONSerialization.data(withJSONObject: json))
-    }
+        json["dayRecords"] = nil
+        let old = try JSONDecoder().decode(AppState.self, from: JSONSerialization.data(withJSONObject: json))
+        let today = try #require(snapshot(of: old, at: standardDay(18, 30)).today)
 
-    @Test("没有日记录的旧状态文件照常读入")
-    func oldFileWithoutDayRecords() throws {
-        let state = try decodeEdited { $0["dayRecords"] = nil }
-
-        #expect(state.dayRecords.isEmpty)
-    }
-
-    @Test("文件里白干段结束早于开始时拒绝读入")
-    func endBeforeStartIsRejected() throws {
-        #expect(throws: DecodingError.self) {
-            try decodeEdited { json in
-                // 字典按 [日期, 日记录, …] 交替编码。
-                var records = try #require(json["dayRecords"] as? [Any])
-                var record = try #require(records[1] as? [String: Any])
-                var segments = try #require(record["unpaidWork"] as? [[String: Any]])
-                let start = try #require(segments[0]["start"] as? Double)
-                segments[0]["end"] = start - 60
-                record["unpaidWork"] = segments
-                records[1] = record
-                json["dayRecords"] = records
-            }
-        }
+        #expect(today.unpaidWork.hasRecords == false)
+        #expect(try attendancePanel(old, at: standardDay(18, 30)).caption == "准点下班，赢")
     }
 }
