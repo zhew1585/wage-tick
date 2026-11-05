@@ -9,7 +9,7 @@ public struct TodayPanel: Sendable, Equatable {
     /// 顶部状态标签，如「上班中」；白干计时中为「白干中」(只是展示，不是日状态)。
     public let statusLabel: String
     public let body: Body
-    /// 面板顶部的提示条，按顺序展示，没有时为空，如节假日数据缺失 (AC-HOME-08)。
+    /// 面板顶部的提示条，按顺序展示，没有时为空：节假日数据缺失 (AC-HOME-08)、本月没有要上班的日子 (AC-HOME-09)。
     public let notices: [String]
     /// 「今天扣钱了」入口 (F5)；休息日为 nil，不显示按钮 (AC-FINE-07)。
     public let deductionEntry: DeductionEntry?
@@ -96,8 +96,8 @@ extension TodayPanel {
         dateText = Format.date(today.date, relativeTo: today.date)
         timeText = Format.time(now)
         statusLabel = today.unpaidWork.isRunning ? "白干中" : today.status.label
-        notices = [holidays.missingNotice(on: today.date)].compactMap { $0 }
-        deductionEntry = today.settlement.map(DeductionEntry.init(settlement:))
+        notices = [holidays.missingNotice(on: today.date), noAttendanceNotice(today.date, holidays: holidays)].compactMap { $0 }
+        deductionEntry = today.settlement.map { DeductionEntry(settlement: $0) }
         unpaidWorkButton = UnpaidWorkButton(today: today)
         self.goal = goal
         self.goalQueue = goalQueue
@@ -179,4 +179,9 @@ extension DayStatus {
         case .offWork: "已下班"
         }
     }
+}
+
+/// 当月应出勤日数为 0 (如全部被覆盖为不上班) 时的提示 (PRD 4.3.5 #19、AC-HOME-09)；否则为 nil。
+private func noAttendanceNotice(_ today: LocalDate, holidays: HolidayTable) -> String? {
+    AttendanceRule(holidays: holidays).attendanceDayCount(in: today.yearMonth) == 0 ? "本月没有要上班的日子" : nil
 }

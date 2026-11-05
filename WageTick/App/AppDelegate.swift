@@ -37,7 +37,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             openGoals: { [weak self] in self?.goals.show() },
             openHistory: { [weak self] in self?.history.show() }
         )
-        history = HistoryWindowController(model: model)
+        history = HistoryWindowController(model: model) { [weak self] in
+            self?.statusItem.refresh()
+        }
         settings = SettingsWindowController(form: SettingsFormModel(model: model, menuBar: statusItem, notifier: notifier))
         if !model.isOnboarded {
             onboarding.show()

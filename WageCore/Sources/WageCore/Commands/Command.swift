@@ -52,6 +52,11 @@ public enum Command: Sendable, Equatable {
     case setGoalReachedNotification(Bool)
     /// 面板开始播放目标达成庆祝动画时确认，同一目标不再播放 (AC-GPRG-04)。
     case acknowledgeCelebration(goalID: Int)
+    /// 历史编辑 (PRD 4.6.1、F11)：在单日详情里改某一天，可编辑范围见 `DayEdit`。
+    case editDay(LocalDate, DayEdit)
+    /// 在历史里改某个月的月薪 (PRD 4.2.1、4.6.1)，限安装当月至本月：过去的月份只影响该月；
+    /// 本月与 `changeMonthlySalary` 相同，未来月份沿用。
+    case setMonthlySalary(YearMonth, Decimal)
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -96,6 +101,12 @@ public enum CommandError: Error, Sendable, Equatable {
     case goalNotFound
     case goalCompleted
     case goalOrderLocked
+    case dateOutOfRange
+    case futureDate
+    case unpaidWorkEndNotAfterStart
+    case unpaidWorkOverlap
+    case unpaidWorkInFuture
+    case unpaidWorkNotFound
 
     public var message: String {
         switch self {
@@ -121,6 +132,13 @@ public enum CommandError: Error, Sendable, Equatable {
         case .goalNotFound: "这个目标已经不在了"
         case .goalCompleted: "已完成的目标不能再改"
         case .goalOrderLocked: "累计中的目标固定在最前"
+        // 以下为历史编辑 (#15) 的提示，PRD 没给文案。`futureDate` 也作为单日详情里入口不可用的原因展示。
+        case .dateOutOfRange: "这天不在历史范围内"
+        case .futureDate: "还没到这一天，只能请假或设置单日覆盖"
+        case .unpaidWorkEndNotAfterStart: "结束时间要晚于开始时间"
+        case .unpaidWorkOverlap: "和这天已有的白干段重叠了"
+        case .unpaidWorkInFuture: "还没到这个时间"
+        case .unpaidWorkNotFound: "这段白干已经不在了"
         }
     }
 }
@@ -128,12 +146,14 @@ public enum CommandError: Error, Sendable, Equatable {
 /// 核心入口一：在 `now` 时刻对 `state` 执行 `command`，返回新状态与领域事件。
 /// 校验失败时抛出 `CommandError`，原状态不受影响。
 /// `holidays` 用于需要判定应出勤日的命令 (如记扣钱、请假、白干计时、新建目标、推进到此刻)；不传时为空表，只按双休。
+/// 状态里的单日覆盖在这里并入节假日表，各命令拿到的 `holidays` 已带上覆盖 (PRD 4.2.2)。
 public func apply(
     _ command: Command,
     to state: AppState,
     at now: Moment,
     holidays: HolidayTable = .empty
 ) throws(CommandError) -> (state: AppState, events: [DomainEvent]) {
+    let holidays = holidays.overlaying(state.dayRecords)
     switch command {
     case .completeOnboarding(let input):
         return (try completeOnboarding(input, state: state, now: now), [])
@@ -151,18 +171,20 @@ public func apply(
         return (try setBossModeHotkey(hotkey, state: state), [])
     case .setLaunchAtLogin(let enabled):
         return (try setLaunchAtLogin(enabled, state: state), [])
+    // 面板上的扣钱、请假只作用于今天 (#7、#8)，与历史编辑走同一套逻辑；不检查历史范围，
+    // 系统时间被拨回到安装当月之前时 (PRD 4.3.5 #11) 今天的操作照旧。
     case .addDeduction(let input):
-        return (try addDeduction(input, state: state, now: now, holidays: holidays), [])
+        return (try addDeduction(input, on: now.localDate, state: state, now: now, holidays: holidays), [])
     case .editDeduction(let id, let input):
-        return (try editDeduction(id: id, input, state: state, now: now), [])
+        return (try editDeduction(id: id, input, on: now.localDate, state: state, now: now, holidays: holidays), [])
     case .deleteDeduction(let id):
-        return (try deleteDeduction(id: id, state: state, now: now), [])
+        return (try deleteDeduction(id: id, on: now.localDate, state: state), [])
     case .requestLeave(let leave):
-        return (try setLeave(leave, mergingWithExisting: true, state: state, now: now, holidays: holidays), [])
+        return (try setLeave(leave, mergingWithExisting: true, on: now.localDate, state: state, holidays: holidays), [])
     case .editLeave(let leave):
-        return (try setLeave(leave, mergingWithExisting: false, state: state, now: now, holidays: holidays), [])
+        return (try setLeave(leave, mergingWithExisting: false, on: now.localDate, state: state, holidays: holidays), [])
     case .cancelLeave:
-        return (cancelLeave(state: state, now: now), [])
+        return (cancelLeave(on: now.localDate, state: state), [])
     case .startUnpaidWork:
         return (try startUnpaidWork(state: state, now: now, holidays: holidays), [])
     case .stopUnpaidWork:
@@ -187,6 +209,10 @@ public func apply(
         return (setGoalReachedNotification(enabled, state: state), [])
     case .acknowledgeCelebration(let goalID):
         return (acknowledgeCelebration(goalID: goalID, state: state), [])
+    case .editDay(let date, let edit):
+        return completingGoalsAfterEdit(try editDay(date, edit, state: state, now: now, holidays: holidays), now: now, holidays: holidays)
+    case .setMonthlySalary(let month, let amount):
+        return completingGoalsAfterEdit(try setMonthlySalary(amount, for: month, state: state, now: now), now: now, holidays: holidays)
     }
 }
 

@@ -1,7 +1,7 @@
 import Foundation
 
 /// 日记录 (PRD 4.3.1)：某一天牛马手动产生的内容。
-/// 字段按 PRD 命名：单日覆盖、请假、扣钱记录、白干段；目前有扣钱记录 (#7)、请假 (#8) 与白干段 (#9)，其余由各自的票追加。
+/// 字段按 PRD 命名：扣钱记录 (#7)、请假 (#8)、白干段 (#9)、单日覆盖 (#15)。
 /// 日薪、今日上限、结算等推导内容一律不存，见 `DaySettlement`。
 public struct DayRecord: Sendable, Equatable, Codable {
     public let date: LocalDate
@@ -11,14 +11,20 @@ public struct DayRecord: Sendable, Equatable, Codable {
     public internal(set) var leave: Leave?
     /// 白干段 (PRD 4.4.3)，1:N，按开始时刻先后排列。
     public internal(set) var unpaidWork: [UnpaidWorkSegment]
+    /// 单日覆盖 (PRD 4.2.2)；nil 表示按规则判定。
+    public internal(set) var override: DayOverride?
 
-    private enum CodingKeys: String, CodingKey { case date, deductions, leave, unpaidWork }
+    private enum CodingKeys: String, CodingKey { case date, deductions, leave, unpaidWork, override }
 
-    init(date: LocalDate, deductions: [Deduction] = [], leave: Leave? = nil, unpaidWork: [UnpaidWorkSegment] = []) {
+    init(
+        date: LocalDate, deductions: [Deduction] = [], leave: Leave? = nil, unpaidWork: [UnpaidWorkSegment] = [],
+        override: DayOverride? = nil
+    ) {
         self.date = date
         self.deductions = deductions
         self.leave = leave
         self.unpaidWork = unpaidWork
+        self.override = override
     }
 
     /// 其他票追加的字段可能让一条日记录没有扣钱记录，缺省视为空。
@@ -28,10 +34,12 @@ public struct DayRecord: Sendable, Equatable, Codable {
         deductions = try container.decodeIfPresent([Deduction].self, forKey: .deductions) ?? []
         leave = try container.decodeIfPresent(Leave.self, forKey: .leave)
         unpaidWork = try container.decodeIfPresent([UnpaidWorkSegment].self, forKey: .unpaidWork) ?? []
+        // #15 之前的旧文件没有单日覆盖。
+        override = try container.decodeIfPresent(DayOverride.self, forKey: .override)
     }
 
     /// 没有任何牛马录入的内容时，这条日记录可以删掉。
-    var isEmpty: Bool { deductions.isEmpty && leave == nil && unpaidWork.isEmpty }
+    var isEmpty: Bool { deductions.isEmpty && leave == nil && unpaidWork.isEmpty && override == nil }
 }
 
 /// 一段白干计时 (PRD 4.4.3)："我还没走"或"被迫营业"从开始到停止。

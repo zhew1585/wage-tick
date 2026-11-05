@@ -1,7 +1,8 @@
 import SwiftUI
 import WageCore
 
-/// 请假表单 (PRD F6)，从今日概览面板弹出：时段、扣日薪的百分比，下方汇总当日计划、请假扣薪、今日上限。
+/// 请假表单 (PRD F6)，从今日概览面板 (今天) 或历史单日详情 (那一天，#15) 弹出：
+/// 时段、扣日薪的百分比，下方汇总当日计划、请假扣薪、收入项 (今天为今日上限，历史为结算或预计结算)。
 /// 汇总与校验提示都来自核心：每次改动都把待保存的命令交给 `PanelActions.dryRun` 试算。
 struct LeaveFormView: View {
     /// 新请一条 (与已有的另一半天假合并) 还是修改已有的那条 (整条替换)。
@@ -14,14 +15,17 @@ struct LeaveFormView: View {
     let actions: PanelActions
     /// 关闭表单：保存、撤销成功或取消后调用。
     let dismiss: () -> Void
+    /// 作用的日子：今天或历史里的某一天。
+    let target: FormTarget
 
     @State private var period: LeavePeriod
     @State private var percentText: String
     @State private var errorMessage: String?
 
-    init(mode: Mode, actions: PanelActions, dismiss: @escaping () -> Void) {
+    init(mode: Mode, actions: PanelActions, target: FormTarget = .today, dismiss: @escaping () -> Void) {
         self.mode = mode
         self.actions = actions
+        self.target = target
         self.dismiss = dismiss
         let initial = switch mode {
         case .request: Leave(period: .fullDay, deductionPercent: LeavePeriod.fullDay.defaultDeductionPercent)
@@ -87,7 +91,7 @@ struct LeaveFormView: View {
     private var buttons: some View {
         HStack {
             if case .edit = mode {
-                Button("撤销请假", role: .destructive) { send(.cancelLeave) }
+                Button("撤销请假", role: .destructive) { send(cancelCommand) }
             }
             Spacer()
             Button("取消", action: dismiss).keyboardShortcut(.cancelAction)
@@ -117,12 +121,18 @@ struct LeaveFormView: View {
             return .failure(Validation.leaveDeductionPercent(nil) ?? .leavePercentOutOfRange)
         }
         let leave = Leave(period: period, deductionPercent: percent)
-        return .success(mode == .request ? .requestLeave(leave) : .editLeave(leave))
+        return .success(mode == .request
+            ? target.command(today: .requestLeave(leave), .requestLeave(leave))
+            : target.command(today: .editLeave(leave), .editLeave(leave)))
     }
 
-    /// 试算结果：命令被核心拒绝时为对应提示；今天没有请假表单时 (理论上不会) 为 nil。
+    private var cancelCommand: Command {
+        target.command(today: .cancelLeave, .cancelLeave)
+    }
+
+    /// 试算结果：命令被核心拒绝时为对应提示；那天没有请假表单时 (理论上不会) 为 nil。
     private var previewResult: Result<LeaveForm?, CommandError> {
-        pendingCommand.flatMap { actions.dryRun($0) }.map(\.leaveForm)
+        pendingCommand.flatMap { actions.dryRun($0) }.map(target.leaveForm(in:))
     }
 
     /// 只认纯数字写法 (可带小数)，其他写法视为未填；范围交给核心的 `Validation`。

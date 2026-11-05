@@ -59,8 +59,7 @@ extension Today {
         let rule = AttendanceRule(holidays: holidays)
         let day = now.localDate
         let month = day.yearMonth
-        // 真实放假安排下最少的月份 (如春节、国庆) 也有十几个应出勤日，适配器拒收日期离谱的数据；
-        // 应出勤日数为 0 的兜底 (PRD 4.3.5 #19) 随单日覆盖一起做。
+        // 单日覆盖可能让当月应出勤日数为 0：日薪记 0，本月累计为 0 (PRD 4.3.5 #19)。
         let wage = DaySettlement.dailyWage(profile: profile, month: month, rule: rule)
         let settle = { (date: LocalDate) in
             DaySettlement(dailyWage: wage, record: dayRecords.first { $0.date == date })

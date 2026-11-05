@@ -20,7 +20,8 @@ public struct ActiveGoalCard: Sendable, Equatable {
     /// 预计完成 (PRD 4.5.3)，如「还需搬砖 7 天 · 2月20日」或「今天就能达成」。
     public let estimate: String
     /// 预计完成日 (今天就能达成时为今天)，排队中目标从它之后起数 (PRD 4.5.3 #5)。
-    let finishDate: LocalDate
+    /// 本月没有应出勤日 (日薪为 0) 时没法预计，为 nil。
+    let finishDate: LocalDate?
 }
 
 extension GoalCard {
@@ -51,20 +52,23 @@ extension ActiveGoalCard {
     /// 预计完成 (PRD 4.5.3)：
     /// 今天是应出勤日且未下班时，先扣除今日剩余可赚 (今日上限 - 今日已赚)，扣除后不大于 0 即「今天就能达成」；
     /// 否则 N = 剩余金额 ÷ 当月日薪 向上取整，从明天起数第 N 个应出勤日，跨月仍按当月日薪【D7】。
-    private static func estimate(remaining: Decimal, today: Today, rule: AttendanceRule) -> (text: String, finish: LocalDate) {
+    private static func estimate(remaining: Decimal, today: Today, rule: AttendanceRule) -> (text: String, finish: LocalDate?) {
         var rest = remaining
         if let earnings = today.earnings, today.status != .offWork {
             rest -= earnings.cap - earnings.earned
         }
         guard rest > 0 else { return ("今天就能达成", today.date) }
-        let days = workDays(for: rest, dailyWage: today.dailyWage)
+        // 本月全部覆盖为不上班时日薪为 0 (PRD 4.3.5 #19)，没法按当月日薪估算。
+        guard let days = workDays(for: rest, dailyWage: today.dailyWage) else { return (noEstimate, nil) }
         let finish = rule.attendanceDay(days, after: today.date)
         return ("还需搬砖 \(days) 天 · \(Format.monthDay(finish))", finish)
     }
 
     /// 攒够 `amount` 需要的应出勤日数 = `amount` ÷ 日薪 向上取整，如 6.5714 → 7。
     /// 先四舍五入到 `noiseScale` 位小数，去掉十进制除法的末位误差 (如 1/7 往返后的 9.000…0003)，免得多算一天。
-    static func workDays(for amount: Decimal, dailyWage: Decimal) -> Int {
+    /// 当月应出勤日数为 0 (如全部覆盖为不上班) 时日薪为 0 (PRD 4.3.5 #19)，没法估算，为 nil。
+    static func workDays(for amount: Decimal, dailyWage: Decimal) -> Int? {
+        guard dailyWage > 0 else { return nil }
         var quotient = amount / dailyWage
         var cleaned = Decimal()
         NSDecimalRound(&cleaned, &quotient, noiseScale, .plain)
@@ -72,6 +76,9 @@ extension ActiveGoalCard {
         NSDecimalRound(&result, &cleaned, 0, .up)
         return NSDecimalNumber(decimal: result).intValue
     }
+
+    /// 日薪为 0 时累计中目标的预计文案。
+    static let noEstimate = "本月没有要上班的日子，暂时没法预计"
 
     /// 算天数前保留的小数位，远小于 1 天，又远大于十进制运算的末位误差。
     private static let noiseScale = 10

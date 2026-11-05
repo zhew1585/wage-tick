@@ -7,11 +7,13 @@ public struct DeductionEntry: Sendable, Equatable {
     public let capText: String
     /// 当日扣款超过日薪时的提示 (PRD 4.3.5 #6)，否则为 nil。
     public let warning: String?
+    /// 预览里收入项的标题：今天为「今日上限」，历史补记过去的日子为「结算」(#15)。
+    public let capTitle: String
 
     /// 预览文案「今日上限 ¥x → ¥y」；草稿试算失败 (如金额还没填) 时只显示起点「今日上限 ¥x」。
     public func previewLine(to draft: DeductionEntry?) -> String {
-        guard let draft else { return "今日上限 \(capText)" }
-        return "今日上限 \(capText) → \(draft.capText)"
+        guard let draft else { return "\(capTitle) \(capText)" }
+        return "\(capTitle) \(capText) → \(draft.capText)"
     }
 }
 
@@ -33,9 +35,10 @@ public struct DeductionItem: Sendable, Equatable, Identifiable {
 private let overDeductedWarning = "今天已经白干了，再扣就倒贴了"
 
 extension DeductionEntry {
-    init(settlement: DaySettlement) {
+    init(settlement: DaySettlement, capTitle: String = "今日上限") {
         capText = Format.money(settlement.cap)
         warning = AttendancePanel.notice(settlement)
+        self.capTitle = capTitle
     }
 }
 

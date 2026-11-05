@@ -25,40 +25,50 @@ extension Validation {
     }
 }
 
-/// 给今天记一笔扣钱。只能记在应出勤日 (PRD 4.3.5 #8)；补记过去的日子留给历史编辑。
+/// 给 `date` 记一笔扣钱：今天来自「今天扣钱了」，过去的日子来自历史补记 (PRD 4.4.1、4.6.1)。
+/// 只能记在今天或过去的应出勤日 (PRD 4.3.5 #7、#8)。
 func addDeduction(
-    _ input: DeductionInput, state: AppState, now: Moment, holidays: HolidayTable
+    _ input: DeductionInput, on date: LocalDate, state: AppState, now: Moment, holidays: HolidayTable
 ) throws(CommandError) -> AppState {
     guard state.profile != nil else { throw .notOnboarded }
     if let error = Validation.deduction(input) { throw error }
-    let today = now.localDate
-    guard AttendanceRule(holidays: holidays).isAttendanceDay(today) else { throw .notAttendanceDay }
+    try requireDeductibleDay(date, now: now, holidays: holidays)
     let deduction = Deduction(id: state.nextDeductionID, input: input)
-    var record = state.dayRecord(on: today) ?? DayRecord(date: today)
+    var record = state.dayRecord(on: date) ?? DayRecord(date: date)
     record.deductions.append(deduction)
     return state.replacingDayRecord(record)
 }
 
-/// 改今天的一笔扣钱，先后位置不变。
-func editDeduction(id: Int, _ input: DeductionInput, state: AppState, now: Moment) throws(CommandError) -> AppState {
+/// 改 `date` 的一笔扣钱，先后位置不变。与新记同样只能改今天或过去的应出勤日。
+func editDeduction(
+    id: Int, _ input: DeductionInput, on date: LocalDate, state: AppState, now: Moment, holidays: HolidayTable
+) throws(CommandError) -> AppState {
     if let error = Validation.deduction(input) { throw error }
-    guard var record = state.todayRecord(containingDeduction: id, now: now) else { throw .deductionNotFound }
+    guard var record = state.record(on: date, containingDeduction: id) else { throw .deductionNotFound }
+    try requireDeductibleDay(date, now: now, holidays: holidays)
     record.deductions = record.deductions.map { $0.id == id ? Deduction(id: id, input: input) : $0 }
     return state.replacingDayRecord(record)
 }
 
-/// 删除今天的一笔扣钱；日记录因此变空时一并删掉。
-func deleteDeduction(id: Int, state: AppState, now: Moment) throws(CommandError) -> AppState {
-    guard var record = state.todayRecord(containingDeduction: id, now: now) else { throw .deductionNotFound }
+/// 删除 `date` 的一笔扣钱；日记录因此变空时一并删掉。
+/// 不看这天是否应出勤：单日覆盖或节假日表更新后变成不上班日的那天，已有的扣钱要能删掉 (#14 遗留)。
+func deleteDeduction(id: Int, on date: LocalDate, state: AppState) throws(CommandError) -> AppState {
+    guard var record = state.record(on: date, containingDeduction: id) else { throw .deductionNotFound }
     record.deductions.removeAll { $0.id == id }
     return state.replacingDayRecord(record)
 }
 
+/// 记扣钱的日子：不应出勤的日子不行 (PRD 4.3.5 #8)，未来不行 (只能请假和单日覆盖，PRD 4.6.1)。
+/// 先看应出勤，与单日详情里入口不可用的原因一致 (见 `DayEditing`)。
+private func requireDeductibleDay(_ date: LocalDate, now: Moment, holidays: HolidayTable) throws(CommandError) {
+    guard AttendanceRule(holidays: holidays).isAttendanceDay(date) else { throw .notAttendanceDay }
+    guard date <= now.localDate else { throw .futureDate }
+}
+
 extension AppState {
-    /// 今天的日记录，且其中有这笔扣钱；不在今天的视为找不到。
-    /// 本票只能改删今天的扣钱，过去的日子留给历史编辑 (#15) 放开。
-    func todayRecord(containingDeduction id: Int, now: Moment) -> DayRecord? {
-        dayRecord(on: now.localDate).flatMap { record in
+    /// `date` 的日记录，且其中有这笔扣钱；不在这一天的视为找不到。
+    func record(on date: LocalDate, containingDeduction id: Int) -> DayRecord? {
+        dayRecord(on: date).flatMap { record in
             record.deductions.contains { $0.id == id } ? record : nil
         }
     }

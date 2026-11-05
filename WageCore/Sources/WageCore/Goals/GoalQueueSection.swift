@@ -35,10 +35,10 @@ extension GoalQueueSection {
         let rule = AttendanceRule(holidays: holidays)
         var previousFinish = active.finishDate
         let cards = queued.prefix(Self.expandedLimit - 1).map { goal in
-            let finish = rule.attendanceDay(
-                ActiveGoalCard.workDays(for: goal.amount, dailyWage: today.dailyWage),
-                after: previousFinish
-            )
+            // 日薪为 0 时 (PRD 4.3.5 #19) 前一个没法预计，后面的也都没法预计。
+            let finish = previousFinish.flatMap { previous in
+                ActiveGoalCard.workDays(for: goal.amount, dailyWage: today.dailyWage).map { rule.attendanceDay($0, after: previous) }
+            }
             previousFinish = finish
             return QueuedGoalCard(goal: goal, finish: finish, today: today.date)
         }
@@ -49,10 +49,15 @@ extension GoalQueueSection {
 extension QueuedGoalCard {
     /// 排队中目标的预计完成日 (PRD 4.5.3 #5)：从前一个目标的预计完成日之后起，
     /// 按当月日薪数 ceil(目标金额 ÷ 日薪) 个应出勤日，跨月、跨年都仍按当月日薪【D7】。
-    init(goal: Goal, finish: LocalDate, today: LocalDate) {
+    /// `finish` 为 nil 时 (本月没有应出勤日，日薪为 0) 没法预计。
+    init(goal: Goal, finish: LocalDate?, today: LocalDate) {
         id = goal.id
         name = goal.name
         amountText = Format.money(goal.amount)
+        guard let finish else {
+            estimate = "排队中 · 暂时没法预计"
+            return
+        }
         let date = finish.year == today.year ? Format.monthDay(finish) : Format.yearMonth(finish)
         estimate = "排队中 · 预计 \(date)"
     }

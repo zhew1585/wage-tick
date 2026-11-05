@@ -47,7 +47,9 @@ public enum CowPose: Sendable, Equatable {
 /// 核心入口二：推导 `state` 在 `now` 时刻的快照，纯函数，不改状态。
 /// `holidays` 由节假日数据源适配器提供；不传时为空表，只按双休判定应出勤日。
 /// 换上新的节假日表重新取快照，当月日薪与结算随之重算 (PRD 4.3.5 #16)。
+/// 状态里的单日覆盖在这里并入节假日表，作为应出勤判定的第 1 优先级 (PRD 4.2.2)。
 public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable = .empty) -> Snapshot {
+    let holidays = holidays.overlaying(state.dayRecords)
     guard let profile = state.profile else {
         return Snapshot(
             menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil,

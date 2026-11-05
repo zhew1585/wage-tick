@@ -1,15 +1,17 @@
 import SwiftUI
 import WageCore
 
-/// 历史 (PRD F10、F11)：月列表，点某月进月日历。所有文字取自快照，这里只管排版与导航。
+/// 历史 (PRD F10、F11)：月列表，点某月进月日历，日历里可编辑某天与该月月薪。所有文字取自快照，这里只管排版、导航与发命令。
 struct HistoryView: View {
     let content: HistoryContent
+    /// 单日编辑、改月薪发命令的口子 (#15)。
+    let actions: PanelActions
 
     var body: some View {
         Group {
             if let snapshot = content.snapshot {
                 if let month = content.selectedMonth.flatMap(snapshot.historyMonth) {
-                    MonthCalendarView(month: month, back: { content.selectedMonth = nil })
+                    MonthCalendarView(month: month, actions: actions, back: { content.selectedMonth = nil })
                         // 换月时清掉上个月选中的那天。
                         .id(month.summary.month)
                 } else {

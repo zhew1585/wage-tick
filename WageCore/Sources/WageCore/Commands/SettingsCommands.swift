@@ -34,8 +34,8 @@ func setBossModeHotkey(_ hotkey: Hotkey, state: AppState) throws(CommandError) -
     return next
 }
 
-/// 月薪、作息、开机自启存在引导产生的配置里，引导前不能改。
-private func updatingProfile(_ state: AppState, _ change: (inout Profile) -> Void) throws(CommandError) -> AppState {
+/// 月薪、作息、开机自启存在引导产生的配置里，引导前不能改。历史里改月薪 (#15) 也用它。
+func updatingProfile(_ state: AppState, _ change: (inout Profile) -> Void) throws(CommandError) -> AppState {
     guard var profile = state.profile else { throw .notOnboarded }
     change(&profile)
     var next = state
