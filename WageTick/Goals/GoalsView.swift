@@ -160,8 +160,9 @@ private struct ActiveGoalView: View {
 }
 
 /// 排队中一组：line 描边的卡片，每行左边拖动把手、名称，右边金额。
-/// 把一行拖到另一行上，那一行上沿 (往上拖) 或下沿 (往下拖) 出现 accent 色插入线，松手即把新顺序交给核心【D6】。
-/// 不在本地预先换位置：拖到窗口外取消时列表不会停在半路的顺序上。
+/// 按住一行上下拖动排序【D6】：被拖的行实时跟着鼠标，其余行带动画让位，松手才把新顺序交给核心。
+/// 用列表内的拖动手势而不是系统拖放 (`onDrag`)：系统拖放要生成拖拽图、走跨 App 的拖放流程，起拖慢、跟手差。
+/// 行高固定 (`QueuedGoalRow.height`)，按拖动距离算落点，不用逐行量尺寸。
 private struct GoalQueueList: View {
     let rows: [GoalRow]
     let edit: (GoalRow) -> Void
@@ -169,80 +170,75 @@ private struct GoalQueueList: View {
     /// 松手后排队中目标的新顺序。
     let reorder: ([Int]) -> Void
 
-    /// 正在拖的那行。
-    @State private var dragging: Int?
-    /// 正被拖到上面的那行。
-    @State private var targeted: Int?
+    /// 正在拖的那行，以及它拖动开始时的位置和当前的拖动距离。
+    @State private var drag: (id: Int, from: Int, offset: CGFloat)?
+
+    /// 相邻两行的间距：行高加 1pt 分隔线。
+    private static let slot = QueuedGoalRow.height + 1
 
     var body: some View {
+        let order = currentOrder
         CardBox(radius: Radius.card) {
-            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+            ForEach(Array(order.enumerated()), id: \.element.id) { index, row in
                 if index > 0 { CardDivider() }
-                QueuedGoalRow(row: row, edit: { edit(row) }, delete: { delete(row) })
-                    .overlay(alignment: insertEdge(at: index) ?? .top) {
-                        if insertEdge(at: index) != nil {
-                            Palette.accent.frame(height: 2)
-                        }
-                    }
-                    .onDrag {
-                        dragging = row.id
-                        return NSItemProvider(object: "\(row.id)" as NSString)
-                    }
-                    .onDrop(of: [.text], delegate: QueueDropDelegate(target: row.id, targeted: $targeted) {
-                        drop(onto: row.id)
-                    })
+                QueuedGoalRow(row: row, isDragging: drag?.id == row.id, edit: { edit(row) }, delete: { delete(row) })
+                    .offset(y: draggedOffset(for: row.id, at: index))
+                    .zIndex(drag?.id == row.id ? 1 : 0)
+                    .gesture(dragGesture(for: row))
             }
         }
+        .animation(.easeOut(duration: 0.15), value: order.map(\.id))
     }
 
-    /// 被拖到第 `index` 行上时插入线画在哪条边：从下往上拖画上沿，从上往下拖画下沿；不是拖放目标时为 nil。
-    private func insertEdge(at index: Int) -> Alignment? {
-        guard let targeted, targeted == rows[index].id, let dragging, dragging != targeted,
-              let from = rows.firstIndex(where: { $0.id == dragging }) else { return nil }
-        return from > index ? .top : .bottom
+    /// 拖动中按落点临时换过位置的顺序；没在拖时就是核心给的顺序。
+    private var currentOrder: [GoalRow] {
+        guard let drag else { return rows }
+        var order = rows
+        guard let from = order.firstIndex(where: { $0.id == drag.id }) else { return rows }
+        let moved = order.remove(at: from)
+        order.insert(moved, at: target(for: drag))
+        return order
     }
 
-    /// 把被拖的那行挪到目标行的位置，交给核心。
-    private func drop(onto target: Int) {
-        defer { dragging = nil }
-        var ids = rows.map(\.id)
-        guard let dragging, dragging != target,
-              let from = ids.firstIndex(of: dragging), let to = ids.firstIndex(of: target) else { return }
-        ids.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
-        reorder(ids)
-    }
-}
-
-/// 拖到某一行上时标出它，离开时取消，松手时提交。
-private struct QueueDropDelegate: DropDelegate {
-    let target: Int
-    @Binding var targeted: Int?
-    let perform: () -> Void
-
-    func dropEntered(info: DropInfo) {
-        targeted = target
+    /// 按拖动距离算出的落点，夹在列表首尾之间。
+    private func target(for drag: (id: Int, from: Int, offset: CGFloat)) -> Int {
+        let steps = Int((drag.offset / Self.slot).rounded())
+        return min(max(drag.from + steps, 0), rows.count - 1)
     }
 
-    func dropExited(info: DropInfo) {
-        if targeted == target { targeted = nil }
+    /// 被拖的行：抵掉它在临时顺序里已经挪动的格数，保持贴着鼠标；其余行不偏移。
+    private func draggedOffset(for id: Int, at index: Int) -> CGFloat {
+        guard let drag, drag.id == id else { return 0 }
+        return drag.offset - CGFloat(index - drag.from) * Self.slot
     }
 
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: .move)
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        targeted = nil
-        perform()
-        return true
+    private func dragGesture(for row: GoalRow) -> some Gesture {
+        DragGesture(minimumDistance: 3)
+            .onChanged { value in
+                if drag == nil, let from = rows.firstIndex(where: { $0.id == row.id }) {
+                    drag = (row.id, from, 0)
+                }
+                drag?.offset = value.translation.height
+            }
+            .onEnded { _ in
+                guard let drag else { return }
+                let ids = currentOrder.map(\.id)
+                self.drag = nil
+                if ids != rows.map(\.id) { reorder(ids) }
+            }
     }
 }
 
-/// 排队中的一行。点一下编辑；悬停整行叠一层底，手型光标 (能拖动排序，不做按下态，见 `hoverFeedback`)。
+/// 排队中的一行：悬停叠一层底并显示编辑、删除按钮，光标是张开的手 (可拖动排序)，拖动时浮起。
+/// 点整行不做任何事，编辑走铅笔按钮或右键菜单。
 private struct QueuedGoalRow: View {
     let row: GoalRow
+    let isDragging: Bool
     let edit: () -> Void
     let delete: () -> Void
+
+    /// 行高固定，排序时按它算落点。
+    static let height: CGFloat = 44
 
     @State private var hovering = false
 
@@ -255,16 +251,18 @@ private struct QueuedGoalRow: View {
                 .help("拖动调整顺序")
             Text(row.name).font(AppFont.bodySemibold).foregroundStyle(Palette.ink).lineLimit(1)
             Spacer(minLength: Spacing.s8)
-            if hovering {
+            if hovering && !isDragging {
+                IconButton(systemName: "pencil", help: "编辑", action: edit)
                 IconButton(systemName: "trash", help: "删除", action: delete)
             }
             Text(row.detail).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.ink)
         }
         .padding(.horizontal, Spacing.s14)
-        .padding(.vertical, Spacing.s12)
+        .frame(height: Self.height)
+        .background(hovering || isDragging ? Palette.surface : Palette.card)
+        .shadow(color: isDragging ? Palette.shadow : .clear, radius: 4, y: 2)
         .contentShape(Rectangle())
-        .onTapGesture(perform: edit)
-        .hoverFeedback(showsPress: false)
+        .cursor(isDragging ? .closedHand : .openHand)
         .onHover { hovering = $0 }
         .contextMenu {
             Button("编辑", action: edit)

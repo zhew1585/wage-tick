@@ -108,12 +108,18 @@ enum HoverCursor {
     case pointingHand
     /// I 型：点了会聚焦到输入框的区域。
     case iBeam
+    /// 张开的手：可以按住拖动的东西 (排队目标的行)。
+    case openHand
+    /// 握住的手：正在拖动。
+    case closedHand
 
     @available(macOS 15, *)
     fileprivate var pointerStyle: PointerStyle {
         switch self {
         case .pointingHand: .link
         case .iBeam: .horizontalText
+        case .openHand: .grabIdle
+        case .closedHand: .grabActive
         }
     }
 
@@ -121,6 +127,8 @@ enum HoverCursor {
         switch self {
         case .pointingHand: .pointingHand
         case .iBeam: .iBeam
+        case .openHand: .openHand
+        case .closedHand: .closedHand
         }
     }
 }
