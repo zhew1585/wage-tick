@@ -5,18 +5,15 @@ import WageCore
 struct HistoryView: View {
     let content: HistoryContent
 
-    /// 正在看的月份；nil 时显示月列表。
-    @State private var selectedMonth: YearMonth?
-
     var body: some View {
         Group {
             if let snapshot = content.snapshot {
-                if let month = selectedMonth.flatMap(snapshot.historyMonth) {
-                    MonthCalendarView(month: month, back: { selectedMonth = nil })
+                if let month = content.selectedMonth.flatMap(snapshot.historyMonth) {
+                    MonthCalendarView(month: month, back: { content.selectedMonth = nil })
                         // 换月时清掉上个月选中的那天。
                         .id(month.summary.month)
                 } else {
-                    MonthListView(months: snapshot.historyMonths(), open: { selectedMonth = $0 })
+                    MonthListView(months: snapshot.historyMonths(), open: { content.selectedMonth = $0 })
                 }
             }
         }
@@ -50,8 +47,8 @@ private struct MonthListView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(summary.title).font(.headline)
-                if summary.isCurrentMonth {
-                    Text("本月")
+                if let badge = summary.badge {
+                    Text(badge)
                         .font(.caption.weight(.medium))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)

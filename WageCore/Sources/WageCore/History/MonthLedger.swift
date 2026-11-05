@@ -4,7 +4,7 @@ import Foundation
 /// 结算统一用 `DaySettlement`，与今天的今日上限、本月累计同一套推导。
 struct MonthLedger {
     let month: YearMonth
-    /// 当月日薪 = 当月月薪 ÷ 当月应出勤日数 (PRD 4.2.4)；应出勤日数为 0 时没有日薪，记 0 (PRD 4.3.5 #19)。
+    /// 当月日薪，见 `AttendanceRule.dailyWage(in:profile:)`。
     let dailyWage: Decimal
     let days: [DayLedger]
 
@@ -19,10 +19,10 @@ struct DayLedger {
     let record: DayRecord?
     /// 应出勤日的结算推导；不应出勤的日子为 nil，没有收入。
     let settlement: DaySettlement?
-    /// 这天各白干段的时长 (毫秒)，与白干段一一对应；计时中的那段算到此刻。
-    let unpaidWork: [Int]
+    /// 这天的白干段，连同各段时长，按开始时刻先后。
+    let unpaidWork: [TimedSegment]
 
-    var unpaidWorkMilliseconds: Int { unpaidWork.reduce(0, +) }
+    var unpaidWorkMilliseconds: Int { unpaidWork.map(\.milliseconds).reduce(0, +) }
 
     /// 请假天数：全天计 1，半天计 0.5 (PRD 4.6.1)；不应出勤的日子不算。
     var leaveDays: Decimal {
@@ -31,39 +31,46 @@ struct DayLedger {
     }
 }
 
+/// 一段白干与它推导出的时长 (毫秒)，计时中的那段算到此刻。
+struct TimedSegment {
+    let segment: UnpaidWorkSegment
+    let milliseconds: Int
+}
+
 extension HistoryLedger {
     /// 逐日推导一个月。
-    func ledger(for month: YearMonth) -> MonthLedger {
-        let dates = month.days
-        let facts = dates.map { (date: $0, source: rule.source(on: $0), isAttendance: rule.isAttendanceDay($0)) }
-        let count = facts.filter(\.isAttendance).count
-        let wage = count > 0 ? source.profile.salary(for: month) / Decimal(count) : 0
-        let days = facts.map { fact in
-            let record = records[fact.date]
+    func monthLedger(for month: YearMonth) -> MonthLedger {
+        let wage = rule.dailyWage(in: month, profile: inputs.profile)
+        let days = month.days.map { date in
+            let record = records[date]
+            let isAttendance = rule.isAttendanceDay(date)
             return DayLedger(
-                date: fact.date,
-                source: fact.source,
-                isAttendanceDay: fact.isAttendance,
+                date: date,
+                source: rule.source(on: date),
+                isAttendanceDay: isAttendance,
                 record: record,
-                settlement: fact.isAttendance ? DaySettlement(dailyWage: wage, record: record) : nil,
-                unpaidWork: (record?.unpaidWork ?? []).map { $0.milliseconds(on: fact.date, now: source.now) }
+                settlement: isAttendance ? DaySettlement(dailyWage: wage, record: record) : nil,
+                unpaidWork: (record?.unpaidWork ?? []).map {
+                    TimedSegment(segment: $0, milliseconds: $0.milliseconds(on: date, now: inputs.now))
+                }
             )
         }
         return MonthLedger(month: month, dailyWage: wage, days: days)
     }
 
     /// 月汇总 (PRD 4.6.1)：结算总额、应出勤日数、扣款合计、请假天数、白干时长合计。
-    /// 结算总额 = 当月各应出勤日结算之和；本月直接取本月累计 (今天之前的结算 + 今日已赚，未来日子不计入)。
-    /// 扣款、请假、白干按整月的日记录合计。
+    /// 结算总额 = 当月各应出勤日结算之和；本月直接取本月累计 (今天之前的结算 + 今日已赚)。
+    /// 扣款、请假、白干与结算总额同口径，只算到今天 (PRD 4.3.4「未来日子不计入」)；过去的月份即整月。
     func summary(_ ledger: MonthLedger) -> HistoryMonthSummary {
         let month = ledger.month
-        let isCurrent = month == source.today.date.yearMonth
+        let isCurrent = month == today.yearMonth
+        let happened = ledger.days.filter { $0.date <= today }
         let settled = isCurrent
-            ? source.today.monthToDate
-            : ledger.days.compactMap(\.settlement).map(\.cap).reduce(0, +)
-        let deducted = ledger.days.compactMap(\.settlement).map(\.deductionTotal).reduce(0, +)
-        let leaveDays = ledger.days.map(\.leaveDays).reduce(0, +)
-        let unpaid = ledger.days.map(\.unpaidWorkMilliseconds).reduce(0, +)
+            ? inputs.today.monthToDate
+            : happened.compactMap(\.settlement).map(\.cap).reduce(0, +)
+        let deducted = happened.compactMap(\.settlement).map(\.deductionTotal).reduce(0, +)
+        let leaveDays = happened.map(\.leaveDays).reduce(0, +)
+        let unpaid = happened.map(\.unpaidWorkMilliseconds).reduce(0, +)
         return HistoryMonthSummary(
             month: month,
             title: "\(month.year)年\(month.month)月",
@@ -76,15 +83,6 @@ extension HistoryLedger {
                 StatItem(title: "白干时长", value: Format.hoursMinutes(milliseconds: unpaid)),
             ]
         )
-    }
-}
-
-extension UnpaidWorkSegment {
-    /// 这段白干的时长 (毫秒)，`day` 是它所在的日子。计时中的那段算到此刻，最晚到当天 23:59:59，
-    /// 与 `advance` 自动停止的结果一致 (PRD 4.3.5 #12)；结束早于开始的段按 0 计。
-    func milliseconds(on day: LocalDate, now: Moment) -> Int {
-        let end = end ?? min(now.date, now.unpaidWorkCutoff(on: day))
-        return max(0, Int((end.timeIntervalSince(start) * 1000).rounded(.down)))
     }
 }
 

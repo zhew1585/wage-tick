@@ -32,3 +32,12 @@ extension AttendanceRule {
         }
     }
 }
+
+extension AttendanceRule {
+    /// 当月日薪 = 当月月薪 ÷ 当月应出勤日数 (PRD 4.2.4)，今天与历史同用。
+    /// 应出勤日数为 0 时没有日薪，记 0，结算与本月累计随之为 0 (PRD 4.3.5 #19)；面板提示随单日覆盖 (#15) 一起做。
+    func dailyWage(in month: YearMonth, profile: Profile) -> Decimal {
+        let count = attendanceDayCount(in: month)
+        return count > 0 ? profile.salary(for: month) / Decimal(count) : 0
+    }
+}

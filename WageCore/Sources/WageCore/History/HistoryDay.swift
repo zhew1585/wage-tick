@@ -55,6 +55,9 @@ public enum CalendarDayKind: Sendable, Equatable, CaseIterable {
         }
     }
 
+    /// 图例里列出的类型，按此顺序。单日覆盖只在类型上预留 (#15)，先不出现。
+    public static let legend: [CalendarDayKind] = [.fullAttendance, .deducted, .leave, .rest, .upcoming]
+
     /// 「今天」的图例文案。
     public static let todayLabel = "今天"
 }
@@ -74,6 +77,9 @@ public struct HistoryDayDetail: Sendable, Equatable {
     public let unpaidWork: [HistoryLine]
     /// 如「白干 1:30 · 倒贴 ¥214.2857」；没有白干段为 nil。
     public let unpaidWorkSummary: String?
+
+    /// 判定来源一项，如「判定来源 法定节假日」。
+    public var sourceItem: StatItem { StatItem(title: "判定来源", value: source.label) }
 }
 
 /// 详情里的一行：标题、可选说明、右侧数值。
@@ -101,17 +107,17 @@ extension Snapshot {
 
 extension HistoryLedger {
     func month(_ month: YearMonth) -> HistoryMonth {
-        let monthLedger = ledger(for: month)
+        let monthLedger = monthLedger(for: month)
         return HistoryMonth(
             summary: summary(monthLedger),
+            // weekday 1 为周日、2 为周一：换成从周一起数的 0 至 6。
             leadingBlanks: (monthLedger.days[0].date.weekday + 5) % 7,
             days: monthLedger.days.map { day($0, dailyWage: monthLedger.dailyWage) }
         )
     }
 
     func day(_ day: DayLedger, dailyWage: Decimal) -> HistoryDay {
-        let today = source.today.date
-        return HistoryDay(
+        HistoryDay(
             date: day.date,
             dayText: "\(day.date.day)",
             kind: kind(day),
@@ -133,16 +139,15 @@ extension HistoryLedger {
         guard day.isAttendanceDay, let settlement = day.settlement else { return .rest }
         if day.record?.leave != nil { return .leave }
         if !settlement.deductions.isEmpty { return .deducted }
-        return day.date > source.today.date ? .upcoming : .fullAttendance
+        return day.date > today ? .upcoming : .fullAttendance
     }
 
     private func stats(_ day: DayLedger) -> [StatItem] {
         guard let settlement = day.settlement else { return [] }
-        let today = source.today
-        if day.date > today.date {
+        if day.date > today {
             return [StatItem(title: "预计结算", value: Format.money(settlement.cap))]
         }
-        if day.date == today.date, let earnings = today.earnings {
+        if day.date == today, let earnings = inputs.today.earnings {
             return [
                 StatItem(title: "今日已赚", value: Format.money(earnings.earned)),
                 StatItem(title: "今日上限", value: Format.money(earnings.cap)),
@@ -163,19 +168,18 @@ extension HistoryLedger {
     /// 白干段：结束了的写「开始 至 结束」，到 23:59:59 被自动停止 (或该停还没推进) 的标疑似通宵 (PRD 4.3.5 #12)，
     /// 计时中的写「开始 起」。
     private func unpaidWorkLines(_ day: DayLedger) -> [HistoryLine] {
-        let now = source.now
+        let now = inputs.now
         let cutoff = now.unpaidWorkCutoff(on: day.date)
         let clock = { (date: Date) in Format.time(Moment(date: date, timeZone: now.timeZone)) }
-        let segments = day.record?.unpaidWork ?? []
-        return zip(segments, day.unpaidWork).map { segment, milliseconds in
-            let duration = Format.hoursMinutes(milliseconds: milliseconds)
-            if segment.end == nil, now.date < cutoff {
+        return day.unpaidWork.map { timed in
+            let segment = timed.segment
+            let duration = Format.hoursMinutes(milliseconds: timed.milliseconds)
+            if segment.isRunning(on: day.date, now: now) {
                 return HistoryLine(title: "\(clock(segment.start)) 起", detail: "计时中", value: duration)
             }
-            let suspected = segment.suspectedAllNighter || segment.end == nil
             return HistoryLine(
                 title: "\(clock(segment.start)) 至 \(clock(segment.end ?? cutoff))",
-                detail: suspected ? "疑似通宵" : nil,
+                detail: segment.isSuspectedAllNighter(on: day.date, now: now) ? "疑似通宵" : nil,
                 value: duration
             )
         }
@@ -185,9 +189,7 @@ extension HistoryLedger {
     private func unpaidWorkSummary(_ day: DayLedger, dailyWage: Decimal) -> String? {
         guard !day.unpaidWork.isEmpty else { return nil }
         let milliseconds = day.unpaidWorkMilliseconds
-        let standard = Decimal(source.profile.schedule(on: day.date).standardMilliseconds)
-        // 先乘后除，减少中间舍入。
-        let owed = dailyWage * Decimal(milliseconds) / standard
+        let owed = inputs.profile.schedule(on: day.date).owed(dailyWage: dailyWage, milliseconds: milliseconds)
         return "白干 \(Format.hoursMinutes(milliseconds: milliseconds)) · 倒贴 \(Format.money(owed))"
     }
 }

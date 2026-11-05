@@ -15,7 +15,7 @@ public struct Snapshot: Sendable, Equatable {
     /// 请假表单 (F6) 的内容；未完成引导或今天不应出勤时为 nil，此时没有请假入口 (PRD 4.3.5 #8)。
     public let leaveForm: LeaveForm?
     /// 历史 (PRD 4.6.1) 的推导输入；未完成引导时为 nil。只带输入不推导，见 `historyMonths()`。
-    var history: HistorySource? = nil
+    var history: HistoryInputs? = nil
 }
 
 /// 菜单栏内容：小牛姿势 + 可选数字 (PRD 4.7.1 第 1、2 条)。
@@ -58,6 +58,6 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
         panel: TodayPanel(today: today, now: now, holidays: holidays),
         settingsForm: SettingsForm(profile: profile, today: today.date),
         leaveForm: LeaveForm(today: today, now: now),
-        history: HistorySource(profile: profile, dayRecords: state.dayRecords, today: today, now: now, holidays: holidays)
+        history: HistoryInputs(profile: profile, dayRecords: state.dayRecords, today: today, now: now, holidays: holidays)
     )
 }

@@ -9,6 +9,8 @@ import WageCore
 @Observable
 final class HistoryContent {
     var snapshot: Snapshot?
+    /// 正在看的月份；nil 时显示月列表。
+    var selectedMonth: YearMonth?
 }
 
 /// 历史窗口 (PRD F10、F11，页面 P4、P5)，从左键菜单「历史 ⌘3」打开。本票只读。
@@ -36,8 +38,9 @@ final class HistoryWindowController: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         timer?.invalidate()
         timer = nil
-        // 关窗即丢掉快照，下次打开重新推导。
+        // 关窗即丢掉快照，下次打开重新推导，并回到月列表。
         content.snapshot = nil
+        content.selectedMonth = nil
     }
 
     private func refresh() {

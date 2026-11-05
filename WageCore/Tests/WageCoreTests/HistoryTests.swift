@@ -36,6 +36,7 @@ struct HistoryMonthListTests {
 
         #expect(snap.historyMonths().map(\.title) == ["2026年4月", "2026年3月", "2026年2月"])
         #expect(snap.historyMonths().map(\.isCurrentMonth) == [true, false, false])
+        #expect(snap.historyMonths().map(\.badge) == ["本月", nil, nil])
     }
 
     @Test("未完成引导时没有历史")
@@ -91,6 +92,16 @@ struct HistoryMonthSummaryTests {
         #expect(stats.map(\.value) == ["¥20000", "20 天", "¥0", "1 天", "0:00"])
     }
 
+    @Test("本月的扣款合计、请假天数与结算总额同口径，只算到今天：系统时间拨回到请假那天之前，未来那天的请假不计入")
+    func currentMonthCountsUpToToday() throws {
+        let leave = Command.requestLeave(Leave(period: .fullDay, deductionPercent: 100))
+        let state = try applied(leave, to: try onboarded(), at: moment(2026, 2, 13, 9, 0))
+        let snap = snapshot(of: state, at: standardDay(15, 0))
+
+        #expect(try summary(snap, february).stats.map(\.value) == ["¥7571.4286", "20 天", "¥0", "0 天", "0:00"])
+        #expect(try day(snap, feb(13)).kind == .leave)
+    }
+
     @Test("应出勤日数按节假日表：2026 年 10 月国庆放假、10 日调休上班，应出勤 18 天")
     func attendanceDaysFollowHolidays() throws {
         let snap = snapshot(of: try onboarded(at: moment(2026, 10, 9, 9, 0)), at: moment(2026, 10, 9, 15, 0), holidays: nationalDay2026)
@@ -119,6 +130,8 @@ struct HistoryCalendarTests {
         #expect(kinds == [.fullAttendance, .deducted, .leave, .rest, .fullAttendance, .fullAttendance, .upcoming])
         #expect(try [10, 11, 12].map { try day(snap, feb($0)).isToday } == [false, true, false])
         #expect(CalendarDayKind.allCases.map(\.label) == ["满勤", "被扣钱", "请假", "休息日", "单日覆盖", "未到"])
+        // 单日覆盖只在类型上预留 (#15)，图例里先不出现。
+        #expect(CalendarDayKind.legend.map(\.label) == ["满勤", "被扣钱", "请假", "休息日", "未到"])
         #expect(CalendarDayKind.todayLabel == "今天")
     }
 
@@ -160,6 +173,7 @@ struct HistoryDayDetailTests {
         #expect(detail.title == "2月4日 周三")
         #expect(detail.source == .weekend)
         #expect(detail.source.label == "双休")
+        #expect(detail.sourceItem == StatItem(title: "判定来源", value: "双休"))
         #expect(detail.stats == [StatItem(title: "结算", value: "¥950")])
         #expect(detail.deductions.map(\.title) == ["迟到"])
         #expect(detail.deductions.map(\.amount) == ["−¥50"])

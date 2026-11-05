@@ -71,7 +71,7 @@ struct MonthCalendarView: View {
     /// 图例：各颜色类型与「今天」(PRD 4.6.1)。
     private var legend: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 70), alignment: .leading)], alignment: .leading, spacing: 6) {
-            ForEach(CalendarDayKind.allCases, id: \.self) { kind in
+            ForEach(CalendarDayKind.legend, id: \.self) { kind in
                 legendItem(kind.label) {
                     RoundedRectangle(cornerRadius: 3).fill(kind.color)
                 }
@@ -105,7 +105,7 @@ private struct DayDetailView: View {
                     .padding(.vertical, 2)
                     .background(day.kind.color, in: Capsule())
                 Spacer()
-                Text("判定来源 \(detail.source.label)").font(.callout).foregroundStyle(.secondary)
+                Text("\(detail.sourceItem.title) \(detail.sourceItem.value)").font(.callout).foregroundStyle(.secondary)
             }
             if !detail.stats.isEmpty {
                 HistoryStatsGrid(stats: detail.stats)

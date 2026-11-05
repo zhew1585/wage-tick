@@ -24,21 +24,36 @@ extension UnpaidWorkToday {
     /// `segments` 是今天的白干段。时薪按作息的标准工时计算，不受半天假影响 (规则 4)。
     /// 计时中且已过 23:59:59 的段 (还没推进到此刻) 按已在 23:59:59 自动停止推导，与 `advance` 的结果一致。
     init(segments: [UnpaidWorkSegment], status: DayStatus, dailyWage: Decimal, schedule: WorkSchedule, now: Moment) {
-        let cutoff = now.unpaidWorkCutoff(on: now.localDate)
-        let running = segments.last { $0.end == nil && now.date < cutoff }
-        let total = segments.map { segment in
-            let end = segment.end ?? min(now.date, cutoff)
-            return max(0, Int((end.timeIntervalSince(segment.start) * 1000).rounded(.down)))
-        }.reduce(0, +)
-        let standard = Decimal(schedule.standardMilliseconds)
+        let day = now.localDate
+        let cutoff = now.unpaidWorkCutoff(on: day)
+        let running = segments.last { $0.isRunning(on: day, now: now) }
+        let total = segments.map { $0.milliseconds(on: day, now: now) }.reduce(0, +)
         milliseconds = total
-        // 先乘后除，减少中间舍入。
-        owed = dailyWage * Decimal(total) / standard
-        perSecond = dailyWage * 1000 / standard
+        owed = schedule.owed(dailyWage: dailyWage, milliseconds: total)
+        perSecond = schedule.owed(dailyWage: dailyWage, milliseconds: 1000)
         runningSince = running?.start
-        suspectedAllNighter = segments.contains { $0.suspectedAllNighter || ($0.end == nil && now.date >= cutoff) }
+        suspectedAllNighter = segments.contains { $0.isSuspectedAllNighter(on: day, now: now) }
         hasRecords = !segments.isEmpty
         canStart = (status == .offWork || status == .restDay) && running == nil && now.date < cutoff
+    }
+}
+
+extension UnpaidWorkSegment {
+    /// 这段白干的时长 (毫秒)，`day` 是它所在的日子。计时中的那段算到此刻，最晚到当天 23:59:59，
+    /// 与 `advance` 自动停止的结果一致 (规则 3)；结束早于开始的段按 0 计。
+    func milliseconds(on day: LocalDate, now: Moment) -> Int {
+        let end = end ?? min(now.date, now.unpaidWorkCutoff(on: day))
+        return max(0, Int((end.timeIntervalSince(start) * 1000).rounded(.down)))
+    }
+
+    /// 此刻是否还在计时：没结束，且还没到当天 23:59:59。
+    func isRunning(on day: LocalDate, now: Moment) -> Bool {
+        end == nil && now.date < now.unpaidWorkCutoff(on: day)
+    }
+
+    /// 疑似通宵 (PRD 4.3.5 #12)：已在 23:59:59 被自动停止，或该停了还没推进。
+    func isSuspectedAllNighter(on day: LocalDate, now: Moment) -> Bool {
+        suspectedAllNighter || (end == nil && !isRunning(on: day, now: now))
     }
 }
 
@@ -52,6 +67,11 @@ extension Moment {
 }
 
 extension WorkSchedule {
+    /// 倒贴 = 白干时长 × 时薪，时薪 = 日薪 ÷ 标准工时 (规则 4)，保留完整精度。先乘后除，减少中间舍入。
+    func owed(dailyWage: Decimal, milliseconds: Int) -> Decimal {
+        dailyWage * Decimal(milliseconds) / Decimal(standardMilliseconds)
+    }
+
     /// 标准工时 (毫秒) = 计划下班 - 计划上班 - 午休时长 (PRD 4.2.3)，不受半天假影响。
     var standardMilliseconds: Int {
         let lunch = lunch.map { $0.end.minutesSinceMidnight - $0.start.minutesSinceMidnight } ?? 0
