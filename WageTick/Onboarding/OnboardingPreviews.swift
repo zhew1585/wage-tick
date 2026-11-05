@@ -52,10 +52,16 @@ private enum OnboardingPreviews {
         window.orderFrontRegardless()
         hosting.layoutSubtreeIfNeeded()
         RunLoop.main.run(until: Date().addingTimeInterval(0.3))
-        guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { return }
+        defer { window.orderOut(nil) }
+        guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { throw RenderError.noBitmap }
         hosting.cacheDisplay(in: hosting.bounds, to: rep)
-        window.orderOut(nil)
-        try rep.representation(using: .png, properties: [:])?.write(to: file)
+        guard let png = rep.representation(using: .png, properties: [:]) else { throw RenderError.noBitmap }
+        try png.write(to: file)
+    }
+
+    private enum RenderError: Error {
+        /// 截不出位图或编码不成 PNG。
+        case noBitmap
     }
 }
 #endif

@@ -18,11 +18,11 @@ struct OnboardingSalaryStep: View {
                 .resizable()
                 .frame(width: Self.mascotSize, height: Self.mascotSize)
                 .frame(width: Self.mascotSlot, height: Self.mascotSlot, alignment: .topLeading)
-                .padding(.top, OnboardingStepsLayout.firstTop)
+                .padding(.top, OnboardingLayout.firstTop)
                 .padding(.horizontal, OnboardingLayout.side)
             OnboardingIntro(
                 title: "嗨，牛马。\n一个月赚多少？", subtitle: "税前还是到手，你说了算。只存在这台电脑上，谁也看不到。",
-                top: OnboardingStepsLayout.introAfterMascot
+                top: OnboardingLayout.introAfterMascot
             )
             OnboardingBody(spacing: Spacing.s16, errorMessage: errorMessage) {
                 Field("月薪", text: $salaryText, suffix: "元", size: .large)
@@ -44,7 +44,7 @@ struct OnboardingScheduleStep: View {
         VStack(alignment: .leading, spacing: 0) {
             OnboardingIntro(
                 title: "几点上班，几点下班？", subtitle: "按计划时间算钱，不打卡。午休时段数字会暂停。",
-                top: OnboardingStepsLayout.firstTop
+                top: OnboardingLayout.firstTop
             )
             OnboardingBody(spacing: Spacing.s22, errorMessage: errorMessage) {
                 timeRow("上班", $draft.start, "下班", $draft.end)
@@ -72,8 +72,8 @@ struct OnboardingScheduleStep: View {
     }
 
     private func timeField(_ label: String, _ selection: Binding<Date>) -> some View {
-        Field(label, size: .tall) {
-            TimeInput(selection: selection, font: AppFont.numFieldTall, caretSize: OnboardingStepsLayout.caretSize)
+        Field(label, size: .medium) {
+            TimeInput(selection: selection, font: AppFont.numFieldMedium, caretSize: OnboardingLayout.caretSize)
         }
     }
 }
@@ -88,13 +88,13 @@ struct OnboardingRatesSection: View {
             Text("按这个作息算").font(AppFont.caption).foregroundStyle(Palette.muted)
             VStack(spacing: 0) {
                 row(rates.attendanceDays, rates.dailyWage)
-                Rectangle().fill(Palette.line).frame(height: 1)
+                CardDivider()
                 row(rates.standardHours, rates.hourlyWage)
             }
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r10))
         }
         .padding(.top, Spacing.s18)
-        .overlay(alignment: .top) { Rectangle().fill(Palette.line).frame(height: 1) }
+        .overlay(alignment: .top) { CardDivider() }
         .accessibilityElement(children: .combine)
     }
 
@@ -102,7 +102,7 @@ struct OnboardingRatesSection: View {
     private func row(_ left: StatItem, _ right: StatItem) -> some View {
         HStack(spacing: 0) {
             cell(left).frame(maxWidth: .infinity, alignment: .leading)
-            Rectangle().fill(Palette.line).frame(width: 1, height: OnboardingStepsLayout.dividerHeight)
+            Rectangle().fill(Palette.line).frame(width: 1, height: OnboardingLayout.statDividerHeight)
             cell(right).padding(.leading, Spacing.s14).frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, Spacing.s14)
@@ -125,7 +125,7 @@ struct OnboardingIntro: View {
 
     /// 设计稿行高是字号的倍数，SwiftUI 只能设行间距：目标行高减去字体自带的行高 (Noto Sans SC 约 1.45 倍)。
     /// 结果可能为负 (标题 1.3 倍比字体自带的矮)，`lineSpacing` 不认负数，标题因此按行拆开、用负的行距叠。
-    static func lineGap(fontSize: CGFloat, weight: AppFont.Weight = .regular, lineHeight: CGFloat = 1.5) -> CGFloat {
+    private static func lineGap(fontSize: CGFloat, weight: AppFont.Weight = .regular, lineHeight: CGFloat = 1.5) -> CGFloat {
         let natural = NSLayoutManager().defaultLineHeight(for: AppFont.nsFont(.ui, size: fontSize, weight: weight))
         return fontSize * lineHeight - natural
     }
@@ -166,22 +166,8 @@ struct OnboardingBody<Content: View>: View {
                 Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
             }
         }
-        .padding(.top, OnboardingStepsLayout.bodyTop)
-        .padding(.bottom, OnboardingStepsLayout.bodyBottom)
+        .padding(.top, OnboardingLayout.bodyTop)
+        .padding(.bottom, OnboardingLayout.bodyBottom)
         .padding(.horizontal, OnboardingLayout.side)
     }
-}
-
-/// 两步正文的排版尺寸 (设计稿 P1 引导 · 760)。
-private enum OnboardingStepsLayout {
-    /// 步骤条下面第一块 (第 1 步小牛、第 2 步标题) 的上边距。
-    static let firstTop: CGFloat = 44
-    /// 第 1 步标题离小牛。
-    static let introAfterMascot: CGFloat = 28
-    static let bodyTop: CGFloat = 36
-    static let bodyBottom: CGFloat = 22
-    /// 时间输入框里的向下箭头。
-    static let caretSize: CGFloat = 14
-    /// 工资换算卡片里两项之间的竖线高。
-    static let dividerHeight: CGFloat = 34
 }

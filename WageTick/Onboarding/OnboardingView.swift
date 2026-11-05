@@ -127,11 +127,10 @@ struct OnboardingStepper: View {
     private static let dotHeight: CGFloat = 6
     private static let dotWidth: CGFloat = 8
     private static let currentDotWidth: CGFloat = 22
-    private static let dotGap: CGFloat = 5
 
     var body: some View {
         HStack {
-            HStack(spacing: Self.dotGap) {
+            HStack(spacing: OnboardingLayout.dotGap) {
                 ForEach(OnboardingStep.allCases, id: \.self) { dot in
                     Capsule()
                         .fill(dot.rawValue <= step.rawValue ? Palette.accent : Palette.line)
@@ -157,4 +156,17 @@ enum OnboardingLayout {
     static let footerBottom = Spacing.s24
     /// 底部按钮高 (比 `ThemeButtonStyle.height` 高 7)。
     static let buttonHeight: CGFloat = 44
+    /// 步骤点间隔。
+    static let dotGap: CGFloat = 5
+    /// 步骤条下面第一块 (第 1 步小牛、第 2 步标题) 的上边距。
+    static let firstTop: CGFloat = 44
+    /// 第 1 步标题离小牛。
+    static let introAfterMascot: CGFloat = 28
+    /// 正文区上下内边距。
+    static let bodyTop: CGFloat = 36
+    static let bodyBottom = Spacing.s22
+    /// 时间输入框里的向下箭头。
+    static let caretSize: CGFloat = 14
+    /// 工资换算卡片里两项之间的竖线高。
+    static let statDividerHeight: CGFloat = 34
 }
