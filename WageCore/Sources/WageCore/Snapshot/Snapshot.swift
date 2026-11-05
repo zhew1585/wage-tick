@@ -10,6 +10,8 @@ public struct Snapshot: Sendable, Equatable {
     public let settings: InterfaceSettings
     /// 今日概览面板的展示内容；未完成引导时为 nil。
     public let panel: TodayPanel?
+    /// 请假表单 (F6) 的内容；未完成引导或今天不应出勤时为 nil，此时没有请假入口 (PRD 4.3.5 #8)。
+    public let leaveForm: LeaveForm?
 }
 
 /// 菜单栏内容：小牛姿势 + 可选数字 (PRD 4.7.1 第 1、2 条)。
@@ -36,13 +38,17 @@ public enum CowPose: Sendable, Equatable {
 /// 核心入口二：推导 `state` 在 `now` 时刻的快照，纯函数，不改状态。
 public func snapshot(of state: AppState, at now: Moment) -> Snapshot {
     guard let profile = state.profile else {
-        return Snapshot(menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil)
+        return Snapshot(
+            menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil,
+            leaveForm: nil
+        )
     }
-    let today = Today(profile: profile, now: now)
+    let today = Today(profile: profile, records: state.dayRecords, now: now)
     return Snapshot(
         menuBar: MenuBarDisplay(today: today, settings: state.settings),
         today: today,
         settings: state.settings,
-        panel: TodayPanel(today: today, now: now)
+        panel: TodayPanel(today: today, now: now),
+        leaveForm: LeaveForm(today: today, now: now)
     )
 }

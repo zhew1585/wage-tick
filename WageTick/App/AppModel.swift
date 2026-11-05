@@ -22,6 +22,17 @@ final class AppModel {
         store.save(state)
     }
 
+    /// 试算：在状态副本上执行命令后取快照，不改状态、不落盘。
+    /// 表单的实时汇总用它，数字全部来自核心 (如请假表单的当日计划、今日上限)。
+    func preview(_ command: Command) -> Result<Snapshot, CommandError> {
+        let now = Self.now()
+        do throws(CommandError) {
+            return .success(snapshot(of: try apply(command, to: state, at: now).state, at: now))
+        } catch {
+            return .failure(error)
+        }
+    }
+
     /// 按系统当前时间与时区取快照。
     func currentSnapshot() -> Snapshot {
         snapshot(of: state, at: Self.now())

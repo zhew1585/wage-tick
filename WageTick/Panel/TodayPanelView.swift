@@ -2,9 +2,16 @@ import SwiftUI
 import WageCore
 
 /// 今日概览面板 (PRD F4)。所有文字和数字原样取自快照的 `TodayPanel`，这里只管排版。
-/// 目标区、情绪按钮、「我还没走」按钮本期只占位，功能留给后续票。
+/// 目标区、「今天扣钱了」「被迫营业」「我还没走」按钮本期只占位，功能留给后续票。
 struct TodayPanelView: View {
     let content: TodayPanelContent
+    /// 情绪按钮的表单通过它发命令、试算。
+    let model: AppModel
+    /// 表单保存后立即刷新面板，不等下一次定时刷新。
+    let onStateChanged: () -> Void
+
+    /// 正在弹出的请假表单；nil 时没有表单。
+    @State private var leaveMode: LeaveFormView.Mode?
 
     /// 进度区高度：已下班时换成「我还没走」按钮，高度保持一致 (AC-HOME-11)。
     private static let progressAreaHeight: CGFloat = 44
@@ -21,11 +28,35 @@ struct TodayPanelView: View {
                 }
                 goalPlaceholder
                 Divider()
+                currentLeaveRow
                 moodButtons(isRestDay: panel.body.isRest)
             }
         }
         .padding(20)
         .frame(width: 340)
+        .sheet(item: $leaveMode) { mode in
+            LeaveFormView(
+                model: model,
+                mode: mode,
+                onSaved: {
+                    leaveMode = nil
+                    onStateChanged()
+                },
+                onCancel: { leaveMode = nil }
+            )
+        }
+    }
+
+    /// 今天已请假时显示一句描述和「修改」入口，撤销在修改表单里。
+    @ViewBuilder
+    private var currentLeaveRow: some View {
+        if let form = content.leaveForm, let current = form.current, let text = form.currentText {
+            HStack {
+                Text(text).font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                Button("修改") { leaveMode = .edit(current) }
+            }
+        }
     }
 
     private func header(_ panel: TodayPanel) -> some View {
@@ -106,17 +137,19 @@ struct TodayPanelView: View {
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
     }
 
-    /// 情绪按钮占位 (F5、F6、F7，后续票)：应出勤日为扣钱、请假，休息日为被迫营业。
+    /// 情绪按钮：应出勤日为扣钱、请假，休息日为被迫营业 (F5、F7 本期占位)。
+    /// 请假入口只在今天应出勤时出现 (PRD 4.3.5 #8)；已请全天假时只能修改，不再新请。
     private func moodButtons(isRestDay: Bool) -> some View {
         HStack {
             if isRestDay {
-                Button("被迫营业") {}
+                Button("被迫营业") {}.disabled(true)
             } else {
-                Button("今天扣钱了") {}
-                Button("请假") {}
+                Button("今天扣钱了") {}.disabled(true)
+            }
+            if let form = content.leaveForm, form.current?.period != .fullDay {
+                Button("请假") { leaveMode = .request }
             }
         }
-        .disabled(true)
     }
 }
 

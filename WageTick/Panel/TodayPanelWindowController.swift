@@ -8,6 +8,8 @@ import WageCore
 @Observable
 final class TodayPanelContent {
     var panel: TodayPanel?
+    /// 请假入口 (F6)；nil 时今天不能请假。
+    var leaveForm: LeaveForm?
 }
 
 /// 今日概览面板窗口 (PRD F4，页面 P2)，从左键菜单「今日概览 ⌘1」打开。
@@ -43,6 +45,7 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     private func refresh() {
         let snap = model.currentSnapshot()
         content.panel = snap.panel
+        content.leaveForm = snap.leaveForm
         scheduleNextRefresh(rolling: snap.today?.isEarning == true)
     }
 
@@ -56,7 +59,8 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow() -> NSWindow {
-        let window = NSWindow(contentViewController: NSHostingController(rootView: TodayPanelView(content: content)))
+        let view = TodayPanelView(content: content, model: model) { [weak self] in self?.refresh() }
+        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
         window.title = "今日概览"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false
