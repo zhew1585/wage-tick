@@ -12,13 +12,17 @@ public struct AppState: Sendable, Equatable, Codable {
     /// 目标，按新建顺序 (PRD 4.5)。
     public internal(set) var goals: [Goal]
 
-    private enum CodingKeys: String, CodingKey { case profile, settings, dayRecords, goals }
+    /// 下班事件的进度 (见 `OffWorkWatch`)。不是牛马产生的内容，但重启后要记得今天发没发过，所以要存。
+    var offWorkWatch: OffWorkWatch?
+
+    private enum CodingKeys: String, CodingKey { case profile, settings, dayRecords, goals, offWorkWatch }
 
     public init() {
         profile = nil
         settings = InterfaceSettings()
         dayRecords = []
         goals = []
+        offWorkWatch = nil
     }
 
     /// #2 写出的旧文件没有 `settings`，读入时取默认值，不当作损坏文件。
@@ -35,6 +39,8 @@ public struct AppState: Sendable, Equatable, Codable {
         dayRecords = records.sorted { $0.date < $1.date }
         // #11 之前的旧文件没有目标，读入时为空队列。
         goals = try container.decodeIfPresent([Goal].self, forKey: .goals) ?? []
+        // #10 之前的旧文件没有下班事件进度，读入时当作今天还没看到过上班。
+        offWorkWatch = try container.decodeIfPresent(OffWorkWatch.self, forKey: .offWorkWatch)
     }
 }
 
