@@ -62,6 +62,15 @@ enum Format {
         trimmingZeros(round(ratio * 100, scale: 2)) + "%"
     }
 
+    /// 工作进度里的小时数：保留 1 位小数并截掉末尾的 0，如 `7`、`5.1`。
+    /// 已工作时长向下取 (`roundingDown: true`)，免得还没下班就显示成和应有时长一样。
+    static func workHours(milliseconds: Int, roundingDown: Bool = false) -> String {
+        var input = hours(milliseconds: milliseconds)
+        var result = Decimal()
+        NSDecimalRound(&result, &input, 1, roundingDown ? .down : .plain)
+        return trimmingZeros(result)
+    }
+
     /// 毫秒换算成小时，保留完整精度，交给 `trimmed` 取舍。
     static func hours(milliseconds: Int) -> Decimal {
         Decimal(milliseconds) / 3_600_000

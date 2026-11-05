@@ -70,7 +70,7 @@ public struct AttendancePanel: Sendable, Equatable {
 
 /// 工作进度区。
 public struct WorkProgress: Sendable, Equatable {
-    /// 如「已工作 4 / 7 小时」。
+    /// 如「已工作 4 / 7 小时」「已工作 5.1 / 7 小时」：小时数保留 1 位小数，已工作向下取。
     public let label: String
     /// 如「57.14%」。
     public let percent: String
@@ -155,8 +155,12 @@ extension RestPanel {
 
 extension WorkProgress {
     init(plan: DayPlan, progress: Decimal, now: Date) {
-        let elapsed = Format.trimmed(Format.hours(milliseconds: plan.elapsedMilliseconds(at: now)))
-        let total = Format.trimmed(Format.hours(milliseconds: plan.effectiveMilliseconds))
+        let elapsedMilliseconds = plan.elapsedMilliseconds(at: now)
+        let total = Format.workHours(milliseconds: plan.effectiveMilliseconds)
+        // 走满了就和应有时长显示得一样，否则向下取 1 位。
+        let elapsed = elapsedMilliseconds >= plan.effectiveMilliseconds
+            ? total
+            : Format.workHours(milliseconds: elapsedMilliseconds, roundingDown: true)
         label = "已工作 \(elapsed) / \(total) 小时"
         percent = Format.percent(progress)
         // 半天假后那半天没有工时时没有任何一段，`barLength` 不会被用作除数。
