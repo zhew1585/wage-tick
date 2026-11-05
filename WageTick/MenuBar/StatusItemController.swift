@@ -54,6 +54,8 @@ final class StatusItemController: NSObject {
     /// 项目与快捷键按 PRD F2；最后一项按 PRD 叫「退出」，设计稿写的是「退出牛马鼓励器」。
     private func buildMenu() {
         menu.delegate = self
+        // 菜单栏条目的菜单跟随菜单栏深浅，不吃 `NSApp.appearance`；固定浅色，和设计稿与 ADR-0004 一致。
+        menu.appearance = NSAppearance(named: .aqua)
         bossModeItem.target = self
         bossModeItem.image = NSImage(resource: .MenuIcon.eyeSlash)
         MenuRowView.attach(to: bossModeItem)
