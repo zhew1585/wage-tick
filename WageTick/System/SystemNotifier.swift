@@ -24,6 +24,7 @@ final class SystemNotifier: NSObject {
         for event in events {
             switch event {
             case .offWork(let message): post(message: message)
+            case .goalReached(let message): post(message: message)
             }
         }
     }

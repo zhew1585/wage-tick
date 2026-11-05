@@ -10,7 +10,7 @@ final class AppModel {
     private var state: AppState
     /// 节假日表，由 `HolidayUpdater` 从数据源适配器取来；未就绪时为空表，只按双休。
     var holidays: HolidayTable = .empty
-    /// 「推进到此刻」产生的领域事件 (如下班) 交给它发系统通知。
+    /// 「推进到此刻」产生的领域事件 (下班、目标达成) 交给它发系统通知。
     var onEvents: (([DomainEvent]) -> Void)?
     private let logger = Logger(subsystem: AppIdentity.bundleID, category: "AppModel")
 

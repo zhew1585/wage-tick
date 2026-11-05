@@ -10,14 +10,19 @@ public struct InterfaceSettings: Sendable, Equatable, Codable {
     public internal(set) var menuBarMode: MenuBarMode
     /// 下班通知开关 (PRD 4.7.2)，默认开。
     public internal(set) var offWorkNotification: Bool
+    /// 目标达成通知开关 (PRD 4.7.2)，默认开。
+    public internal(set) var goalReachedNotification: Bool
 
-    private enum CodingKeys: String, CodingKey { case bossMode, bossModeHotkey, menuBarMode, offWorkNotification }
+    private enum CodingKeys: String, CodingKey {
+        case bossMode, bossModeHotkey, menuBarMode, offWorkNotification, goalReachedNotification
+    }
 
     public init() {
         bossMode = false
         bossModeHotkey = Hotkey(key: "B", modifiers: [.control, .option])
         menuBarMode = .amount
         offWorkNotification = true
+        goalReachedNotification = true
     }
 
     /// 旧文件缺少的字段 (如 #5 写出的文件没有显示模式) 取默认值，不当作损坏文件。
@@ -29,6 +34,8 @@ public struct InterfaceSettings: Sendable, Equatable, Codable {
         menuBarMode = try container.decodeIfPresent(MenuBarMode.self, forKey: .menuBarMode) ?? defaults.menuBarMode
         offWorkNotification = try container.decodeIfPresent(Bool.self, forKey: .offWorkNotification)
             ?? defaults.offWorkNotification
+        goalReachedNotification = try container.decodeIfPresent(Bool.self, forKey: .goalReachedNotification)
+            ?? defaults.goalReachedNotification
     }
 }
 

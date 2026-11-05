@@ -16,6 +16,8 @@ public struct Snapshot: Sendable, Equatable {
     public let leaveForm: LeaveForm?
     /// 目标管理页的目标列表 (PRD F8)；未完成引导时为 nil。
     public let goals: [GoalRow]?
+    /// 面板该播放的目标达成庆祝动画 (PRD F9)，播放后发 `.acknowledgeCelebration` 确认；没有时为 nil。
+    public let celebration: GoalCelebration?
 }
 
 /// 菜单栏内容：小牛姿势 + 可选数字 (PRD 4.7.1 第 1、2 条)。
@@ -47,7 +49,7 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
     guard let profile = state.profile else {
         return Snapshot(
             menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil,
-            settingsForm: nil, leaveForm: nil, goals: nil
+            settingsForm: nil, leaveForm: nil, goals: nil, celebration: nil
         )
     }
     let today = Today(profile: profile, dayRecords: state.dayRecords, now: now, holidays: holidays)
@@ -59,6 +61,7 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
         panel: TodayPanel(today: today, now: now, holidays: holidays, goal: GoalCard(active: activeGoal)),
         settingsForm: SettingsForm(profile: profile, today: today.date),
         leaveForm: LeaveForm(today: today, now: now),
-        goals: GoalRow.rows(state: state, active: activeGoal, today: today, now: now)
+        goals: GoalRow.rows(state: state, active: activeGoal, today: today, now: now),
+        celebration: GoalCelebration(state: state)
     )
 }
