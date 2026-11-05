@@ -56,7 +56,10 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
         menuBar: MenuBarDisplay(today: today, settings: state.settings),
         today: today,
         settings: state.settings,
-        panel: TodayPanel(today: today, now: now, holidays: holidays, goal: GoalCard(active: activeGoal)),
+        panel: TodayPanel(
+            today: today, now: now, holidays: holidays, goal: GoalCard(active: activeGoal),
+            goalQueue: GoalQueueSection(state: state, active: activeGoal, today: today, holidays: holidays)
+        ),
         settingsForm: SettingsForm(profile: profile, today: today.date),
         leaveForm: LeaveForm(today: today, now: now),
         goals: GoalRow.rows(state: state, active: activeGoal, today: today, now: now)

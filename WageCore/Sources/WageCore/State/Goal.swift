@@ -32,6 +32,8 @@ public struct Goal: Sendable, Equatable, Codable, Identifiable {
         switch try container.decode(String.self, forKey: .status) {
         case "accumulating":
             status = .accumulating(baseline: try container.decodeDecimal(forKey: .baseline))
+        case "queued":
+            status = .queued
         case "completed":
             status = .completed(at: try container.decode(Date.self, forKey: .completedAt))
         case let other:
@@ -51,16 +53,23 @@ public struct Goal: Sendable, Equatable, Codable, Identifiable {
         case .completed(let completedAt):
             try container.encode("completed", forKey: .status)
             try container.encode(completedAt, forKey: .completedAt)
+        case .queued:
+            try container.encode("queued", forKey: .status)
         }
     }
 }
 
-/// 目标状态 (PRD 4.5.2)。排队中留给目标队列 (#12)。
+/// 目标状态 (PRD 4.5.2)。
 public enum GoalStatus: Sendable, Equatable {
     /// 累计中：起算基准 = 激活时的累计收入；累计额 = 累计收入 - 起算基准。
     case accumulating(baseline: Decimal)
     /// 已完成：记录完成时间并冻结，不受后续任何编辑影响。
     case completed(at: Date)
+    /// 排队中：已有累计中目标时新建的目标排到队尾；队列顺序即 `AppState.goals` 里排队中目标的先后。
+    case queued
+
+    /// 是否排队中。
+    public var isQueued: Bool { self == .queued }
 }
 
 extension Decimal {

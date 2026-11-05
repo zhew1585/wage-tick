@@ -17,6 +17,8 @@ public struct TodayPanel: Sendable, Equatable {
     public let unpaidWorkButton: UnpaidWorkButton?
     /// 目标区 (PRD F9)。
     public let goal: GoalCard
+    /// 目标区里累计中目标下方的排队部分 (PRD F9)：「显示更多 (N)」或展开后的排队中目标与「收起」；没有排队中目标时为 nil。
+    public let goalQueue: GoalQueueSection?
 
     public enum Body: Sendable, Equatable {
         /// 应出勤日：未上班、上班中、午休中、已下班。
@@ -90,7 +92,7 @@ public struct ProgressSegment: Sendable, Equatable {
 }
 
 extension TodayPanel {
-    init(today: Today, now: Moment, holidays: HolidayTable, goal: GoalCard) {
+    init(today: Today, now: Moment, holidays: HolidayTable, goal: GoalCard, goalQueue: GoalQueueSection?) {
         dateText = Format.date(today.date, relativeTo: today.date)
         timeText = Format.time(now)
         statusLabel = today.unpaidWork.isRunning ? "白干中" : today.status.label
@@ -98,6 +100,7 @@ extension TodayPanel {
         deductionEntry = today.settlement.map(DeductionEntry.init(settlement:))
         unpaidWorkButton = UnpaidWorkButton(today: today)
         self.goal = goal
+        self.goalQueue = goalQueue
         if today.unpaidWork.isRunning {
             body = .unpaidWork(UnpaidWorkPanel(today: today, now: now))
             return
