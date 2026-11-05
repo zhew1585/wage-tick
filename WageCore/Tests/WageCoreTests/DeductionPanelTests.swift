@@ -13,7 +13,7 @@ struct DeductionPanelTests {
         #expect(body.headline == "¥950.0000")
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥950"),
-            StatItem(title: "扣款", value: "−¥50"),
+            StatItem(title: "今日扣款", value: "−¥50"),
             StatItem(title: "本月累计", value: "¥7950"),
         ])
     }
@@ -24,8 +24,8 @@ struct DeductionPanelTests {
         let body = try attendancePanel(fined, at: standardDay(15, 0))
 
         #expect(body.headline == "¥542.8571")
-        #expect(body.caption == "今日上限 ¥950 · 每秒 +0.0377")
-        #expect(body.stats.map(\.title) == ["距离下班", "扣款", "本月累计"])
+        #expect(body.caption == "满勤日薪 ¥1000 · 时薪 ¥142.8571")
+        #expect(body.stats.map(\.title) == ["距离下班", "今日扣款", "本月累计"])
         #expect(body.stats[1].value == "−¥50")
     }
 
@@ -60,7 +60,7 @@ struct DeductionPanelTests {
 
         #expect(body.deductions.isEmpty)
         #expect(body.notice == nil)
-        #expect(body.stats.contains(StatItem(title: "扣款", value: "¥0")))
+        #expect(body.stats.contains(StatItem(title: "今日扣款", value: "¥0")))
     }
 
     @Test("AC-FINE-05 记 1200 元：提示【今天已经白干了，再扣就倒贴了】，今日上限 ¥0")
@@ -70,7 +70,7 @@ struct DeductionPanelTests {
         let entry = try #require(snapshot(of: fined, at: standardDay(15, 0)).panel?.deductionEntry)
 
         #expect(body.notice == "今天已经白干了，再扣就倒贴了")
-        #expect(body.caption.hasPrefix("今日上限 ¥0 · "))
+        #expect(entry.capText == "¥0")
         #expect(entry.warning == "今天已经白干了，再扣就倒贴了")
     }
 

@@ -16,9 +16,9 @@ enum PanelRoute: Equatable {
     case leave(LeaveFormView.Mode)
 }
 
-/// 今日概览面板 (PRD F4，设计稿 P2)。所有文字和数字原样取自快照的 `TodayPanel`，这里只管排版。
-/// 从上到下：日期与状态、主数字、进度区 (已下班、白干中换成白干计时按钮)、统计行、目标区、情绪按钮、底部入口栏。
-/// 窗口固定尺寸：底部入口栏贴窗口底边，上面放不下时滚动。
+/// 今日概览面板 (PRD F4，设计稿 P2 · 760)。所有文字和数字原样取自快照的 `TodayPanel`，这里只管排版。
+/// 从上到下：日期与状态、主数字、进度区 (已下班、白干中换成白干计时按钮)、统计行、攒钱队列、情绪按钮、底部入口栏。
+/// 窗口固定尺寸：情绪按钮与底部入口栏固定在窗口底部，上面各段放不下时滚动。
 /// 白干计时按钮 (我还没走、被迫营业、终于下班了) 原样发出快照给的命令。
 struct TodayPanelView: View {
     let content: TodayPanelContent
@@ -36,7 +36,10 @@ struct TodayPanelView: View {
                     subtitle: content.panel?.dateText, dismiss: goHome
                 )
             case .leave(let mode):
-                LeaveFormView(mode: mode, actions: actions, subtitle: content.panel?.dateText, dismiss: goHome)
+                LeaveFormView(
+                    mode: mode, actions: actions, initialForm: content.leaveForm,
+                    subtitle: content.panel?.dateText, dismiss: goHome
+                )
             }
         }
         .frame(width: PanelMetrics.width)
@@ -44,11 +47,12 @@ struct TodayPanelView: View {
         .background(Palette.bg)
     }
 
-    /// 概览：上面各段在窗口里滚动 (展开排队目标时可能放不下)，底部入口栏固定在窗口底边。
+    /// 概览：上面各段在窗口里滚动 (提示条多了时可能放不下)，情绪按钮与底部入口栏固定在窗口底部。
     private var home: some View {
         VStack(spacing: 0) {
             if let panel = content.panel {
                 ScrollBody { homeSections(panel) }
+                actionsSection(panel)
                 PanelFooter(
                     bossHotkey: content.bossHotkey,
                     openHistory: navigation.openHistory,
@@ -77,14 +81,12 @@ struct TodayPanelView: View {
             case .unpaidWork(let unpaidWork):
                 unpaidWorkSection(unpaidWork, button: panel.unpaidWorkButton)
             }
-            PanelDivider()
             GoalCardView(
                 card: panel.goal,
                 queue: panel.goalQueue,
-                openGoals: navigation.openGoals,
-                toggleQueue: { send(.toggleGoalQueueExpanded) }
+                countText: panel.goalCountText,
+                openGoals: navigation.openGoals
             )
-            actionsSection(panel)
         }
     }
 
@@ -121,7 +123,6 @@ struct TodayPanelView: View {
                 unpaidWorkButton(button)
             }
         }
-        PanelDivider()
         // 扣款只在统计行里显示合计，明细在历史的单日详情里看和改。
         PanelStatsRow(stats: attendance.stats)
     }
@@ -135,53 +136,53 @@ struct TodayPanelView: View {
             caption: unpaidWork.caption
         )
         progressZone { unpaidWorkButton(button) }
-        PanelDivider()
         PanelStatsRow(stats: unpaidWork.stats)
     }
 
-    /// 休息日 (设计稿 P2 休息日)：左边小牛，右边「今天休息」；统计行放前两项，其余 (下一个应出勤日) 放在标题下面。
+    /// 休息日 (设计稿 P2 休息日 · 760)：居中的小牛 120、「今天休息」30/700，下面两行说明与下一个上班日；统计行为本月已上班、本月累计。
     @ViewBuilder
     private func restSection(_ rest: RestPanel) -> some View {
-        HStack(spacing: Spacing.s16) {
+        VStack(spacing: Spacing.s16) {
             Image(.cowMascot)
                 .resizable()
                 .scaledToFit()
-                .frame(width: 72, height: 72)
+                .frame(width: Self.mascotSize, height: Self.mascotSize)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: Spacing.s4) {
-                Text(rest.headline).font(AppFont.ui(24, .bold)).foregroundStyle(Palette.ink)
-                ForEach(rest.stats.dropFirst(Self.restStatsInRow), id: \.title) { item in
-                    Text("\(item.title) \(item.value)").font(AppFont.caption).foregroundStyle(Palette.muted)
+            VStack(spacing: Spacing.s6) {
+                Text(rest.headline).font(AppFont.ui(30, .bold)).foregroundStyle(Palette.ink)
+                ForEach([rest.tagline, rest.nextAttendanceText].compactMap { $0 }, id: \.self) { line in
+                    Text(line).font(AppFont.body).foregroundStyle(Palette.muted).multilineTextAlignment(.center)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(EdgeInsets(top: 18, leading: Spacing.screen, bottom: 22, trailing: Spacing.screen))
-        PanelDivider()
-        PanelStatsRow(stats: Array(rest.stats.prefix(Self.restStatsInRow)))
+        .frame(maxWidth: .infinity)
+        .padding(EdgeInsets(top: 34, leading: Spacing.screen, bottom: 30, trailing: Spacing.screen))
+        PanelStatsRow(stats: rest.stats)
     }
 
-    /// 休息日统计行放几项 (设计稿：本月已上班、本月累计)。
-    private static let restStatsInRow = 2
+    /// 休息日小牛的边长 (设计稿 Mascot 120×120)。
+    private static let mascotSize: CGFloat = 120
 
-    /// 进度区与白干按钮区同高 (AC-HOME-11)：内容 37 + 下边距 18。
+    /// 进度区与白干按钮区 (设计稿 Progress、Action Zone)：左右 20、下边距 24。两者高度按各自内容，不再强求一致。
     private func progressZone(@ViewBuilder _ content: () -> some View) -> some View {
         content()
-            .frame(height: ThemeButtonStyle.height, alignment: .top)
-            .padding(.horizontal, Spacing.screen)
-            .padding(.bottom, PanelMetrics.progressZoneHeight - ThemeButtonStyle.height)
+            .padding(EdgeInsets(top: 0, leading: Spacing.screen, bottom: Spacing.s24, trailing: Spacing.screen))
     }
 
-    /// 进度区位置上的白干计时按钮 (我还没走、终于下班了)：文案和命令都取自快照，原样发出。不可用时留空占位。
+    /// 进度区位置上的白干计时按钮 (我还没走、终于下班了)：主按钮高 48、文字 14、图标 16。文案和命令都取自快照，原样发出。
+    /// 不可用时 (已过 23:59:59) 留出同高的空位。
     @ViewBuilder
     private func unpaidWorkButton(_ button: UnpaidWorkButton?) -> some View {
         if let button {
             Button { send(button.command) } label: {
-                Label { Text(button.title) } icon: { PhosphorIcon(Self.icon(for: button)) }
+                HStack(spacing: Spacing.s6) {
+                    PhosphorIcon(Self.icon(for: button), size: 16)
+                    Text(button.title).font(AppFont.ui(14, .semibold))
+                }
             }
-            .buttonStyle(.primary(fullWidth: true))
+            .buttonStyle(.primary(fullWidth: true, height: PanelMetrics.unpaidWorkButtonHeight))
         } else {
-            Color.clear
+            Color.clear.frame(height: PanelMetrics.unpaidWorkButtonHeight)
         }
     }
 
@@ -192,7 +193,8 @@ struct TodayPanelView: View {
 
     // MARK: 情绪按钮
 
-    /// 情绪按钮区：今天已请假时上面一行描述与「修改」，下面情绪按钮。都没有时 (如休息日被迫营业中) 整段不显示。
+    /// 情绪按钮区 (设计稿 Actions)：固定在入口栏上方，上边一条分隔线，内边距 16 / 20 / 18；按钮高 44、间距 10。
+    /// 今天已请假时按钮上面多一行描述与「修改」。都没有时 (如休息日被迫营业中) 整段不显示。
     @ViewBuilder
     private func actionsSection(_ panel: TodayPanel) -> some View {
         let buttons = moodButtons(panel)
@@ -204,12 +206,12 @@ struct TodayPanelView: View {
                     currentLeaveRow(leave.current, text: leave.text)
                 }
                 if !buttons.isEmpty {
-                    HStack(spacing: Spacing.s8) {
+                    HStack(spacing: Spacing.s10) {
                         ForEach(buttons, content: moodButton)
                     }
                 }
             }
-            .padding(EdgeInsets(top: Spacing.s14, leading: Spacing.screen, bottom: Spacing.s16, trailing: Spacing.screen))
+            .padding(EdgeInsets(top: Spacing.s16, leading: Spacing.screen, bottom: Spacing.s18, trailing: Spacing.screen))
         }
     }
 
@@ -253,7 +255,7 @@ struct TodayPanelView: View {
                 }
             }
         }
-        .buttonStyle(.secondary(fullWidth: true))
+        .buttonStyle(.secondary(fullWidth: true, height: PanelMetrics.actionButtonHeight))
     }
 
     /// 今天已有的请假与描述；没请假时为 nil。

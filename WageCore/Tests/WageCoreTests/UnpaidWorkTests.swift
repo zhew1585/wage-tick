@@ -220,10 +220,10 @@ struct UnpaidWorkPanelTests {
         // 扣款一项随扣钱 (#7) 加入，与已下班的统计行共用同一份。
         #expect(panel.body == .unpaidWork(UnpaidWorkPanel(
             headline: "¥155.2381",
-            caption: "18:00 起 · 已白干 1:05:12 · 每秒 +0.0397",
+            caption: "18:00 起 · 已白干 1:05:12",
             stats: [
                 StatItem(title: "今日结算", value: "¥1000"),
-                StatItem(title: "扣款", value: "¥0"),
+                StatItem(title: "今日扣款", value: "¥0"),
                 StatItem(title: "本月累计", value: "¥8000"),
             ],
             isRestDay: false
@@ -253,7 +253,7 @@ struct UnpaidWorkPanelTests {
         #expect(panel.statusLabel == "白干中")
         #expect(panel.body == .unpaidWork(UnpaidWorkPanel(
             headline: "¥71.4286",
-            caption: "10:00 起 · 已白干 0:30:00 · 每秒 +0.0397",
+            caption: "10:00 起 · 已白干 0:30:00",
             stats: [
                 StatItem(title: "今日结算", value: "¥0"),
                 StatItem(title: "本月累计", value: "¥10000"),
@@ -358,10 +358,10 @@ struct UnpaidWorkWithDayRecordsTests {
         #expect(panel.statusLabel == "白干中")
         #expect(panel.body == .unpaidWork(UnpaidWorkPanel(
             headline: "¥71.4286",
-            caption: "10:00 起 · 已白干 0:30:00 · 每秒 +0.0397",
+            caption: "10:00 起 · 已白干 0:30:00",
             stats: [
                 StatItem(title: "今日结算", value: "¥0"),
-                StatItem(title: "扣款", value: "−¥1000"),
+                StatItem(title: "今日扣款", value: "−¥1000"),
                 StatItem(title: "本月累计", value: "¥7000"),
             ],
             isRestDay: true
@@ -379,7 +379,7 @@ struct UnpaidWorkWithDayRecordsTests {
 
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥950"),
-            StatItem(title: "扣款", value: "−¥50"),
+            StatItem(title: "今日扣款", value: "−¥50"),
             StatItem(title: "本月累计", value: "¥7950"),
         ])
     }

@@ -2,6 +2,7 @@
 # 离屏渲染今日概览面板与扣钱、请假表单的各个状态 (PNG)，和设计稿对照用。
 # 不起菜单栏、不读写 state.json，可以和正在跑的 App 同时用。做法见 WageTick/Panel/PanelPreviews.swift。
 # 用法：scripts/render-panel-previews.sh [输出目录，默认 build/panel-previews]
+# 渲染别的屏：设 WAGETICK_RENDER_ENTRY 为对应入口，如引导 `wagetick_render_onboarding_previews` (见 OnboardingPreviews.swift)。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT="${1:-build/panel-previews}"
@@ -27,7 +28,8 @@ __attribute__((constructor)) static void render(void) {
     snprintf(lib, sizeof(lib), "%s/WageTick.debug.dylib", exe);
     void *handle = dlopen(lib, RTLD_NOW);
     if (!handle) { fprintf(stderr, "%s\n", dlerror()); exit(2); }
-    void (*entry)(const char *) = dlsym(handle, "wagetick_render_panel_previews");
+    const char *name = getenv("WAGETICK_RENDER_ENTRY");
+    void (*entry)(const char *) = dlsym(handle, name ? name : "wagetick_render_panel_previews");
     if (!entry) { fprintf(stderr, "没找到渲染入口，要用 Debug 构建\n"); exit(3); }
     entry(dir);
     exit(0);

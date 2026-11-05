@@ -32,6 +32,13 @@ public struct Today: Sendable, Equatable {
     public let leave: Leave?
     /// 今天的白干时长、已倒贴与计时状态 (PRD 4.4.3)。
     public let unpaidWork: UnpaidWorkToday
+    /// 今天生效的作息 (未经半天假调整)：面板的时薪、请假表单各时段的工时据此推导。
+    let schedule: WorkSchedule
+
+    /// 时薪 = 日薪 ÷ 标准工时 (PRD 4.2.4)，不受半天假影响。
+    var hourlyWage: Decimal {
+        schedule.owed(dailyWage: dailyWage, milliseconds: 3_600_000)
+    }
 
     /// 今日已赚是否正在增长：只在上班中增长 (PRD 4.3.3 不变量 3)。外壳据此决定刷新频率。
     public var isEarning: Bool { status == .working }
@@ -75,6 +82,7 @@ extension Today {
         }
         date = day
         dailyWage = wage
+        schedule = profile.schedule(on: day)
         attendedDays = pastDays.count
         nextAttendanceDay = rule.nextAttendanceDay(after: day)
         guard rule.isAttendanceDay(day) else {
@@ -89,7 +97,7 @@ extension Today {
         }
         let todaySettlement = settle(day)
         let todayLeave = dayRecords.first { $0.date == day }?.leave
-        let todayPlan = DayPlan(schedule: profile.schedule(on: day), leave: todayLeave?.period, on: day, now: now)
+        let todayPlan = DayPlan(schedule: schedule, leave: todayLeave?.period, on: day, now: now)
         let todayEarnings = todayPlan.map { Earnings(settlement: todaySettlement, plan: $0, now: now.date) }
             ?? Earnings(fullDayLeave: todaySettlement)
         // 全天请假按休息日呈现【D2】。

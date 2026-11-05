@@ -13,6 +13,7 @@ enum Radius {
     static let r12: CGFloat = 12
     static let r14: CGFloat = 14
     static let r16: CGFloat = 16
+    static let r18: CGFloat = 18
 
     /// 按钮、输入框、日历格子。
     static let control = r8
@@ -34,6 +35,7 @@ enum Spacing {
     static let s16: CGFloat = 16
     static let s18: CGFloat = 18
     static let s20: CGFloat = 20
+    static let s22: CGFloat = 22
     static let s24: CGFloat = 24
     // 760 设计稿补的：日历行距 5、设置页分组间距 22、单日详情结算区上边距 26。
     static let s5: CGFloat = 5
@@ -48,7 +50,7 @@ enum Spacing {
 
 /// 所有窗口 (引导、今日概览、目标、历史、设置) 统一的固定内容尺寸，不能拉伸：
 /// 宽 360 (设计稿各屏同宽)；高 760，接近手机的比例 (Allen 定)，设计稿各屏都放得下，放不下的在窗口里滚动。
-/// 放不下的 (目标多了、设置页、展开排队目标的面板) 在窗口里滚动中间内容区，页头和底部按钮栏不动 (`ScrollBody`)。
+/// 放不下的 (目标多了、设置页、提示条多了的面板) 在窗口里滚动中间内容区，页头和底部按钮栏不动 (`ScrollBody`)。
 /// 弹出的 sheet (改月薪、补记等小表单) 不在此列，仍按内容大小。
 enum WindowMetrics {
     static let size = CGSize(width: 360, height: 760)

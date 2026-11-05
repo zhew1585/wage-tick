@@ -5,6 +5,8 @@ import Foundation
 public struct GoalQueueSection: Sendable, Equatable {
     /// 展开时按队列顺序紧跟累计中目标的排队中目标，与累计中合计最多 3 个 (AC-GPRG-07)；收起时为空。
     public let queued: [QueuedGoalCard]
+    /// 不论展开与否都直接列出的排队中目标，个数上限同 `queued` (760 设计稿的「攒钱队列」不再展开收起)。
+    public let upcoming: [QueuedGoalCard]
     /// 底部按钮：收起时「显示更多 (N)」，N 为全部排队中目标数；展开时「收起」。点击发 `.toggleGoalQueueExpanded`。
     public let toggleTitle: String
 }
@@ -28,10 +30,6 @@ extension GoalQueueSection {
     init?(state: AppState, active: ActiveGoalCard?, today: Today, holidays: HolidayTable) {
         let queued = state.goals.filter(\.status.isQueued)
         guard let active, !queued.isEmpty else { return nil }
-        guard state.settings.goalQueueExpanded else {
-            self.init(queued: [], toggleTitle: "显示更多 (\(queued.count))")
-            return
-        }
         let rule = AttendanceRule(holidays: holidays)
         var previousFinish = active.finishDate
         let cards = queued.prefix(Self.expandedLimit - 1).map { goal in
@@ -42,7 +40,12 @@ extension GoalQueueSection {
             previousFinish = finish
             return QueuedGoalCard(goal: goal, finish: finish, today: today.date)
         }
-        self.init(queued: cards, toggleTitle: "收起")
+        let expanded = state.settings.goalQueueExpanded
+        self.init(
+            queued: expanded ? cards : [],
+            upcoming: cards,
+            toggleTitle: expanded ? "收起" : "显示更多 (\(queued.count))"
+        )
     }
 }
 

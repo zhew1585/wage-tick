@@ -19,8 +19,12 @@ struct ToggleRow: View {
 
 /// 胶囊开关：开为 accent (主题色) 底、圆钮靠右，关为 line 底、圆钮靠左；点整行切换。
 /// 整行是一个按钮：悬停手型，开关轨道悬停、按下时叠一层加深；不可用时变淡、没有反馈。
+/// 行的上下内边距默认 10，设计稿去掉内边距的地方 (引导午休) 用 `.themeSwitch(verticalPadding: 0)`。
+/// 标签默认 13 ink，要别的字体颜色直接写在标签 `Text` 上 (离得近的修饰优先)。
 struct ThemeSwitchToggleStyle: ToggleStyle {
     private static let disabledOpacity = 0.4
+
+    var verticalPadding = Spacing.s10
 
     func makeBody(configuration: Configuration) -> some View {
         Button {
@@ -36,7 +40,7 @@ struct ThemeSwitchToggleStyle: ToggleStyle {
                 Spacer(minLength: Spacing.s8)
                 ThemeSwitchTrack(isOn: configuration.isOn, overlay: state.overlay)
             }
-            .padding(.vertical, Spacing.s10)
+            .padding(.vertical, verticalPadding)
             .contentShape(Rectangle())
             .opacity(state.isEnabled ? 1 : Self.disabledOpacity)
         })
@@ -46,6 +50,10 @@ struct ThemeSwitchToggleStyle: ToggleStyle {
 
 extension ToggleStyle where Self == ThemeSwitchToggleStyle {
     static var themeSwitch: ThemeSwitchToggleStyle { ThemeSwitchToggleStyle() }
+
+    static func themeSwitch(verticalPadding: CGFloat) -> ThemeSwitchToggleStyle {
+        ThemeSwitchToggleStyle(verticalPadding: verticalPadding)
+    }
 }
 
 /// 34×20 的胶囊轨道与 16 的圆钮；`overlay` 是悬停、按下时叠在轨道上的一层。

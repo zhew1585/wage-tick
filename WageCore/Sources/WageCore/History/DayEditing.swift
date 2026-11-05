@@ -101,9 +101,10 @@ extension HistoryLedger {
     /// 这天的请假表单，汇总里的收入项标题与详情同口径 (见 `incomeTitle`)。
     private func leaveForm(_ day: DayLedger, settlement: DaySettlement) -> LeaveForm {
         let capTitle = incomeTitle(day.date)
-        let leave = day.record?.leave
-        let plan = DayPlan(schedule: inputs.profile.schedule(on: day.date), leave: leave?.period, on: day.date, now: inputs.now)
-        return LeaveForm(leave: leave, settlement: settlement, plan: plan, capTitle: capTitle, now: inputs.now)
+        return LeaveForm(
+            leave: day.record?.leave, settlement: settlement, schedule: inputs.profile.schedule(on: day.date), on: day.date,
+            planTitle: LeaveForm.planTitle(day.date, today: today), capTitle: capTitle, now: inputs.now
+        )
     }
 
     /// 新补记一段的预填：这天作息的计划下班起 1 小时，最晚 23:59。
