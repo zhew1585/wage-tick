@@ -18,10 +18,18 @@ public struct GoalCelebration: Sendable, Equatable {
 extension GoalCelebration {
     /// 待播放里按达成先后取第一个仍在且已完成的目标；后来被删掉的跳过。
     init?(state: AppState) {
-        let completed = state.goals.filter { if case .completed = $0.status { true } else { false } }
+        let completed = state.goals.filter(\.status.isCompleted)
         guard let goal = state.pendingCelebrations.lazy.compactMap({ id in completed.first { $0.id == id } }).first else {
             return nil
         }
         self.init(goalID: goal.id, message: NotificationCopy.goalReached(name: goal.name))
     }
+}
+
+/// 面板开始播放 `goalID` 的庆祝动画时确认，之后不再播放；其余待播放的不受影响。
+/// 排进待播放在 `completingReachedGoals` (目标完成的唯一入口)。
+func acknowledgeCelebration(goalID: Int, state: AppState) -> AppState {
+    var next = state
+    next.pendingCelebrations = state.pendingCelebrations.filter { $0 != goalID }
+    return next
 }

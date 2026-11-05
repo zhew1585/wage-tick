@@ -1,7 +1,7 @@
 import Foundation
 
-/// 新建目标 (PRD 4.5.2)：队列为空时直接成为累计中，起算基准 = 此刻累计收入，不追溯之前赚的钱。
-/// 已有累计中目标时排到队尾属于目标队列 (#12)，本期先拒绝。
+/// 新建目标 (PRD 4.5.2)：队列为空时直接成为累计中，起算基准 = 此刻累计收入，不追溯之前赚的钱；
+/// 已有累计中目标时排到队尾，状态为排队中。
 func createGoal(
     name: String,
     amount: Decimal,
@@ -11,14 +11,15 @@ func createGoal(
 ) throws(CommandError) -> AppState {
     guard let profile = state.profile else { throw .notOnboarded }
     if let error = Validation.goal(name: name, amount: amount) { throw error }
-    guard state.accumulatingGoal == nil else { throw .goalAlreadyAccumulating }
-    let baseline = Ledger.cumulativeIncome(state: state, profile: profile, now: now, holidays: holidays)
+    let status: GoalStatus = state.accumulatingGoal == nil
+        ? .accumulating(baseline: Ledger.cumulativeIncome(state: state, profile: profile, now: now, holidays: holidays))
+        : .queued
     var next = state
     next.goals.append(Goal(
         id: (state.goals.map(\.id).max() ?? 0) + 1,
         name: name.trimmingCharacters(in: .whitespacesAndNewlines),
         amount: amount,
-        status: .accumulating(baseline: baseline)
+        status: status
     ))
     return next
 }

@@ -14,7 +14,7 @@ public struct AppState: Sendable, Equatable, Codable {
 
     /// 下班事件的进度 (见 `OffWorkWatch`)。不是牛马产生的内容，但重启后要记得今天发没发过，所以要存。
     var offWorkWatch: OffWorkWatch?
-    /// 已达成、庆祝动画还没在面板上播放的目标编号，按达成先后 (见 `completeReachedGoal`)。
+    /// 已达成、庆祝动画还没在面板上播放的目标编号，按达成先后 (见 `completingReachedGoals`)。
     var pendingCelebrations: [Int]
 
     private enum CodingKeys: String, CodingKey { case profile, settings, dayRecords, goals, offWorkWatch, pendingCelebrations }

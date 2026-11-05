@@ -19,6 +19,8 @@ public struct ActiveGoalCard: Sendable, Equatable {
     public let progress: Double
     /// 预计完成 (PRD 4.5.3)，如「还需搬砖 7 天 · 2月20日」或「今天就能达成」。
     public let estimate: String
+    /// 预计完成日 (今天就能达成时为今天)，排队中目标从它之后起数 (PRD 4.5.3 #5)。
+    let finishDate: LocalDate
 }
 
 extension GoalCard {
@@ -43,30 +45,36 @@ extension ActiveGoalCard {
         name = goal.name
         amountText = "\(Format.money(max(accumulated, 0))) / \(Format.money(goal.amount))"
         progress = NSDecimalNumber(decimal: shown / goal.amount).doubleValue
-        estimate = Self.estimate(remaining: goal.amount - accumulated, today: today, rule: rule)
+        (estimate, finishDate) = Self.estimate(remaining: goal.amount - accumulated, today: today, rule: rule)
     }
 
     /// 预计完成 (PRD 4.5.3)：
     /// 今天是应出勤日且未下班时，先扣除今日剩余可赚 (今日上限 - 今日已赚)，扣除后不大于 0 即「今天就能达成」；
     /// 否则 N = 剩余金额 ÷ 当月日薪 向上取整，从明天起数第 N 个应出勤日，跨月仍按当月日薪【D7】。
-    private static func estimate(remaining: Decimal, today: Today, rule: AttendanceRule) -> String {
+    private static func estimate(remaining: Decimal, today: Today, rule: AttendanceRule) -> (text: String, finish: LocalDate) {
         var rest = remaining
         if let earnings = today.earnings, today.status != .offWork {
             rest -= earnings.cap - earnings.earned
         }
-        guard rest > 0 else { return "今天就能达成" }
-        let days = NSDecimalNumber(decimal: roundedUp(rest / today.dailyWage)).intValue
+        guard rest > 0 else { return ("今天就能达成", today.date) }
+        let days = workDays(for: rest, dailyWage: today.dailyWage)
         let finish = rule.attendanceDay(days, after: today.date)
-        return "还需搬砖 \(days) 天 · \(Format.monthDay(finish))"
+        return ("还需搬砖 \(days) 天 · \(Format.monthDay(finish))", finish)
     }
 
-    /// 向上取整到整数，如 6.5714 → 7。
-    private static func roundedUp(_ amount: Decimal) -> Decimal {
-        var input = amount
+    /// 攒够 `amount` 需要的应出勤日数 = `amount` ÷ 日薪 向上取整，如 6.5714 → 7。
+    /// 先四舍五入到 `noiseScale` 位小数，去掉十进制除法的末位误差 (如 1/7 往返后的 9.000…0003)，免得多算一天。
+    static func workDays(for amount: Decimal, dailyWage: Decimal) -> Int {
+        var quotient = amount / dailyWage
+        var cleaned = Decimal()
+        NSDecimalRound(&cleaned, &quotient, noiseScale, .plain)
         var result = Decimal()
-        NSDecimalRound(&result, &input, 0, .up)
-        return result
+        NSDecimalRound(&result, &cleaned, 0, .up)
+        return NSDecimalNumber(decimal: result).intValue
     }
+
+    /// 算天数前保留的小数位，远小于 1 天，又远大于十进制运算的末位误差。
+    private static let noiseScale = 10
 }
 
 extension AttendanceRule {

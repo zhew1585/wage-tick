@@ -36,8 +36,16 @@ public enum Command: Sendable, Equatable {
     /// 跨过当日计划下班 (产生一次下班事件，PRD 4.6.3)。
     /// 外壳每次刷新时先发它，再取快照。
     case advance
-    /// 新建目标 (PRD 4.5.2)，名称与金额未经校验。
+    /// 新建目标 (PRD 4.5.2)，名称与金额未经校验。队列为空时直接累计，否则排到队尾。
     case createGoal(name: String, amount: Decimal)
+    /// 编辑排队中或累计中目标的名称和金额 (PRD 4.5.2)，未经校验；改小金额导致累计额已达标时立即完成并激活下一个。
+    case editGoal(id: Int, name: String, amount: Decimal)
+    /// 删除目标 (PRD 4.5.2)：删除累计中目标时下一个排队目标继承其起算基准，已累计的钱不丢【D5】。
+    case deleteGoal(id: Int)
+    /// 调整队列顺序 (PRD 4.5.2)：`ids` 是累计中和排队中目标的新顺序，累计中必须在最前【D6】。
+    case reorderGoals(ids: [Int])
+    /// 切换面板目标区的展开或收起 (PRD F9)，会被记住【O3】。
+    case toggleGoalQueueExpanded
     /// 开关下班通知 (PRD 4.7.2)。
     case setOffWorkNotification(Bool)
     /// 开关目标达成通知 (PRD 4.7.2)。
@@ -85,7 +93,9 @@ public enum CommandError: Error, Sendable, Equatable {
     case unpaidWorkAlreadyRunning
     case unpaidWorkNotRunning
     case invalidGoal
-    case goalAlreadyAccumulating
+    case goalNotFound
+    case goalCompleted
+    case goalOrderLocked
 
     public var message: String {
         switch self {
@@ -106,8 +116,11 @@ public enum CommandError: Error, Sendable, Equatable {
         case .unpaidWorkAlreadyRunning: "已经在白干计时了"
         case .unpaidWorkNotRunning: "没有在白干计时"
         case .invalidGoal: "给目标起个名字，金额得大于 0"
-        // PRD 没给文案：排队属于目标队列 (#12)，本期外壳在已有累计中目标时也提供新建入口，由这条提示拦下。
-        case .goalAlreadyAccumulating: "先攒完当前这个目标吧"
+        // 以下三条 PRD 没给文案：外壳只对快照允许的行提供编辑、删除，排队中目标只能在排队中一组里拖动，
+        // 正常只在列表过期 (如目标刚好达成) 时用到。
+        case .goalNotFound: "这个目标已经不在了"
+        case .goalCompleted: "已完成的目标不能再改"
+        case .goalOrderLocked: "累计中的目标固定在最前"
         }
     }
 }
@@ -158,6 +171,16 @@ public func apply(
         return advance(state, now: now, holidays: holidays)
     case .createGoal(let name, let amount):
         return (try createGoal(name: name, amount: amount, state: state, now: now, holidays: holidays), [])
+    case .editGoal(let id, let name, let amount):
+        return try editGoal(id: id, name: name, amount: amount, state: state, now: now, holidays: holidays)
+    case .deleteGoal(let id):
+        return try deleteGoal(id: id, state: state, now: now, holidays: holidays)
+    case .reorderGoals(let ids):
+        return (try reorderGoals(ids: ids, state: state), [])
+    case .toggleGoalQueueExpanded:
+        var next = state
+        next.settings.goalQueueExpanded.toggle()
+        return (next, [])
     case .setOffWorkNotification(let enabled):
         return (setOffWorkNotification(enabled, state: state), [])
     case .setGoalReachedNotification(let enabled):

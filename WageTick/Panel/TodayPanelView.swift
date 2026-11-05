@@ -32,7 +32,12 @@ struct TodayPanelView: View {
                 case .unpaidWork(let unpaidWork):
                     unpaidWorkSection(unpaidWork, button: panel.unpaidWorkButton)
                 }
-                GoalCardView(card: panel.goal, openGoals: openGoals)
+                GoalCardView(
+                    card: panel.goal,
+                    queue: panel.goalQueue,
+                    openGoals: openGoals,
+                    toggleQueue: { send(.toggleGoalQueueExpanded) }
+                )
                 Divider()
                 currentLeaveRow
                 moodButtons(panel)

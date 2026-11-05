@@ -191,3 +191,67 @@ struct GoalCelebrationTests {
         #expect(snapshot(of: restored, at: standardDay(16, 0)).celebration == nil)
     }
 }
+
+/// 在 `now` 时刻依次新建若干目标 (名称、金额)，第一个累计中，其余排队。
+private func queued(_ goals: [(String, Decimal)], at now: Moment = standardDay(9, 0)) throws -> AppState {
+    try goals.reduce(try onboarded()) { state, goal in try creatingGoal(goal.0, goal.1, in: state, at: now) }
+}
+
+@Suite("目标达成：与目标队列 (#12) 一起")
+struct GoalReachedQueueTests {
+    @Test("AC-GOAL-06 因编辑目标金额而立即完成：同样发【🎉 目标「A」达成】并播放动画")
+    func loweringAmountNotifies() throws {
+        // 16:36 已赚 800，把 A 从 1000 改成 500。
+        let state = try queued([("A", 1000), ("B", 3000)])
+        let result = try apply(.editGoal(id: 1, name: "A", amount: 500), to: state, at: standardDay(16, 36))
+
+        #expect(result.events == [.goalReached(message: "🎉 目标「A」达成")])
+        #expect(snapshot(of: result.state, at: standardDay(16, 36)).celebration
+            == GoalCelebration(goalID: 1, message: "🎉 目标「A」达成"))
+        #expect(try apply(.advance, to: result.state, at: standardDay(16, 37)).events.isEmpty)
+    }
+
+    @Test("D5 删除累计中 A 后 B 继承的累计额已达标：B 立即完成，发一条达成通知")
+    func inheritedCompletionNotifies() throws {
+        let state = try queued([("A", 1000), ("B", 200), ("C", 3000)])
+        let result = try apply(.deleteGoal(id: 1), to: state, at: standardDay(13, 6))
+
+        #expect(result.events == [.goalReached(message: "🎉 目标「B」达成")])
+        #expect(snapshot(of: result.state, at: standardDay(13, 6)).celebration?.goalID == 2)
+    }
+
+    @Test("零头结转后连续完成 A、B：各发一条通知，动画按完成先后各播放一次")
+    func chainedCompletionsEachCelebrate() throws {
+        // 18:00 今日已赚 1000：A 500、B 300 都完成，C 带着 200 开始。
+        let state = try queued([("A", 500), ("B", 300), ("C", 3000)])
+        let result = try apply(.advance, to: state, at: standardDay(18, 0))
+        let celebration = { (state: AppState) in snapshot(of: state, at: standardDay(18, 0)).celebration }
+
+        #expect(result.events.filter { if case .goalReached = $0 { true } else { false } } == [
+            .goalReached(message: "🎉 目标「A」达成"),
+            .goalReached(message: "🎉 目标「B」达成"),
+        ])
+        #expect(celebration(result.state) == GoalCelebration(goalID: 1, message: "🎉 目标「A」达成"))
+        let aPlayed = try applied(.acknowledgeCelebration(goalID: 1), to: result.state, at: standardDay(18, 0))
+        #expect(celebration(aPlayed) == GoalCelebration(goalID: 2, message: "🎉 目标「B」达成"))
+        let bothPlayed = try applied(.acknowledgeCelebration(goalID: 2), to: aPlayed, at: standardDay(18, 0))
+        #expect(celebration(bothPlayed) == nil)
+    }
+
+    @Test("关闭目标达成通知时连续完成：一条都不发，动画照常排队")
+    func chainedCompletionsWithNotificationOff() throws {
+        let state = try applied(.setGoalReachedNotification(false), to: try queued([("A", 500), ("B", 300), ("C", 3000)]))
+        let result = try apply(.advance, to: state, at: standardDay(17, 59))
+
+        #expect(result.events.isEmpty)
+        #expect(snapshot(of: result.state, at: standardDay(17, 59)).celebration?.goalID == 1)
+    }
+
+    @Test("待播放的目标在播放前被删掉：跳过它，播放下一个")
+    func deletedBeforePlaying() throws {
+        let state = try apply(.advance, to: try queued([("A", 500), ("B", 300), ("C", 3000)]), at: standardDay(18, 0)).state
+        let deleted = try applied(.deleteGoal(id: 1), to: state, at: standardDay(18, 1))
+
+        #expect(snapshot(of: deleted, at: standardDay(18, 1)).celebration?.goalID == 2)
+    }
+}
