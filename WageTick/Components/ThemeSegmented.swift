@@ -7,6 +7,7 @@ import SwiftUI
 ///
 /// 用法：`ThemeSegmented(options: modes.map { .init(id: $0, title: $0.label) }, selection: mode) { setMode($0) }`
 /// 表单里直接绑定：`ThemeSegmented(selection: $method, options: [(.fixed, "按金额"), (.percent, "按日薪百分比")])`
+/// 760 设计稿扣钱、请假表单的大号分段 (13 号字、段高更高、11 号等宽小字)：传 `size: .large`。
 struct ThemeSegmented<ID: Hashable>: View {
     struct Option: Identifiable {
         let id: ID
@@ -15,26 +16,42 @@ struct ThemeSegmented<ID: Hashable>: View {
         var isEnabled = true
     }
 
+    /// 段的尺寸：`regular` 为 P5、P6 的小号；`large` 为 760 设计稿 F5、F6 表单里的大号。
+    enum Size {
+        case regular, large
+    }
+
     let options: [Option]
     let selection: ID?
     let select: (ID) -> Void
-    /// 选项文字字号：默认 12，请假表单 13。
+    /// 选项文字字号：默认 12；`size: .large` 时固定 13，忽略此值。
     var fontSize: CGFloat = 12
+    var size: Size = .regular
 
-    init(options: [Option], selection: ID?, fontSize: CGFloat = 12, select: @escaping (ID) -> Void) {
+    init(options: [Option], selection: ID?, fontSize: CGFloat = 12, size: Size = .regular, select: @escaping (ID) -> Void) {
         self.options = options
         self.selection = selection
         self.fontSize = fontSize
+        self.size = size
         self.select = select
     }
 
     /// 表单用：选中值直接绑定，每段只有标题。
-    init(selection: Binding<ID>, options: [(value: ID, title: String)], fontSize: CGFloat = 12) {
+    init(selection: Binding<ID>, options: [(value: ID, title: String)], fontSize: CGFloat = 12, size: Size = .regular) {
         self.init(
             options: options.map { Option(id: $0.value, title: $0.title) },
             selection: selection.wrappedValue,
-            fontSize: fontSize
+            fontSize: fontSize,
+            size: size
         ) { selection.wrappedValue = $0 }
+    }
+
+    /// 段内上下内边距：大号无小字 10、带小字 11 (设计稿 F5、F6 · 760)；小号无小字 7、带小字 6。
+    private func verticalPadding(hasSubtitle: Bool) -> CGFloat {
+        switch size {
+        case .regular: hasSubtitle ? Spacing.s6 : Spacing.s6 + 1
+        case .large: hasSubtitle ? 11 : Spacing.s10
+        }
     }
 
     private static var disabledOpacity: Double { 0.5 }
@@ -55,14 +72,14 @@ struct ThemeSegmented<ID: Hashable>: View {
         return Button {
             select(option.id)
         } label: {
-            VStack(spacing: Spacing.s1) {
+            VStack(spacing: size == .large ? Spacing.s2 : Spacing.s1) {
                 // 标题颜色由下面的样式按选中、悬停给。
-                Text(option.title).font(AppFont.ui(fontSize, selected ? .semibold : .regular))
+                Text(option.title).font(AppFont.ui(size == .large ? 13 : fontSize, selected ? .semibold : .regular))
                 if let subtitle = option.subtitle {
-                    Text(subtitle).font(AppFont.num(9)).foregroundStyle(Palette.muted)
+                    Text(subtitle).font(AppFont.num(size == .large ? 11 : 9)).foregroundStyle(Palette.muted)
                 }
             }
-            .padding(.vertical, option.subtitle == nil ? Spacing.s6 + 1 : Spacing.s6)
+            .padding(.vertical, verticalPadding(hasSubtitle: option.subtitle != nil))
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(InteractiveButtonStyle { label, state in

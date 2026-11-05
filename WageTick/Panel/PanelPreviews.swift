@@ -3,7 +3,7 @@ import AppKit
 import SwiftUI
 import WageCore
 
-/// 离屏渲染面板与两个表单的各个状态，存成 PNG，和设计稿 (P2、F5、F6) 对照用。只在 Debug 构建里。
+/// 离屏渲染面板与两个表单的各个状态，存成 PNG，和设计稿 (P2、F5、F6 · 760) 对照用。只在 Debug 构建里。
 /// 状态全部在内存里用核心命令造出来 (2026 年 11 月，月薪 21000、10:00 至 18:00、午休 12:00 至 13:00，日薪 1000)，
 /// 不起菜单栏、不读写 state.json，可以和正在跑的 App 同时用。
 ///
@@ -48,13 +48,12 @@ private enum PanelPreviews {
         let morningLeave = try at(try onboarded(), day: 5, 9, 0) {
             try $0.send(.requestLeave(Leave(period: .morning, deductionPercent: 50)))
         }
-        let expanded = try at(base, day: 5, 15, 0) { try $0.send(.toggleGoalQueueExpanded) }
         let percentItem = try at(base, day: 5, 15, 0) {
             try $0.send(.addDeduction(DeductionInput(amount: .percentOfDailyWage(10), reason: .late, note: "地铁又晚了五分钟")))
         }
         return [
             ("P2-working", panel(base, day: 5, 15, 0)),
-            ("P2-working-expanded", panel(expanded, day: 5, 15, 0)),
+            ("P2-off-work", panel(base, day: 5, 18, 30)),
             ("P2-unpaid-work", panel(unpaid, day: 5, 19, 5, 12)),
             ("P2-off-work-fined", panel(fined, day: 5, 18, 30)),
             ("P2-rest-day", panel(base, day: 7, 10, 12, 40)),

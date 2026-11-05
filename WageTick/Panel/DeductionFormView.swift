@@ -22,7 +22,8 @@ enum DeductionFormRequest: Identifiable, Equatable {
     }
 }
 
-/// 扣钱表单 (PRD F5，设计稿 F5)：按金额 / 按日薪百分比、大号金额输入、原因标签、备注，实时预览「今日上限 ¥x → ¥y」。
+/// 扣钱表单 (PRD F5，设计稿 F5 · 760)：按金额 / 按日薪百分比、大号金额输入、原因标签、备注，
+/// 实时预览「今日上限 ¥x → ¥y」(按日薪百分比时前面加「扣 ¥z ·」)。
 /// 预览与校验都来自核心：草稿交给 `dryRun` 试算，拿试算后快照里的扣钱入口与当前的对比。
 /// 今日概览面板记今天的，历史单日详情补记那一天的 (#15)。
 struct DeductionFormView: View {
@@ -70,7 +71,7 @@ struct DeductionFormView: View {
 
     var body: some View {
         FormSheet(title: title, subtitle: subtitle, back: dismiss) {
-            ThemeSegmented(selection: $method, options: [(.fixed, "按金额"), (.percent, "按日薪百分比")])
+            ThemeSegmented(selection: $method, options: [(.fixed, "按金额"), (.percent, "按日薪百分比")], size: .large)
             VStack(alignment: .leading, spacing: Spacing.s6) {
                 valueInput
                 previewLine
@@ -81,45 +82,48 @@ struct DeductionFormView: View {
         } actions: {
             Button("算了", action: dismiss)
                 .keyboardShortcut(.cancelAction)
-                .buttonStyle(.secondary(fullWidth: true))
+                .buttonStyle(.secondary(fullWidth: true, height: PanelMetrics.actionButtonHeight))
             Button(action: save) { Label { Text("继续搬砖") } icon: { PhosphorIcon(.check) } }
                 .keyboardShortcut(.defaultAction)
-                .buttonStyle(.primary(fullWidth: true))
+                .buttonStyle(.primary(fullWidth: true, height: PanelMetrics.actionButtonHeight))
         }
         .onAppear { focus = .value }
         .onChange(of: method) { errorMessage = nil }
         .onChange(of: valueText) { errorMessage = nil }
     }
 
-    /// 大号金额输入：左边 loss 色的负号，右边单位 (元 / %)；获得焦点时描边换成 loss。
+    /// 大号金额输入 (白底、圆角 12)：左边 loss 色的负号 36/600，数字 48/700，右边单位 (元 / %) 18；获得焦点时描边换成 loss。
     private var valueInput: some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.r10)
+        let shape = RoundedRectangle(cornerRadius: Radius.r12)
         return HStack(spacing: Spacing.s6) {
-            Text("−").font(AppFont.num(28, .semibold)).foregroundStyle(Palette.loss)
+            Text("−").font(AppFont.num(36, .semibold)).foregroundStyle(Palette.loss)
             TextField(method == .fixed ? "扣了多少" : "日薪的百分之几", text: $valueText, prompt: Text("0").foregroundStyle(Palette.line))
                 .textFieldStyle(.plain)
-                .font(AppFont.num(34, .bold))
+                .font(AppFont.num(48, .bold))
                 .foregroundStyle(Palette.ink)
                 .focused($focus, equals: .value)
                 .onSubmit(save)
-            Text(method == .fixed ? "元" : "%").font(AppFont.ui(16)).foregroundStyle(Palette.muted)
+            Text(method == .fixed ? "元" : "%").font(AppFont.ui(18)).foregroundStyle(Palette.muted)
         }
-        .padding(.horizontal, Spacing.s14)
-        .padding(.vertical, Spacing.s12)
+        .padding(.horizontal, Spacing.s16)
+        .padding(.vertical, Spacing.s18)
         .background(Palette.card, in: shape)
         .overlay(shape.strokeBorder(focus == .value ? Palette.loss : Palette.line, lineWidth: 1.5))
     }
 
-    /// 「今日上限 ¥1000 → ¥950」：起点取当前快照，终点取草稿试算后的快照；还没填好时只显示起点。
+    /// 「今日上限 ¥1000 → ¥950」(13 号)：起点取当前快照，终点取草稿试算后的快照；还没填好时只显示起点。
+    /// 按日薪百分比且填好时前面加核心折算的「扣 ¥100 ·」。
     @ViewBuilder
     private var previewLine: some View {
         if let entry {
+            let draft = draftEntry
             HStack(spacing: Spacing.s6) {
-                Text(entry.capTitle).font(AppFont.caption)
-                Text(entry.capText).font(AppFont.numCaption)
-                if let draft = draftEntry {
+                Text(draft != nil && method == .percent ? "\(entry.chargeText(amount)) · \(entry.capTitle)" : entry.capTitle)
+                    .font(AppFont.body)
+                Text(entry.capText).font(AppFont.num(13))
+                if let draft {
                     PhosphorIcon(.arrowRight, size: 12)
-                    Text(draft.capText).font(AppFont.numBody).foregroundStyle(Palette.loss)
+                    Text(draft.capText).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.loss)
                 }
             }
             .foregroundStyle(Palette.muted)
@@ -151,7 +155,7 @@ struct DeductionFormView: View {
         }
     }
 
-    /// 备注框：白底、高 56，右下角字数 (超出上限的部分直接截掉)。
+    /// 备注框：白底、高 104、圆角 8，文字 14，右下角字数 (超出上限的部分直接截掉)。
     private var noteField: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.control)
         return VStack(alignment: .leading, spacing: Spacing.s8) {
@@ -159,19 +163,23 @@ struct DeductionFormView: View {
             VStack(alignment: .leading, spacing: 0) {
                 TextField("备注", text: $note, prompt: Text("可不填").foregroundStyle(Palette.muted), axis: .vertical)
                     .textFieldStyle(.plain)
-                    .font(AppFont.body)
+                    .font(AppFont.fieldText)
                     .foregroundStyle(Palette.ink)
-                    .lineLimit(1...2)
+                    .lineLimit(1...3)
                     .focused($focus, equals: .note)
                 Spacer(minLength: 0)
                 Text("\(note.count)/\(Validation.deductionNoteLimit)")
-                    .font(AppFont.num(10))
+                    .font(AppFont.numSmall)
                     .foregroundStyle(Palette.muted)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .padding(.horizontal, Spacing.s12)
-            .padding(.vertical, Spacing.s10)
-            .frame(minHeight: 56)
+            .padding(.horizontal, Spacing.s14)
+            .padding(.vertical, Spacing.s12)
+            .frame(height: Self.noteHeight)
+            .contentShape(shape)
+            // 点框里任意处都聚焦到备注。
+            .onTapGesture { focus = .note }
+            .cursor(.iBeam)
             .background(Palette.card, in: shape)
             .overlay(shape.strokeBorder(focus == .note ? Palette.accent : Palette.line, lineWidth: 1))
             .onChange(of: note) {
@@ -181,6 +189,9 @@ struct DeductionFormView: View {
             }
         }
     }
+
+    /// 备注框高度 (设计稿 Note Box)。
+    private static let noteHeight: CGFloat = 104
 
     private var title: String {
         switch (request, target) {
@@ -223,7 +234,7 @@ struct DeductionFormView: View {
     }
 }
 
-/// 原因标签：圆角 16 的胶囊，选中墨色底浅色字，未选中透明底 line 描边。
+/// 原因标签：圆角 18 的胶囊，内边距 8 / 16，文字 13/500；选中墨色底浅色字，未选中透明底 line 描边。
 /// 悬停、按下：选中的墨色底变浅 / 变深，未选中的叠一层底；手型光标。
 private struct ReasonPill: View {
     let title: String
@@ -231,13 +242,13 @@ private struct ReasonPill: View {
     let action: () -> Void
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.r16)
+        let shape = RoundedRectangle(cornerRadius: Radius.r18)
         return Button(action: action) {
             Text(title)
-                .font(AppFont.label)
+                .font(AppFont.bodyMedium)
                 .foregroundStyle(selected ? Palette.bg : Palette.ink)
-                .padding(.horizontal, Spacing.s12)
-                .padding(.vertical, Spacing.s6)
+                .padding(.horizontal, Spacing.s16)
+                .padding(.vertical, Spacing.s8)
         }
         .buttonStyle(InteractiveButtonStyle { label, state in
             label

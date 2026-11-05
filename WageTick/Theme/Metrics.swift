@@ -13,6 +13,7 @@ enum Radius {
     static let r12: CGFloat = 12
     static let r14: CGFloat = 14
     static let r16: CGFloat = 16
+    static let r18: CGFloat = 18
 
     /// 按钮、输入框、日历格子。
     static let control = r8

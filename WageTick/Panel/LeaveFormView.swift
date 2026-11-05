@@ -1,8 +1,8 @@
 import SwiftUI
 import WageCore
 
-/// 请假表单 (PRD F6，设计稿 F6)，从今日概览面板 (今天) 或历史单日详情 (那一天，#15) 打开：
-/// 时段、扣日薪的百分比，下方汇总当日计划、请假扣薪、收入项 (今天为今日上限，历史为结算或预计结算)。
+/// 请假表单 (PRD F6，设计稿 F6 · 760)，从今日概览面板 (今天) 或历史单日详情 (那一天，#15) 打开：
+/// 时段 (每段下方是请掉的工时)、扣日薪的百分比 (右侧「= ¥500」)，下方汇总当日计划、请假扣薪、收入项 (今天为今日上限，历史为结算或预计结算)。
 /// 汇总与校验提示都来自核心：每次改动都把待保存的命令交给 `PanelActions.dryRun` 试算。
 struct LeaveFormView: View {
     /// 新请一条 (与已有的另一半天假合并) 还是修改已有的那条 (整条替换)。
@@ -13,6 +13,8 @@ struct LeaveFormView: View {
 
     let mode: Mode
     let actions: PanelActions
+    /// 打开时这天的请假表单 (今天取快照的 `leaveForm`)，用来给时段选项配工时；nil 时工时取自试算结果，比例填错时不显示。
+    let initialForm: LeaveForm?
     /// 关闭表单：保存、撤销成功或取消后调用。
     let dismiss: () -> Void
     /// 作用的日子：今天或历史里的某一天。
@@ -28,9 +30,13 @@ struct LeaveFormView: View {
     /// 汇总下方的说明 (设计稿 F6)。
     private static let hint = "病假打折、年假不扣，可按需调整。请假日仍算应出勤日。"
 
-    init(mode: Mode, actions: PanelActions, target: FormTarget = .today, subtitle: String? = nil, dismiss: @escaping () -> Void) {
+    init(
+        mode: Mode, actions: PanelActions, initialForm: LeaveForm? = nil, target: FormTarget = .today,
+        subtitle: String? = nil, dismiss: @escaping () -> Void
+    ) {
         self.mode = mode
         self.actions = actions
+        self.initialForm = initialForm
         self.target = target
         self.subtitle = subtitle
         self.dismiss = dismiss
@@ -47,10 +53,10 @@ struct LeaveFormView: View {
             VStack(alignment: .leading, spacing: Spacing.s8) {
                 FormLabel("时段")
                 ThemeSegmented(
-                    selection: $period,
-                    options: LeavePeriod.allCases.map { ($0, $0.label) },
-                    fontSize: 13
-                )
+                    options: LeavePeriod.allCases.map { .init(id: $0, title: $0.label, subtitle: periodHours[$0]) },
+                    selection: period,
+                    size: .large
+                ) { period = $0 }
                 // 切换时段时带出默认比例【D4】，牛马可再修改。
                 .onChange(of: period) { _, newValue in
                     percentText = Self.text(newValue.defaultDeductionPercent)
@@ -68,10 +74,10 @@ struct LeaveFormView: View {
         .onChange(of: percentText) { errorMessage = nil }
     }
 
-    /// 比例输入：数字 24/700，紧跟着「%」；获得焦点时描边换成墨色。
+    /// 比例输入 (白底、圆角 12、内边距 16)：数字 36/700，紧跟着「%」18，右侧试算出的「= ¥500」16/600 loss；获得焦点时描边换成墨色。
     private var percentInput: some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.r10)
-        let font = AppFont.num(24, .bold)
+        let shape = RoundedRectangle(cornerRadius: Radius.r12)
+        let font = AppFont.num(36, .bold)
         return HStack(spacing: Spacing.s6) {
             // 用一段隐藏的同字号文字撑出输入框宽度，让「%」贴在数字后面。
             Text(percentText.isEmpty ? "0" : percentText)
@@ -86,11 +92,13 @@ struct LeaveFormView: View {
                         .focused($percentFocused)
                         .onSubmit(save)
                 }
-            Text("%").font(AppFont.ui(15)).foregroundStyle(Palette.muted)
+            Text("%").font(AppFont.ui(18)).foregroundStyle(Palette.muted)
             Spacer(minLength: 0)
+            if let deduction = previewForm?.deductionText {
+                Text("= \(deduction)").font(AppFont.num(16, .semibold)).foregroundStyle(Palette.loss)
+            }
         }
-        .padding(.horizontal, Spacing.s14)
-        .padding(.vertical, Spacing.s10)
+        .padding(Spacing.s16)
         .background(Palette.card, in: shape)
         .overlay(shape.strokeBorder(percentFocused ? Palette.ink : Palette.line, lineWidth: 1.5))
         .contentShape(shape)
@@ -99,16 +107,19 @@ struct LeaveFormView: View {
         .cursor(.iBeam)
     }
 
-    /// 汇总框：每行标题 + 数值，下方一条分隔线与说明；比例填错时这里换成核心的校验提示。
+    /// 汇总框 (surface 底、圆角 12、内边距 16、行距 12)：每行标题 13 + 数值 (等宽 13/600，扣薪 loss 色)，
+    /// 下方一条分隔线与说明 12；比例填错时这里换成核心的校验提示。
     private var summary: some View {
-        VStack(alignment: .leading, spacing: Spacing.s8) {
+        VStack(alignment: .leading, spacing: Spacing.s12) {
             switch previewResult {
             case .success(let form):
                 ForEach(form?.summary ?? [], id: \.title) { item in
                     HStack {
-                        Text(item.title).font(AppFont.caption).foregroundStyle(Palette.muted)
+                        Text(item.title).font(AppFont.body).foregroundStyle(Palette.muted)
                         Spacer()
-                        Text(item.value).font(AppFont.numBody).foregroundStyle(Palette.ink)
+                        Text(item.value)
+                            .font(AppFont.num(13, .semibold))
+                            .foregroundStyle(item.value.hasPrefix("−") ? Palette.loss : Palette.ink)
                     }
                 }
             case .failure(let error):
@@ -119,27 +130,27 @@ struct LeaveFormView: View {
             }
             Rectangle().fill(Palette.line).frame(height: 1)
             Text(Self.hint)
-                .font(AppFont.small)
+                .font(AppFont.caption)
                 .foregroundStyle(Palette.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(Spacing.s14)
+        .padding(Spacing.s16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r10))
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r12))
     }
 
     @ViewBuilder
     private var buttons: some View {
         if case .edit = mode {
             Button("撤销请假", role: .destructive) { send(cancelCommand) }
-                .buttonStyle(.secondary)
+                .buttonStyle(.secondary(fullWidth: false, height: PanelMetrics.actionButtonHeight))
         }
         Button("算了", action: dismiss)
             .keyboardShortcut(.cancelAction)
-            .buttonStyle(.secondary(fullWidth: true))
+            .buttonStyle(.secondary(fullWidth: true, height: PanelMetrics.actionButtonHeight))
         Button(action: save) { Label { Text(mode == .request ? "就这么请" : "保存") } icon: { PhosphorIcon(.check) } }
             .keyboardShortcut(.defaultAction)
-            .buttonStyle(.primary(fullWidth: true))
+            .buttonStyle(.primary(fullWidth: true, height: PanelMetrics.actionButtonHeight))
     }
 
     private func save() {
@@ -176,6 +187,16 @@ struct LeaveFormView: View {
     /// 试算结果：命令被核心拒绝时为对应提示；那天没有请假表单时 (理论上不会) 为 nil。
     private var previewResult: Result<LeaveForm?, CommandError> {
         pendingCommand.flatMap { actions.dryRun($0) }.map(target.leaveForm(in:))
+    }
+
+    /// 试算成功时的表单；比例填错时为 nil。
+    private var previewForm: LeaveForm? {
+        if case .success(let form) = previewResult { form } else { nil }
+    }
+
+    /// 各时段下方的工时：优先取打开时的表单 (不随填写变化)，没有时取试算结果。
+    private var periodHours: [LeavePeriod: String] {
+        initialForm?.periodHours ?? previewForm?.periodHours ?? [:]
     }
 
     /// 只认纯数字写法 (可带小数)，其他写法视为未填；范围交给核心的 `Validation`。

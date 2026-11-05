@@ -1,16 +1,18 @@
 import SwiftUI
 import WageCore
 
-/// 面板与表单共用的尺寸 (设计稿 P2、F5、F6)。
+/// 面板与表单共用的尺寸 (设计稿 P2、F5、F6 · 760)。
 enum PanelMetrics {
     /// 面板、表单宽度。
     static let width: CGFloat = 360
     /// 面板圆角。
     static let cornerRadius = Radius.r14
-    /// 进度区 / 白干按钮区高度 (含下边距 18)：两者一样高，上班中与白干中的面板总高度一致 (AC-HOME-11)。
-    static let progressZoneHeight: CGFloat = 55
-    /// 统计行高度。
-    static let statsHeight: CGFloat = 68
+    /// 底部操作按钮 (情绪按钮、表单的算了与保存) 高度。
+    static let actionButtonHeight: CGFloat = 44
+    /// 表单内容区各组之间的间距 (设计稿 F5、F6 Body)。
+    static let formSectionGap: CGFloat = 26
+    /// 进度区位置上的白干计时按钮 (我还没走、终于下班了) 高度。
+    static let unpaidWorkButtonHeight: CGFloat = 48
 }
 
 /// 面板各段之间的 1pt 分隔线。
@@ -32,6 +34,7 @@ struct PanelTopBar: View {
             Text("\(panel.dateText)  \(panel.timeText)")
                 .font(AppFont.label)
                 .foregroundStyle(Palette.muted)
+                .monospacedDigit()
             Spacer()
             HStack(spacing: Spacing.s6) {
                 Circle().fill(tone).frame(width: Self.dotSize, height: Self.dotSize)
@@ -68,8 +71,8 @@ struct PanelNoticeBanner: View {
     }
 }
 
-/// 主数字区：小标题、¥ + 大号数字 (JetBrains Mono 40/700)、下方一行小字。
-/// 主数字与小字原样取自快照；¥ 拆出来单独上色 (赚钱 money，倒贴 loss)。
+/// 主数字区 (设计稿 Hero)：小标题 13、¥ (JetBrains Mono 26/600) + 大号数字 (54/700)、下方一行小字 12，间距 6。
+/// 主数字与小字原样取自快照；¥ 拆出来单独排版，与数字同色，底边对齐。
 struct PanelHero: View {
     /// 主数字上方的小标题，如「今日已赚」。
     let label: String
@@ -79,36 +82,35 @@ struct PanelHero: View {
     var notice: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s2) {
-            Text(label).font(AppFont.caption).foregroundStyle(Palette.muted)
+        VStack(alignment: .leading, spacing: Spacing.s6) {
+            Text(label).font(AppFont.body).foregroundStyle(Palette.muted)
             amount
             Text(caption)
                 .font(AppFont.caption)
                 .foregroundStyle(Palette.muted)
-                // 固定单行，上班中与白干中的面板总高度一致 (AC-HOME-11)。
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             if let notice {
-                Text(notice).font(AppFont.caption).foregroundStyle(Palette.accent).padding(.top, Spacing.s2)
+                Text(notice).font(AppFont.caption).foregroundStyle(Palette.accent)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(EdgeInsets(top: Spacing.s14, leading: Spacing.screen, bottom: 18, trailing: Spacing.screen))
+        .padding(EdgeInsets(top: 30, leading: Spacing.screen, bottom: 28, trailing: Spacing.screen))
     }
 
     private var amount: some View {
         let (currency, number) = Self.split(headline)
-        return HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
+        return HStack(alignment: .bottom, spacing: Spacing.s4) {
             if let currency {
-                Text(currency).font(AppFont.num(22, .semibold)).foregroundStyle(Palette.ink)
+                Text(currency).font(AppFont.num(26, .semibold))
             }
             Text(number)
-                .font(AppFont.num(40, .bold))
-                .tracking(-1)
-                .foregroundStyle(Palette.ink)
+                .font(AppFont.num(54, .bold))
+                .tracking(-1.5)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
         }
+        .foregroundStyle(Palette.ink)
     }
 
     /// 把快照里的「¥571.4286」拆成货币符号与数字，只为分开排版；没有 ¥ 时原样显示。
@@ -118,7 +120,7 @@ struct PanelHero: View {
     }
 }
 
-/// 工作进度区：「已工作 4 / 7 小时」与百分比，下方分段进度条。
+/// 工作进度区：「已工作 4 / 7 小时」与百分比，下方分段进度条，再下方计划上班与下班时刻，间距 10。
 struct PanelProgress: View {
     let progress: WorkProgress
 
@@ -130,17 +132,24 @@ struct PanelProgress: View {
                 Text(progress.percent).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.money)
             }
             SegmentedProgressBar(segments: progress.segments)
+            HStack {
+                Text(progress.startText)
+                Spacer()
+                Text(progress.endText)
+            }
+            .font(AppFont.numSmall)
+            .foregroundStyle(Palette.muted)
         }
     }
 }
 
-/// 分段进度条 (高 8、圆角 3)：每段宽度按 `share` 分配，段与段之间是一小块 surface 色的午休。
+/// 分段进度条 (高 10、圆角 3)：每段宽度按 `share` 分配，段与段之间是一小块 surface 色的午休。
 private struct SegmentedProgressBar: View {
     let segments: [ProgressSegment]
 
     private static let gap: CGFloat = 3
     private static let lunchWidth: CGFloat = 16
-    private static let height: CGFloat = 8
+    private static let height: CGFloat = 10
     private static let radius: CGFloat = 3
 
     var body: some View {
@@ -166,29 +175,37 @@ private struct SegmentedProgressBar: View {
     }
 }
 
-/// 统计行 (高 68)：两项时中间一条竖线 (上班中、休息日)，三项时平分 (已下班、白干中)。
-/// 标题 11 muted，数值 JetBrains Mono 17/600；扣款 (以「−」开头的金额) 用 loss 色。
+/// 统计行 (设计稿 Stats)：上下各一条分隔线，内边距 16 / 20；各项平分宽度，项与项之间一条 1×34 的竖线，竖线后的项左边空 14。
+/// 标题 11 muted，数值 JetBrains Mono 17/600；三项时最后一项 (本月累计，位数最多) 用 15。扣款 (以「−」开头的金额) 用 loss 色。
 struct PanelStatsRow: View {
     let stats: [StatItem]
 
+    private static let dividerHeight: CGFloat = 34
+    private static let cellLeading: CGFloat = 14
+
     var body: some View {
-        HStack(spacing: stats.count == 2 ? 0 : Spacing.s8) {
-            ForEach(Array(stats.enumerated()), id: \.offset) { index, item in
-                if stats.count == 2 && index == 1 {
-                    Rectangle().fill(Palette.line).frame(width: 1, height: 34)
+        VStack(spacing: 0) {
+            PanelDivider()
+            HStack(spacing: 0) {
+                ForEach(Array(stats.enumerated()), id: \.offset) { index, item in
+                    if index > 0 {
+                        Rectangle().fill(Palette.line).frame(width: 1, height: Self.dividerHeight)
+                    }
+                    cell(item, valueSize: stats.count == 3 && index == 2 ? 15 : 17)
+                        .padding(.leading, index > 0 ? Self.cellLeading : 0)
                 }
-                cell(item).padding(.leading, stats.count == 2 && index == 1 ? Spacing.s16 : 0)
             }
+            .padding(.horizontal, Spacing.screen)
+            .padding(.vertical, Spacing.s16)
+            PanelDivider()
         }
-        .padding(.horizontal, Spacing.screen)
-        .frame(height: PanelMetrics.statsHeight)
     }
 
-    private func cell(_ item: StatItem) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+    private func cell(_ item: StatItem, valueSize: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s4) {
             Text(item.title).font(AppFont.small).foregroundStyle(Palette.muted)
             Text(item.value)
-                .font(AppFont.numStat)
+                .font(AppFont.num(valueSize, .semibold))
                 .foregroundStyle(item.value.hasPrefix("−") ? Palette.loss : Palette.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -196,4 +213,3 @@ struct PanelStatsRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
-

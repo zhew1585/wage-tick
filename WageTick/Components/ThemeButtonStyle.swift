@@ -9,18 +9,21 @@ import SwiftUI
 /// - 带图标：`Button { … } label: { Label("请假", systemImage: "umbrella") }.buttonStyle(.secondary)`
 /// - 图标单独上色：`Label { Text("今天扣钱了") } icon: { Image(systemName: "chart.line.downtrend.xyaxis").foregroundStyle(Palette.loss) }`
 /// - 占满宽度：`.buttonStyle(.primary(fullWidth: true))`
+/// - 加高 (760 设计稿面板、表单底部按钮 44，白干按钮 48)：`.buttonStyle(.secondary(fullWidth: true, height: 44))`
 /// - `role: .destructive` 的次要按钮文字用 `Palette.loss`。
 struct ThemeButtonStyle: ButtonStyle {
     enum Kind {
         case primary, secondary
     }
 
-    /// 按钮固定高度，排版需要给按钮留位置时用 (如面板情绪按钮行)。
+    /// 按钮默认高度，排版需要给按钮留位置时用。
     static let height: CGFloat = 37
     private static let disabledOpacity = 0.4
 
     let kind: Kind
     var fullWidth = false
+    /// 按钮最小高度，默认 `ThemeButtonStyle.height`。
+    var height: CGFloat = ThemeButtonStyle.height
 
     func makeBody(configuration: Configuration) -> some View {
         InteractiveButtonStyle { label, state in
@@ -37,7 +40,7 @@ struct ThemeButtonStyle: ButtonStyle {
             .foregroundStyle(foreground(role: role))
             .lineLimit(1)
             .padding(.horizontal, Spacing.s14)
-            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: ThemeButtonStyle.height)
+            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: height)
             .background(background(state), in: shape)
             .overlay {
                 // 次要按钮的悬停、按下：surface 底上再叠一层，底色加深。
@@ -66,8 +69,13 @@ extension ButtonStyle where Self == ThemeButtonStyle {
     static var primary: ThemeButtonStyle { ThemeButtonStyle(kind: .primary) }
     static var secondary: ThemeButtonStyle { ThemeButtonStyle(kind: .secondary) }
 
-    static func primary(fullWidth: Bool) -> ThemeButtonStyle { ThemeButtonStyle(kind: .primary, fullWidth: fullWidth) }
-    static func secondary(fullWidth: Bool) -> ThemeButtonStyle { ThemeButtonStyle(kind: .secondary, fullWidth: fullWidth) }
+    static func primary(fullWidth: Bool, height: CGFloat = ThemeButtonStyle.height) -> ThemeButtonStyle {
+        ThemeButtonStyle(kind: .primary, fullWidth: fullWidth, height: height)
+    }
+
+    static func secondary(fullWidth: Bool, height: CGFloat = ThemeButtonStyle.height) -> ThemeButtonStyle {
+        ThemeButtonStyle(kind: .secondary, fullWidth: fullWidth, height: height)
+    }
 }
 
 /// 按钮里的 `Label`：图标 14pt，与文字间隔 6。
