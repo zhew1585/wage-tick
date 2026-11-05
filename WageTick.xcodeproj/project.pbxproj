@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A10000000000000000000012 /* WageCore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000011 /* WageCore */; };
+		A10000000000000000040014 /* HolidaySource in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000040013 /* HolidaySource */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +25,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000012 /* WageCore in Frameworks */,
+				A10000000000000000040014 /* HolidaySource in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -67,6 +69,7 @@
 			name = WageTick;
 			packageProductDependencies = (
 				A10000000000000000000011 /* WageCore */,
+				A10000000000000000040013 /* HolidaySource */,
 			);
 			productName = WageTick;
 			productReference = A10000000000000000000004 /* WageTick.app */;
@@ -245,6 +248,10 @@
 		A10000000000000000000011 /* WageCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WageCore;
+		};
+		A10000000000000000040013 /* HolidaySource */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HolidaySource;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

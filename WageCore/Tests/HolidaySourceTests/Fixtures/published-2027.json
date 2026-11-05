@@ -1,0 +1,20 @@
+{
+    "$schema": "https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/schema.json",
+    "$id": "https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/2027.json",
+    "year": 2027,
+    "papers": [
+        "https://example.com/测试样例，不是真实放假安排"
+    ],
+    "days": [
+        {
+            "name": "元旦",
+            "date": "2027-01-01",
+            "isOffDay": true
+        },
+        {
+            "name": "元旦",
+            "date": "2027-01-09",
+            "isOffDay": false
+        }
+    ]
+}

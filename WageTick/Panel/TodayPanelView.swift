@@ -12,6 +12,7 @@ struct TodayPanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let panel = content.panel {
+                ForEach(panel.notices, id: \.self, content: noticeBanner)
                 header(panel)
                 switch panel.body {
                 case .attendance(let attendance):
@@ -26,6 +27,16 @@ struct TodayPanelView: View {
         }
         .padding(20)
         .frame(width: 340)
+    }
+
+    /// 面板顶部提示条，如节假日数据缺失 (AC-HOME-08)。文案原样取自快照。
+    private func noticeBanner(_ text: String) -> some View {
+        Label(text, systemImage: "exclamationmark.triangle.fill")
+            .font(.callout)
+            .foregroundStyle(.orange)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func header(_ panel: TodayPanel) -> some View {

@@ -34,15 +34,17 @@ public enum CowPose: Sendable, Equatable {
 }
 
 /// 核心入口二：推导 `state` 在 `now` 时刻的快照，纯函数，不改状态。
-public func snapshot(of state: AppState, at now: Moment) -> Snapshot {
+/// `holidays` 由节假日数据源适配器提供；不传时为空表，只按双休判定应出勤日。
+/// 换上新的节假日表重新取快照，当月日薪与结算随之重算 (PRD 4.3.5 #16)。
+public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable = .empty) -> Snapshot {
     guard let profile = state.profile else {
         return Snapshot(menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil)
     }
-    let today = Today(profile: profile, now: now)
+    let today = Today(profile: profile, now: now, holidays: holidays)
     return Snapshot(
         menuBar: MenuBarDisplay(today: today, settings: state.settings),
         today: today,
         settings: state.settings,
-        panel: TodayPanel(today: today, now: now)
+        panel: TodayPanel(today: today, now: now, holidays: holidays)
     )
 }

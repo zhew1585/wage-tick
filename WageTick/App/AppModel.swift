@@ -7,6 +7,8 @@ import WageCore
 final class AppModel {
     private let store: StateStore
     private var state: AppState
+    /// 节假日表，由 `HolidayUpdater` 从数据源适配器取来；未就绪时为空表，只按双休。
+    var holidays: HolidayTable = .empty
 
     init(store: StateStore) {
         self.store = store
@@ -22,9 +24,9 @@ final class AppModel {
         store.save(state)
     }
 
-    /// 按系统当前时间与时区取快照。
+    /// 按系统当前时间与时区、当前节假日表取快照。
     func currentSnapshot() -> Snapshot {
-        snapshot(of: state, at: Self.now())
+        snapshot(of: state, at: Self.now(), holidays: holidays)
     }
 
     /// 时钟：系统当前时间与当前时区 (PRD 4.3.5 #11)。

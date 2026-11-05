@@ -9,6 +9,8 @@ public struct TodayPanel: Sendable, Equatable {
     /// 顶部状态标签，如「上班中」。
     public let statusLabel: String
     public let body: Body
+    /// 面板顶部的提示条，按顺序展示，没有时为空，如节假日数据缺失 (AC-HOME-08)。
+    public let notices: [String]
 
     public enum Body: Sendable, Equatable {
         /// 应出勤日：未上班、上班中、午休中、已下班。
@@ -76,10 +78,11 @@ public struct ProgressSegment: Sendable, Equatable {
 }
 
 extension TodayPanel {
-    init(today: Today, now: Moment) {
+    init(today: Today, now: Moment, holidays: HolidayTable) {
         dateText = Format.date(today.date, relativeTo: today.date)
         timeText = Format.time(now)
         statusLabel = today.status.label
+        notices = [holidays.missingNotice(on: today.date)].compactMap { $0 }
         guard let earnings = today.earnings, let plan = today.plan else {
             body = .rest(RestPanel(today: today))
             return
