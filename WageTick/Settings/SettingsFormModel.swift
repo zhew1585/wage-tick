@@ -12,7 +12,7 @@ enum FormMessage: Equatable {
 
 /// 设置页的表单状态与动作 (PRD F12)。
 /// 每一项都发命令给核心，校验与提示文案来自核心的 `CommandError`，与引导一致 (PRD 4.3.5 #1 至 #3)。
-/// 月薪、作息点「保存」才生效；显示模式、快捷键、开机自启、下班通知改了立即生效。
+/// 月薪、作息点「保存」才生效；显示模式、快捷键、开机自启、两类通知开关改了立即生效。
 @MainActor
 @Observable
 final class SettingsFormModel {
@@ -23,6 +23,7 @@ final class SettingsFormModel {
     private(set) var launchAtLogin = true
     private(set) var isRecordingHotkey = false
     private(set) var offWorkNotification = true
+    private(set) var goalReachedNotification = true
     /// 系统拒绝了通知权限：通知区显示提示 (AC-SET-05)。
     private(set) var notificationDenied = false
 
@@ -55,6 +56,7 @@ final class SettingsFormModel {
         menuBarMode = snap.settings.menuBarMode
         hotkeyText = snap.settings.bossModeHotkey.displayText
         offWorkNotification = snap.settings.offWorkNotification
+        goalReachedNotification = snap.settings.goalReachedNotification
         refreshNotificationPermission()
         salaryMessage = nil
         scheduleMessage = nil
@@ -93,6 +95,11 @@ final class SettingsFormModel {
     func setOffWorkNotification(_ enabled: Bool) {
         guard send(.setOffWorkNotification(enabled)) == .saved else { return }
         offWorkNotification = enabled
+    }
+
+    func setGoalReachedNotification(_ enabled: Bool) {
+        guard send(.setGoalReachedNotification(enabled)) == .saved else { return }
+        goalReachedNotification = enabled
     }
 
     func openNotificationSettings() {

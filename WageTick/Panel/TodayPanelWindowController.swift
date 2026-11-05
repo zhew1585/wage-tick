@@ -1,15 +1,18 @@
 import AppKit
 import Observation
+import OSLog
 import SwiftUI
 import WageCore
 
-/// 面板当前要展示的内容，由窗口控制器按快照刷新，视图只读。
+/// 面板当前要展示的内容，由窗口控制器按快照刷新；视图只在庆祝动画结束时清空 `celebration`，其余只读。
 @MainActor
 @Observable
 final class TodayPanelContent {
     var panel: TodayPanel?
     /// 请假入口 (F6)；nil 时今天不能请假。
     var leaveForm: LeaveForm?
+    /// 正在播放的目标达成庆祝动画 (F9)；播放结束、点掉或关掉面板时清空。
+    var celebration: GoalCelebration?
 }
 
 /// 今日概览面板窗口 (PRD F4，页面 P2)，从左键菜单「今日概览 ⌘1」打开。
@@ -29,6 +32,7 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     private let content = TodayPanelContent()
     private lazy var window: NSWindow = makeWindow()
     private var timer: Timer?
+    private let logger = Logger(subsystem: AppIdentity.bundleID, category: "TodayPanel")
 
     init(model: AppModel, openGoals: @escaping () -> Void, onStateChange: @escaping () -> Void) {
         self.model = model
@@ -46,13 +50,31 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         timer?.invalidate()
         timer = nil
+        content.celebration = nil
     }
 
     private func refresh() {
         let snap = model.currentSnapshot()
         content.panel = snap.panel
         content.leaveForm = snap.leaveForm
+        // 面板被挡住或最小化时先不播，免得牛马没看到就被确认掉；露出来后下一次刷新再播。
+        if let celebration = snap.celebration, window.occlusionState.contains(.visible) {
+            play(celebration)
+        }
         scheduleNextRefresh(rolling: snap.today?.isRolling == true)
+    }
+
+    /// 庆祝动画只播放一次 (AC-GPRG-04)：开始播放就向核心确认，之后的快照里不再有它。
+    /// 正在播放上一个时先不接新的；新的没确认，播完后下一次刷新再播。刚打开面板的那次刷新窗口还没露出来，下一次刷新 (至多 1 秒) 开始播。
+    private func play(_ celebration: GoalCelebration) {
+        guard content.celebration == nil else { return }
+        content.celebration = celebration
+        do {
+            try model.send(.acknowledgeCelebration(goalID: celebration.goalID))
+        } catch {
+            // 确认命令没有校验，正常不会被拒绝；万一被拒，下次打开面板会再播一次。
+            logger.error("确认庆祝动画失败：\(error.message, privacy: .public)")
+        }
     }
 
     private func scheduleNextRefresh(rolling: Bool) {

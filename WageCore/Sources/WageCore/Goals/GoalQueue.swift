@@ -58,8 +58,9 @@ func reorderGoals(ids: [Int], state: AppState) throws(CommandError) -> AppState 
 /// 累计中目标达标即完成 (PRD 4.5.2)，完成时间取 `now`；下一个排队目标成为累计中，
 /// 起算基准 = 上一个的起算基准 + 上一个的金额 (超出零头自动结转)。结转后仍达标的继续完成，直到不达标或队列为空；
 /// 队列为空时零头不保留。
-/// 目标完成的唯一入口：推进到此刻、编辑 (改小金额)、删除 (继承后已达标) 都经过这里；
-/// 目标达成事件 (#13) 也在这里产生，本期为空。
+/// 目标完成的唯一入口：推进到此刻、编辑 (改小金额)、删除 (继承后已达标) 都经过这里。
+/// 每完成一个目标 (#13)：排进待播放的庆祝动画 (见 `GoalCelebration`)；目标达成通知开着时产生一条达成事件，
+/// 文案不含金额，老板路过模式下不变 (PRD 4.6.3)。结转后连续完成多个时按完成先后各一条。
 func completingReachedGoals(
     _ state: AppState,
     now: Moment,
@@ -68,11 +69,16 @@ func completingReachedGoals(
     guard let profile = state.profile, state.accumulatingGoal != nil else { return (state, []) }
     let income = Ledger.cumulativeIncome(state: state, profile: profile, now: now, holidays: holidays)
     var next = state
+    var events: [DomainEvent] = []
     while let current = next.accumulatingGoal, income - current.baseline >= current.goal.amount {
         next.goals[current.index].status = .completed(at: now.date)
+        next.pendingCelebrations = next.pendingCelebrations.filter { $0 != current.goal.id } + [current.goal.id]
+        if next.settings.goalReachedNotification {
+            events.append(.goalReached(message: NotificationCopy.goalReached(name: current.goal.name)))
+        }
         next = next.activatingNextGoal(baseline: current.baseline + current.goal.amount)
     }
-    return (next, [])
+    return (next, events)
 }
 
 extension AppState {
