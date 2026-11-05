@@ -47,6 +47,12 @@ enum Format {
         return String(format: "%02d:%02d", parts.hour!, parts.minute!)
     }
 
+    /// 此刻在所在时区的时分秒，如「15:07:30」(面板顶部时钟)。
+    static func clock(_ now: Moment) -> String {
+        let parts = now.calendar.dateComponents([.hour, .minute, .second], from: now.date)
+        return String(format: "%02d:%02d:%02d", parts.hour!, parts.minute!, parts.second!)
+    }
+
     private static let weekdayNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
 
     /// 下班倒计时 h:mm:ss，如 `3:00:00`。不足一秒的部分向上取整，到点前不会提前显示 `0:00:00`。

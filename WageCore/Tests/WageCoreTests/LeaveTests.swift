@@ -30,7 +30,7 @@ struct HalfDayLeaveTests {
         #expect(body.progress?.label == "已工作 1 / 2 小时")
         #expect(body.progress?.percent == "50%")
         #expect(body.stats.first == StatItem(title: "距离下班", value: "1:00:00"))
-        #expect(body.caption.hasPrefix("今日上限 ¥500 · "))
+        #expect(snap.panel?.deductionEntry?.capText == "¥500")
     }
 
     @Test("AC-LEAVE-02 下午假 12:00 之后：状态【已下班】，结算 500", arguments: [(12, 0), (12, 30), (18, 30)])
@@ -44,7 +44,7 @@ struct HalfDayLeaveTests {
         // 2 月 11 日前 7 个应出勤日满勤 7000，加今日结算 500；请假扣薪计入当日扣款。
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥500"),
-            StatItem(title: "扣款", value: "−¥500"),
+            StatItem(title: "今日扣款", value: "−¥500"),
             StatItem(title: "本月累计", value: "¥7500"),
         ])
     }
@@ -118,11 +118,12 @@ struct FullDayLeaveTests {
         #expect(panel.statusLabel == "休息日")
         #expect(panel.body == .rest(RestPanel(
             headline: "今天请假",
+            tagline: nil,
+            nextAttendanceText: "下一个上班日 2月12日 周四",
             stats: [
-                StatItem(title: "本月已上班", value: "7 天"),
+                StatItem(title: "本月已上班", value: "7/20 天"),
                 // 默认扣 100%，今日结算 0。
                 StatItem(title: "本月累计", value: "¥7000"),
-                StatItem(title: "下一个应出勤日", value: "2月12日 周四"),
             ]
         )))
     }
@@ -199,7 +200,7 @@ struct LeaveWithDeductionTests {
         #expect(snapshot(of: state, at: standardDay(11, 0)).today?.earnings?.deductionTotal == 550)
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥450"),
-            StatItem(title: "扣款", value: "−¥550"),
+            StatItem(title: "今日扣款", value: "−¥550"),
             StatItem(title: "本月累计", value: "¥7450"),
         ])
         // 次日本月累计里，这一天按结算 450 计入。
@@ -341,7 +342,7 @@ struct LeaveFormTests {
         #expect(form.currentText == nil)
         #expect(form.canRequest)
         #expect(form.summary == [
-            StatItem(title: "当日计划", value: "10:00 至 18:00"),
+            StatItem(title: "今天改为", value: "10:00–18:00 上班"),
             StatItem(title: "请假扣薪", value: "¥0"),
             StatItem(title: "今日上限", value: "¥1000"),
         ])
@@ -356,8 +357,8 @@ struct LeaveFormTests {
         // 已请半天假时还能再请另一半 (AC-LEAVE-05)。
         #expect(form.canRequest)
         #expect(form.summary == [
-            StatItem(title: "当日计划", value: "10:00 至 12:00"),
-            StatItem(title: "请假扣薪", value: "¥500"),
+            StatItem(title: "今天改为", value: "10:00–12:00 上班"),
+            StatItem(title: "请假扣薪", value: "−¥500"),
             StatItem(title: "今日上限", value: "¥500"),
         ])
     }
@@ -370,8 +371,8 @@ struct LeaveFormTests {
         // 已请全天假时只能修改或撤销。
         #expect(!form.canRequest)
         #expect(form.summary == [
-            StatItem(title: "当日计划", value: "全天请假"),
-            StatItem(title: "请假扣薪", value: "¥125"),
+            StatItem(title: "今天改为", value: "全天请假"),
+            StatItem(title: "请假扣薪", value: "−¥125"),
             StatItem(title: "今日上限", value: "¥875"),
         ])
     }

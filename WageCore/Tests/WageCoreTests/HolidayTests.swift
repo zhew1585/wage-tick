@@ -36,7 +36,7 @@ struct HolidayDailyWageTests {
     func springFestival() throws {
         let body = try attendancePanel(try onboarded(), at: moment(2026, 2, 24, 15, 0), holidays: holidays2026)
 
-        #expect(body.caption.hasPrefix("今日上限 ¥1250 ·"))
+        #expect(body.caption.hasPrefix("满勤日薪 ¥1250 ·"))
     }
 
     @Test("中秋：2026 年 9 月放假的 9 月 25 日周五与调休的 9 月 20 日周日相抵，仍是 22 天")
@@ -74,10 +74,11 @@ struct HolidayDayStatusTests {
         #expect(snap.menuBar == MenuBarDisplay(pose: .sunbathing, text: nil))
         #expect(snap.panel?.body == .rest(RestPanel(
             headline: "今天休息",
+            tagline: "不搬砖，不计钱。",
+            nextAttendanceText: "下一个上班日 10月8日 周四",
             stats: [
-                StatItem(title: "本月已上班", value: "0 天"),
+                StatItem(title: "本月已上班", value: "0/18 天"),
                 StatItem(title: "本月累计", value: "¥0"),
-                StatItem(title: "下一个应出勤日", value: "10月8日 周四"),
             ]
         )))
     }
@@ -102,7 +103,7 @@ struct HolidayDataTests {
         let before = try attendancePanel(state, at: at)
         #expect(before.stats == [
             StatItem(title: "今日结算", value: "¥818.1818"),
-            StatItem(title: "扣款", value: "¥0"),
+            StatItem(title: "今日扣款", value: "¥0"),
             StatItem(title: "本月累计", value: "¥5727.2727"),
         ])
 
@@ -111,7 +112,7 @@ struct HolidayDataTests {
         #expect(after.headline == "¥1000.0000")
         #expect(after.stats == [
             StatItem(title: "今日结算", value: "¥1000"),
-            StatItem(title: "扣款", value: "¥0"),
+            StatItem(title: "今日扣款", value: "¥0"),
             StatItem(title: "本月累计", value: "¥2000"),
         ])
     }

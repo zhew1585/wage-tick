@@ -9,6 +9,13 @@ public struct DeductionEntry: Sendable, Equatable {
     public let warning: String?
     /// 预览里收入项的标题：今天为「今日上限」，历史补记过去的日子为「结算」(#15)。
     public let capTitle: String
+    /// 当月日薪，按日薪百分比折算扣款用。
+    let dailyWage: Decimal
+
+    /// 一笔扣款按当月日薪折算后的金额，如按日薪 10% 时「扣 ¥100」(设计稿 F5 按日薪百分比的预览)。
+    public func chargeText(_ amount: DeductionAmount) -> String {
+        "扣 \(Format.money(amount.money(dailyWage: dailyWage)))"
+    }
 
     /// 预览文案「今日上限 ¥x → ¥y」；草稿试算失败 (如金额还没填) 时只显示起点「今日上限 ¥x」。
     public func previewLine(to draft: DeductionEntry?) -> String {
@@ -39,6 +46,7 @@ extension DeductionEntry {
         capText = Format.money(settlement.cap)
         warning = AttendancePanel.notice(settlement)
         self.capTitle = capTitle
+        dailyWage = settlement.dailyWage
     }
 }
 
@@ -60,10 +68,10 @@ extension DeductionItem {
 }
 
 extension AttendancePanel {
-    /// 统计行里的扣款：有扣款时「−¥50」，没有时「¥0」。面板上只看合计，明细在历史的单日详情里。
+    /// 统计行里的今日扣款：有扣款时「−¥50」，没有时「¥0」。面板上只看合计，明细在历史的单日详情里。
     static func deductionStat(_ settlement: DaySettlement) -> StatItem {
         let total = settlement.deductionTotal
-        return StatItem(title: "扣款", value: total > 0 ? Format.deduction(total) : Format.money(0))
+        return StatItem(title: "今日扣款", value: Format.deductionOrZero(total))
     }
 
     /// 当日扣款超过日薪时面板上的提示。

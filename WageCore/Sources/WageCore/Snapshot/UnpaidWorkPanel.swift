@@ -4,9 +4,9 @@ import Foundation
 public struct UnpaidWorkPanel: Sendable, Equatable {
     /// 主数字，带 ¥，4 位小数：今日已倒贴，持续滚动。
     public let headline: String
-    /// 如「18:00 起 · 已白干 1:05:12 · 每秒 +0.0397」。
+    /// 如「18:00 起 · 已白干 1:05:12」。
     public let caption: String
-    /// 统计行：今日结算、本月累计，与已下班相同。
+    /// 统计行：今日结算、今日扣款、本月累计，与已下班相同；休息日被迫营业没有今日扣款。
     public let stats: [StatItem]
     /// 是否休息日的被迫营业：外壳据此决定情绪按钮行 (应出勤日仍有扣钱、请假)。
     public let isRestDay: Bool
@@ -35,7 +35,7 @@ extension UnpaidWorkPanel {
         let unpaidWork = today.unpaidWork
         let start = Format.time(Moment(date: unpaidWork.runningSince ?? now.date, timeZone: now.timeZone))
         headline = Format.rollingMoney(unpaidWork.owed)
-        caption = "\(start) 起 · 已白干 \(Format.elapsed(milliseconds: unpaidWork.milliseconds)) · 每秒 +\(Format.trimmed(unpaidWork.perSecond))"
+        caption = "\(start) 起 · 已白干 \(Format.elapsed(milliseconds: unpaidWork.milliseconds))"
         isRestDay = today.status == .restDay
         if let earnings = today.earnings, let settlement = today.settlement {
             // 应出勤日，含按休息日呈现的全天请假日：统计行与已下班相同，带今日结算与扣款。

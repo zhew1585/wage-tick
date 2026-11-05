@@ -35,7 +35,7 @@ struct HistoryEditEntryTests {
         #expect(form.current == nil)
         #expect(form.canRequest)
         #expect(form.summary == [
-            StatItem(title: "当日计划", value: "10:00 至 18:00"),
+            StatItem(title: "当日计划", value: "10:00–18:00 上班"),
             StatItem(title: "请假扣薪", value: "¥0"),
             StatItem(title: "结算", value: "¥1000"),
         ])
@@ -100,7 +100,7 @@ struct HistoryEditEntryTests {
         #expect(!form.canRequest)
         #expect(form.summary == [
             StatItem(title: "当日计划", value: "全天请假"),
-            StatItem(title: "请假扣薪", value: "¥300"),
+            StatItem(title: "请假扣薪", value: "−¥300"),
             StatItem(title: "结算", value: "¥700"),
         ])
     }
