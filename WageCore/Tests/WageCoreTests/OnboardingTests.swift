@@ -108,6 +108,15 @@ struct OnboardingValidationTests {
         }
     }
 
+    @Test("PRD 4.7.2 开机自启默认开：引导不再询问，不传时按默认值保存")
+    func launchAtLoginDefaultsOn() throws {
+        let input = OnboardingInput(monthlySalary: 20000, schedule: .default)
+        let state = try apply(.completeOnboarding(input), to: AppState(), at: standardDay(9, 0)).state
+
+        #expect(input.launchAtLogin == true)
+        #expect(state.profile?.launchAtLogin == true)
+    }
+
     @Test("AC-ONB-05 开机自启：引导里的选择保存在状态里")
     func launchAtLoginIsStored() throws {
         let input = OnboardingInput(monthlySalary: 20000, schedule: .default, launchAtLogin: false)

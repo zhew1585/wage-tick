@@ -38,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] in
             self?.statusItem.refresh()
         }
-        // 引导第 3 步完成后在引导窗口原位打开今日概览，不让界面凭空消失，也不跳位置。
+        // 引导最后一步 (作息) 完成后在引导窗口原位打开今日概览，不让界面凭空消失，也不跳位置。
         onboarding = OnboardingWindowController(model: model) { [weak self] frame in
             self?.statusItem.refresh()
             self?.todayPanel.show(replacing: frame)

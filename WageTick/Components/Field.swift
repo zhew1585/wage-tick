@@ -1,8 +1,11 @@
 import SwiftUI
 
 /// 设计稿 Field：上方标签 (12/500，muted)，下方白底输入框 (高 38、圆角 8、line 描边、左右内边距 12)，右侧可带单位 (13，muted)。
-/// 大号 (`.large`，引导页月薪)：高 46、ink 1.5 描边、数字 18/600。输入框获得焦点时描边换成 accent，
-/// 悬停 (未聚焦) 时常规框描边换成 `strokeHover`；文本框的 I 型光标由系统给，`TimeInput` 自己挂手型。
+/// 引导 760 版的两种加大尺寸，标签都是 13/500、圆角 10：
+/// - `.large` (月薪)：高 58、左右内边距 16、ink 1.5 描边、数字 24/600、单位 14。
+/// - `.tall` (时间)：高 46、左右内边距 14、常规描边；里面的 `TimeInput` 自己传大一号的字体与箭头。
+/// 输入框获得焦点时描边换成 accent，悬停 (未聚焦) 时非 `.large` 框描边换成 `strokeHover`；
+/// 文本框的 I 型光标由系统给，`TimeInput` 自己挂手型。
 ///
 /// 用法：
 /// - 数字：`Field("月薪", text: $salaryText, suffix: "元")`，回车提交在外面挂 `.onSubmit(save)`
@@ -10,10 +13,30 @@ import SwiftUI
 /// - 其他输入控件：`Field("上班") { TimeInput(selection: $start) }`
 struct Field<Content: View>: View {
     enum Size {
-        case regular, large
+        case regular, large, tall
 
-        fileprivate var height: CGFloat { self == .large ? 46 : 38 }
+        fileprivate var height: CGFloat {
+            switch self {
+            case .regular: 38
+            case .large: 58
+            case .tall: 46
+            }
+        }
+
         fileprivate var strokeWidth: CGFloat { self == .large ? 1.5 : 1 }
+
+        fileprivate var radius: CGFloat { self == .regular ? Radius.control : Radius.r10 }
+
+        fileprivate var padding: CGFloat {
+            switch self {
+            case .regular: Spacing.s12
+            case .large: Spacing.s16
+            case .tall: Spacing.s14
+            }
+        }
+
+        fileprivate var labelFont: Font { self == .regular ? AppFont.label : AppFont.bodyMedium }
+        fileprivate var suffixFont: Font { self == .large ? AppFont.lead : AppFont.body }
     }
 
     let label: String?
@@ -34,24 +57,24 @@ struct Field<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s6) {
             if let label {
-                Text(label).font(AppFont.label).foregroundStyle(Palette.muted)
+                Text(label).font(size.labelFont).foregroundStyle(Palette.muted)
             }
             box
         }
     }
 
     private var box: some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.control)
+        let shape = RoundedRectangle(cornerRadius: size.radius)
         return HStack(spacing: Spacing.s8) {
             content()
                 .focused($focused)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if let suffix {
-                Text(suffix).font(AppFont.body).foregroundStyle(Palette.muted)
+                Text(suffix).font(size.suffixFont).foregroundStyle(Palette.muted)
             }
         }
         .foregroundStyle(Palette.ink)
-        .padding(.horizontal, Spacing.s12)
+        .padding(.horizontal, size.padding)
         .frame(height: size.height)
         .background(Palette.card, in: shape)
         .overlay(shape.strokeBorder(stroke, lineWidth: size.strokeWidth))
@@ -84,6 +107,7 @@ extension Field where Content == FieldTextInput {
         switch (value, size) {
         case (.number, .regular): AppFont.numField
         case (.number, .large): AppFont.numFieldLarge
+        case (.number, .tall): AppFont.numFieldTall
         case (.text, _): AppFont.fieldText
         }
     }

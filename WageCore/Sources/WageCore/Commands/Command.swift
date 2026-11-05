@@ -2,7 +2,7 @@ import Foundation
 
 /// 改变状态的动作。所有状态变化都经 `apply` 执行一条命令完成。
 public enum Command: Sendable, Equatable {
-    /// 完成 3 步引导 (PRD 4.1.1)。
+    /// 完成引导 (PRD 4.1.1)：设计稿 760 版只有月薪、作息两步，开机自启不再询问。
     case completeOnboarding(OnboardingInput)
     /// 开启或关闭老板路过模式 (PRD 4.7.1 第 3 条)，由全局快捷键或左键菜单发出。
     case toggleBossMode
@@ -64,9 +64,10 @@ public enum Command: Sendable, Equatable {
 public struct OnboardingInput: Sendable, Equatable {
     public let monthlySalary: Decimal
     public let schedule: WorkSchedule
+    /// 引导不再询问开机自启 (设计稿 760 版)，外壳不传，按 PRD 4.7.2 的默认值开；之后可在设置里改。
     public let launchAtLogin: Bool
 
-    public init(monthlySalary: Decimal, schedule: WorkSchedule, launchAtLogin: Bool) {
+    public init(monthlySalary: Decimal, schedule: WorkSchedule, launchAtLogin: Bool = true) {
         self.monthlySalary = monthlySalary
         self.schedule = schedule
         self.launchAtLogin = launchAtLogin
