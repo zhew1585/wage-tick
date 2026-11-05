@@ -6,14 +6,15 @@ import WageCore
 /// 用 Carbon 的 `RegisterEventHotKey`，不需要辅助功能权限。
 /// 首次注册失败时 `init` 返回 nil，牛马仍可从左键菜单切换 (PRD 6.4)。
 /// 实例需在 App 整个生命周期内持有：回调通过裸指针找回它，释放后不再注销。
+/// 改快捷键时用 `rebind(to:)` 换组合，处理器不变。
 @MainActor
 final class GlobalHotkey {
     private static let logger = Logger(subsystem: AppIdentity.bundleID, category: "GlobalHotkey")
     /// 本 App 快捷键的签名 ("WGTK")，Carbon 用它区分不同 App 注册的快捷键。
     private static let signature: OSType = 0x5747_544B
 
-    private let keyCode: UInt32
-    private let modifiers: UInt32
+    private var keyCode: UInt32
+    private var modifiers: UInt32
     private let action: @MainActor () -> Void
     private var hotKeyRef: EventHotKeyRef?
     private var handlerRef: EventHandlerRef?
@@ -52,6 +53,21 @@ final class GlobalHotkey {
         }
     }
 
+    /// 换成新组合 (设置页改快捷键)：先注销旧的，再注册新的。
+    /// 新组合注册失败 (如被别的软件占用) 时换回旧组合并返回 false。暂停中调用也会立即注册。
+    func rebind(to hotkey: Hotkey) -> Bool {
+        guard let newKeyCode = Self.keyCodes[hotkey.key] else { return false }
+        let old = (keyCode: keyCode, modifiers: modifiers)
+        suspend()
+        keyCode = UInt32(newKeyCode)
+        modifiers = Self.carbonModifiers(hotkey.modifiers)
+        resume()
+        guard hotKeyRef == nil else { return true }
+        (keyCode, modifiers) = old
+        resume()
+        return false
+    }
+
     /// 安装一次即可：只有本 App 注册的快捷键才会把事件发到这里，注销期间不会触发。
     private func installHandler() -> Bool {
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
@@ -88,8 +104,8 @@ final class GlobalHotkey {
         }
     }
 
-    /// 主键到 ANSI 键位虚拟键码，只支持字母和数字。
-    private static let keyCodes: [String: Int] = [
+    /// 主键到 ANSI 键位虚拟键码，只支持字母和数字。设置页录制快捷键时也用它反查主键。
+    nonisolated static let keyCodes: [String: Int] = [
         "A": kVK_ANSI_A, "B": kVK_ANSI_B, "C": kVK_ANSI_C, "D": kVK_ANSI_D, "E": kVK_ANSI_E,
         "F": kVK_ANSI_F, "G": kVK_ANSI_G, "H": kVK_ANSI_H, "I": kVK_ANSI_I, "J": kVK_ANSI_J,
         "K": kVK_ANSI_K, "L": kVK_ANSI_L, "M": kVK_ANSI_M, "N": kVK_ANSI_N, "O": kVK_ANSI_O,

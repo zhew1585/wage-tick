@@ -62,7 +62,7 @@ extension Today {
             monthToDate = wage * Decimal(attended)
             return
         }
-        let todayPlan = DayPlan(schedule: profile.schedule, on: day, now: now)
+        let todayPlan = DayPlan(schedule: profile.schedule(on: day), on: day, now: now)
         let todayEarnings = Earnings(cap: wage, plan: todayPlan, now: now.date)
         status = todayPlan.status(at: now.date)
         earnings = todayEarnings
@@ -85,7 +85,8 @@ extension Earnings {
 }
 
 extension MenuBarDisplay {
-    /// 金额模式 (PRD 4.7.1 第 2 条)：休息日只显示小牛，其余显示 4 位小数的今日已赚。
+    /// 按显示模式 (PRD 4.7.1 第 2 条) 决定数字：金额模式为 4 位小数的今日已赚，进度模式为 2 位小数的工作进度，
+    /// 仅图标模式不显示数字；休息日一律只显示小牛。
     /// 老板路过模式下 (第 3 条) 只隐藏数字，小牛姿势照常随日状态变化。
     init(today: Today, settings: InterfaceSettings) {
         let pose: CowPose = switch today.status {
@@ -95,7 +96,15 @@ extension MenuBarDisplay {
         case .lunchBreak: .sleeping
         case .offWork: .lyingFlat
         }
-        let text = settings.bossMode ? nil : today.earnings.map { Format.rolling($0.earned) }
+        let text: String? = if settings.bossMode {
+            nil
+        } else {
+            switch settings.menuBarMode {
+            case .amount: today.earnings.map { Format.rolling($0.earned) }
+            case .progress: today.earnings.map { Format.rollingPercent($0.progress) }
+            case .iconOnly: nil
+            }
+        }
         self.init(pose: pose, text: text)
     }
 }

@@ -14,6 +14,7 @@ final class StatusItemController: NSObject {
     private let model: AppModel
     private let openOnboarding: () -> Void
     private let openTodayPanel: () -> Void
+    private let openSettings: () -> Void
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
     private let bossModeItem = NSMenuItem(title: "老板路过", action: #selector(bossModeClicked), keyEquivalent: "")
@@ -23,16 +24,23 @@ final class StatusItemController: NSObject {
     /// 注册失败时为 nil，只能从左键菜单切换 (PRD 6.4)。
     private var bossModeHotkey: GlobalHotkey?
 
-    init(model: AppModel, openOnboarding: @escaping () -> Void, openTodayPanel: @escaping () -> Void) {
+    init(
+        model: AppModel,
+        openOnboarding: @escaping () -> Void,
+        openTodayPanel: @escaping () -> Void,
+        openSettings: @escaping () -> Void
+    ) {
         self.model = model
         self.openOnboarding = openOnboarding
         self.openTodayPanel = openTodayPanel
+        self.openSettings = openSettings
         super.init()
         configureButton()
         bossModeItem.target = self
         menu.delegate = self
         menu.addItem(withTitle: "今日概览", action: #selector(todayPanelClicked), keyEquivalent: "1").target = self
         menu.addItem(bossModeItem)
+        menu.addItem(withTitle: "设置…", action: #selector(settingsClicked), keyEquivalent: ",").target = self
         menu.addItem(withTitle: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         registerBossModeHotkey()
         observeClockChanges()
@@ -86,8 +94,11 @@ final class StatusItemController: NSObject {
     }
 
     private func registerBossModeHotkey() {
-        let hotkey = model.currentSnapshot().settings.bossModeHotkey
-        bossModeHotkey = GlobalHotkey(hotkey) { [weak self] in
+        bossModeHotkey = makeBossModeHotkey(model.currentSnapshot().settings.bossModeHotkey)
+    }
+
+    private func makeBossModeHotkey(_ hotkey: Hotkey) -> GlobalHotkey? {
+        GlobalHotkey(hotkey) { [weak self] in
             // 引导前菜单栏本就只有小牛，切换了也看不到，忽略，免得引导完数字莫名被藏。
             guard let self, self.model.isOnboarded else { return }
             self.toggleBossMode()
@@ -128,6 +139,32 @@ final class StatusItemController: NSObject {
 
     @objc private func todayPanelClicked() {
         openTodayPanel()
+    }
+
+    @objc private func settingsClicked() {
+        openSettings()
+    }
+}
+
+/// 设置页改老板路过快捷键 (#5 遗留)：录制期间暂停全局快捷键，免得按下当前组合直接切换了老板路过；
+/// 新组合在系统注册成功后才保存，旧的同时失效。
+extension StatusItemController {
+    func suspendBossModeHotkey() {
+        bossModeHotkey?.suspend()
+    }
+
+    func resumeBossModeHotkey() {
+        bossModeHotkey?.resume()
+    }
+
+    /// 换成新组合，返回是否注册成功；失败时旧组合保持有效。
+    /// 启动时注册失败过 (没有实例) 的，用新组合重新建一个。
+    func rebindBossModeHotkey(_ hotkey: Hotkey) -> Bool {
+        if let bossModeHotkey {
+            return bossModeHotkey.rebind(to: hotkey)
+        }
+        bossModeHotkey = makeBossModeHotkey(hotkey)
+        return bossModeHotkey != nil
     }
 }
 

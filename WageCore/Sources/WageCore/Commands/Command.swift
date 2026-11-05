@@ -6,6 +6,16 @@ public enum Command: Sendable, Equatable {
     case completeOnboarding(OnboardingInput)
     /// 开启或关闭老板路过模式 (PRD 4.7.1 第 3 条)，由全局快捷键或左键菜单发出。
     case toggleBossMode
+    /// 修改当月月薪，对当月整月生效 (PRD 4.2.1 #1)。
+    case changeMonthlySalary(Decimal)
+    /// 修改作息，从今天起生效 (PRD 4.2.3 #2)。
+    case changeSchedule(WorkSchedule)
+    /// 切换菜单栏显示模式 (PRD 4.7.1 第 2 条)。
+    case setMenuBarMode(MenuBarMode)
+    /// 修改老板路过快捷键 (PRD 4.7.2)。
+    case setBossModeHotkey(Hotkey)
+    /// 开关开机自动启动 (PRD 4.7.2)。
+    case setLaunchAtLogin(Bool)
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -31,6 +41,9 @@ public enum CommandError: Error, Sendable, Equatable {
     case endNotAfterStart
     case lunchOutsideWorkHours
     case alreadyOnboarded
+    case notOnboarded
+    case hotkeyKeyInvalid
+    case hotkeyModifiersInvalid
 
     public var message: String {
         switch self {
@@ -38,6 +51,9 @@ public enum CommandError: Error, Sendable, Equatable {
         case .endNotAfterStart: "下班时间要晚于上班时间"
         case .lunchOutsideWorkHours: "午休要在上下班时间之内"
         case .alreadyOnboarded: "已经完成过引导了"
+        case .notOnboarded: "还没完成引导"
+        case .hotkeyKeyInvalid: "主键只能是字母或数字"
+        case .hotkeyModifiersInvalid: "快捷键要按住两个以上修饰键，且包含 ⌃ 或 ⌘"
         }
     }
 }
@@ -56,6 +72,8 @@ public func apply(
         var next = state
         next.settings.bossMode.toggle()
         return (next, [])
+    case .changeMonthlySalary, .changeSchedule, .setMenuBarMode, .setBossModeHotkey, .setLaunchAtLogin:
+        return (try applySettings(command, to: state, at: now), [])
     }
 }
 

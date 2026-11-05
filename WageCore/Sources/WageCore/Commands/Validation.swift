@@ -22,6 +22,18 @@ public enum Validation {
         return nil
     }
 
+    /// 老板路过快捷键 (#5 遗留)：主键是单个大写字母或数字，外壳才能映射成按键码；
+    /// 修饰键至少两个且含 ⌃ 或 ⌘。macOS 15 起系统不允许只用 ⌥ 或 ⌥⇧ 注册全局快捷键，
+    /// 单个修饰键又会在所有 App 里抢走 ⌘C、⌃A 这类常用键，一并拦下。
+    public static func hotkey(_ hotkey: Hotkey) -> CommandError? {
+        guard hotkey.key.wholeMatch(of: /[A-Z0-9]/) != nil else { return .hotkeyKeyInvalid }
+        let modifiers = hotkey.modifiers
+        guard modifiers.count >= 2, !modifiers.isDisjoint(with: [.control, .command]) else {
+            return .hotkeyModifiersInvalid
+        }
+        return nil
+    }
+
     private static func hasAtMostTwoDecimals(_ amount: Decimal) -> Bool {
         var input = amount
         var rounded = Decimal()
