@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// 设置窗口 (PRD F12，页面 P6)，从左键菜单「设置… ⌘,」打开。每次打开都按最新状态填好表单。外观见 `PageWindow`。
+/// 设置窗口 (PRD F12，页面 P6)，从左键菜单或主菜单「设置… ⌘,」打开。每次打开都按最新状态填好表单。外观见 `PageWindow`。
 @MainActor
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let form: SettingsFormModel

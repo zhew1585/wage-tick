@@ -1,6 +1,6 @@
 import AppKit
 
-/// 入口：纯菜单栏 App (Info.plist 里 LSUIElement = YES，不出现在 Dock)。
+/// 入口：普通 App (出现在 Dock 与 ⌘Tab)，同时常驻菜单栏 (ADR-0005)。
 @main
 enum Main {
     @MainActor

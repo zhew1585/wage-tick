@@ -140,8 +140,11 @@ struct OnboardingStepper: View {
                 .font(AppFont.numSmall)
                 .foregroundStyle(Palette.muted)
         }
-        .padding(.top, OnboardingLayout.stepperTop)
-        .padding(.horizontal, OnboardingLayout.side)
+        // 和红绿灯同一行、垂直居中，左边让出红绿灯；下沿留到设计稿步骤条的位置，后面内容不动。
+        .frame(height: WindowChrome.Titlebar.standard.height)
+        .padding(.leading, WindowChrome.Titlebar.standard.leadingInset)
+        .padding(.trailing, OnboardingLayout.side)
+        .padding(.bottom, OnboardingLayout.stepperBottom)
         .animation(.easeOut(duration: 0.2), value: step)
     }
 }
@@ -150,8 +153,8 @@ struct OnboardingStepper: View {
 enum OnboardingLayout {
     /// 左右内边距。
     static let side = Spacing.s24
-    /// 步骤条上边距。
-    static let stepperTop: CGFloat = 18
+    /// 步骤条行 (标题栏高 28) 下面再空 4：设计稿步骤条上边距 18、文字高约 14，下沿在 32，后面内容位置不变。
+    static let stepperBottom: CGFloat = 4
     /// 步骤点间隔。
     static let dotGap: CGFloat = 5
     /// 正文区上下内边距，与底部按钮区下边距相同。

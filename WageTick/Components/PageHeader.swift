@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// 设计稿子页面 (P3 至 P6) 的页头：左边返回箭头 + 标题 (15/700)，右边可放说明或操作，高 54，下沿一条分隔线。
-/// 窗口没有系统标题栏与红绿灯 (见 `PageWindow`)：顶层页面的返回就是关窗，下一级页面的返回回到上一级；esc 等同返回。
+/// 页头和系统红绿灯排在同一行 (见 `PageWindow`)，左边让出红绿灯的位置，返回箭头在红绿灯右边。
+/// 顶层页面的返回就是关窗，下一级页面的返回回到上一级；esc 等同返回。
 ///
 /// 用法：
 /// - `PageHeader("目标", back: close)`
@@ -38,7 +39,8 @@ struct PageHeader<Trailing: View>: View {
             Spacer(minLength: Spacing.s8)
             trailing()
         }
-        .padding(.horizontal, Spacing.screen)
+        .padding(.leading, WindowChrome.Titlebar.tall.leadingInset)
+        .padding(.trailing, Spacing.screen)
         .frame(height: Self.height)
         .overlay(alignment: .bottom) { Palette.line.frame(height: 1) }
     }

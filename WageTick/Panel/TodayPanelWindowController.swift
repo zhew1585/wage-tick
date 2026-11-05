@@ -22,8 +22,9 @@ final class TodayPanelContent {
     var route: PanelRoute = .home
 }
 
-/// 今日概览面板 (PRD F4，页面 P2)，从左键菜单「今日概览 ⌘1」或通知打开。
-/// 每次打开都出现在鼠标所在屏幕的正中 (宽 360，设计稿 P2)；点面板外面、按 Esc 或切到别的 App 时收起。
+/// 今日概览面板 (PRD F4，页面 P2)，从左键菜单、主菜单「今日概览 ⌘1」、Dock 图标或通知打开。
+/// 普通窗口 (ADR-0005)：系统红绿灯，透明标题栏，宽 360 (设计稿 P2)。
+/// 没开着时打开出现在鼠标所在屏幕的正中；点红绿灯、按 Esc 或 ⌘W 关掉，失去焦点不收起。
 /// 只在面板可见时刷新：上班中或白干中按滚动频率，其余每秒一次 (倒计时、时钟)。
 @MainActor
 final class TodayPanelWindowController: NSObject, NSWindowDelegate {
@@ -36,10 +37,10 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     /// 命令改了状态后通知外壳其余部分 (菜单栏小牛) 立即重绘，如白干计时开始后马上冒汗。
     private let onStateChange: () -> Void
     private let navigation: PanelNavigation
-    /// 打开时定下的顶边位置；内容变高 (展开目标、打开表单) 时顶边不动，往下长。
+    /// 窗口顶边位置 (打开时定下，拖动后跟着更新)；内容变高 (展开目标、打开表单) 时顶边不动，往下长。
     private var topEdge: CGFloat?
     private let content = TodayPanelContent()
-    private lazy var panel: PopoverPanel = makePanel()
+    private lazy var panel: PanelWindow = makePanel()
     private var timer: Timer?
     private let logger = Logger(subsystem: AppIdentity.bundleID, category: "TodayPanel")
 
@@ -53,38 +54,36 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         self.onStateChange = onStateChange
     }
 
+    /// 打开 (或从最小化恢复) 并前置。没开着时回到概览、放到屏幕正中；开着或最小化时保持原样 (正在填的表单不丢)。
     func show() {
-        if !panel.isVisible {
+        let isOpen = panel.isVisible || panel.isMiniaturized
+        if !isOpen {
             content.route = .home
         }
         refresh()
         NSApp.activate()
         panel.layoutIfNeeded()
-        if !panel.isVisible {
+        if !isOpen {
             centerOnScreen()
         }
         panel.makeKeyAndOrderFront(nil)
-        // 投影按内容形状 (圆角) 算，内容画出来后再算一次。
-        panel.invalidateShadow()
-    }
-
-    /// 收起面板；打开底部入口里的窗口前先收起。
-    func close() {
-        panel.orderOut(nil)
-        stop()
     }
 
     // MARK: NSWindowDelegate
 
-    /// 点到面板外面 (包括别的 App、菜单栏) 时收起，像 popover 一样。
-    func windowDidResignKey(_ notification: Notification) {
-        close()
+    /// 点红绿灯、按 Esc 或 ⌘W 关窗后停止刷新。
+    func windowWillClose(_ notification: Notification) {
+        stop()
     }
 
     /// 内容高度变了 (展开目标、打开表单) 后窗口跟着变高，顶边保持不动。
     func windowDidResize(_ notification: Notification) {
         keepTopEdge()
-        panel.invalidateShadow()
+    }
+
+    /// 牛马拖动窗口后，以新位置的顶边为准。
+    func windowDidMove(_ notification: Notification) {
+        topEdge = panel.frame.maxY
     }
 
     // MARK: 刷新
@@ -151,7 +150,7 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    private func makePanel() -> PopoverPanel {
+    private func makePanel() -> PanelWindow {
         let actions = PanelActions(
             dryRun: { [model] command in model.dryRun(command) },
             send: { [weak self] command throws(CommandError) in
@@ -162,46 +161,23 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
                 onStateChange()
             }
         )
-        // 底部入口打开别的窗口前先收起面板。
-        let navigation = PanelNavigation(
-            openHistory: { [weak self] in self?.close(); self?.navigation.openHistory() },
-            openGoals: { [weak self] in self?.close(); self?.navigation.openGoals() },
-            openSettings: { [weak self] in self?.close(); self?.navigation.openSettings() }
-        )
+        // 面板是普通窗口，底部入口打开别的窗口时面板留着，牛马可以从 Dock、⌘Tab 或窗口菜单切回来。
+        // 顶部整条让出标准标题栏 (28) 放红绿灯，下面按设计稿排。
         let view = TodayPanelView(content: content, actions: actions, navigation: navigation)
-            .clipShape(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius))
-            .overlay(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius).strokeBorder(Palette.line, lineWidth: 1))
-        // 默认的 sizingOptions 让窗口大小跟着 SwiftUI 内容走。
-        let panel = PopoverPanel(contentViewController: NSHostingController(rootView: view))
+            .padding(.top, WindowChrome.Titlebar.standard.height)
+        let controller = NSHostingController(rootView: view)
+        // 内容画到透明标题栏底下 (上面的 padding 自己让位)；默认的 sizingOptions 让窗口大小跟着 SwiftUI 内容走。
+        controller.safeAreaRegions = []
+        let panel = PanelWindow(contentViewController: controller)
+        WindowChrome.apply(to: panel, title: "今日概览", titlebar: .standard)
         panel.delegate = self
-        panel.onCancel = { [weak self] in self?.close() }
         return panel
     }
 }
 
-/// 无边框、透明底的浮动面板：圆角、描边由 SwiftUI 画，投影用系统窗口投影 (随内容形状)。
-/// 无边框窗口默认不能成为 key window，这里放开，表单里的输入框才能打字。
-private final class PopoverPanel: NSPanel {
-    /// 按 Esc 时调用 (表单里的 Esc 先被「算了」按钮接走，回到概览)。
-    var onCancel: (() -> Void)?
-
-    init(contentViewController: NSViewController) {
-        super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
-        self.contentViewController = contentViewController
-        isOpaque = false
-        backgroundColor = .clear
-        hasShadow = true
-        level = .popUpMenu
-        isReleasedWhenClosed = false
-        hidesOnDeactivate = false
-        collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .transient]
-        animationBehavior = .utilityWindow
-    }
-
-    override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { false }
-
+/// 今日概览窗口：按 Esc 关窗 (表单里的 Esc 先被「算了」按钮接走，回到概览)。
+private final class PanelWindow: NSWindow {
     override func cancelOperation(_ sender: Any?) {
-        onCancel?()
+        performClose(sender)
     }
 }
