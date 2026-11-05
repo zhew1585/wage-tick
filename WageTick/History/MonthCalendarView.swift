@@ -21,15 +21,19 @@ struct MonthCalendarView: View {
     var body: some View {
         VStack(spacing: 0) {
             PageHeader(month.summary.title, back: back) { monthSwitcher }
-            salaryRow
-            calendarGrid
-                .padding(.horizontal, Spacing.s14)
-                .padding(.top, Spacing.s14)
-                .padding(.bottom, Spacing.s8)
-            CalendarLegend()
-                .padding(.horizontal, Spacing.screen)
-                .padding(.top, Spacing.s6)
-                .padding(.bottom, Spacing.s16)
+            ScrollBody {
+                VStack(spacing: 0) {
+                    salaryRow
+                    calendarGrid
+                        .padding(.horizontal, Spacing.s14)
+                        .padding(.top, Spacing.s14)
+                        .padding(.bottom, Spacing.s8)
+                    CalendarLegend()
+                        .padding(.horizontal, Spacing.screen)
+                        .padding(.top, Spacing.s6)
+                        .padding(.bottom, Spacing.s16)
+                }
+            }
         }
     }
 
@@ -69,6 +73,7 @@ struct MonthCalendarView: View {
         .background(Palette.surface)
         .contentShape(Rectangle())
         .onTapGesture { editingSalary = true }
+        .hoverFeedback()
         .sheet(isPresented: $editingSalary) {
             SalaryFormView(
                 month: month.summary.month, title: month.summary.title, isCurrentMonth: month.summary.isCurrentMonth,
@@ -92,7 +97,9 @@ struct MonthCalendarView: View {
             }
             ForEach(month.days) { day in
                 Button { open(day.date) } label: { DayCell(day: day) }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InteractiveButtonStyle { label, state in
+                        label.environment(\.dayCellInteraction, state)
+                    })
                     .help(day.detail.title)
             }
         }
@@ -101,8 +108,10 @@ struct MonthCalendarView: View {
 
 /// 日历里的一天 (高 42、圆角 8)：日号 12 号等宽，被扣钱下面一个小圆点，请假下面一行请假类型小字。
 /// 今天整格 ink 底，盖过当天的颜色类型 (设计稿)；小圆点与小字照常显示。
+/// 悬停时描一圈 1.5 的边 (颜色见 `DayCellStyle.hoverStroke`)，按下再叠一层底；手型光标。
 private struct DayCell: View {
     let day: HistoryDay
+    @Environment(\.dayCellInteraction) private var interaction
 
     static let height: CGFloat = 42
     private static let dotSize: CGFloat = 5
@@ -124,12 +133,20 @@ private struct DayCell: View {
         .frame(height: Self.height)
         .background(style.fill, in: shape)
         .overlay {
-            if let stroke = style.stroke {
+            if interaction.isHovered || interaction.isPressed {
+                shape.strokeBorder(style.hoverStroke, lineWidth: 1.5)
+            } else if let stroke = style.stroke {
                 shape.strokeBorder(stroke, lineWidth: 1)
             }
         }
+        .overlay(interaction.isPressed ? shape.fill(Palette.pressedOverlay) : nil)
         .contentShape(shape)
     }
+}
+
+private extension EnvironmentValues {
+    /// 日历格子按钮的交互状态，由格子按钮的样式传给 `DayCell`。
+    @Entry var dayCellInteraction = InteractionState()
 }
 
 /// 日历格子按颜色类型的样子 (设计稿 P5 月日历)：
@@ -143,8 +160,11 @@ private struct DayCellStyle {
     let text: Color
     /// 日号用 600 字重；休息日、单日覆盖用 400。
     let isEmphasized: Bool
+    /// 悬停时的描边：与日号同色 (满勤 money、扣钱 loss……)；今天 (ink 底) 用 accent，单日覆盖 (本来就是 muted 框) 用 ink。
+    let hoverStroke: Color
 
     init(kind: CalendarDayKind, isToday: Bool) {
+        hoverStroke = isToday ? Palette.accent : kind == .override ? Palette.ink : Self.textColor(kind)
         if isToday {
             (fill, stroke, text, isEmphasized) = (Palette.ink, nil, Palette.bg, true)
             return
@@ -156,6 +176,17 @@ private struct DayCellStyle {
         case .upcoming: (Palette.card, Palette.line, Palette.ink, true)
         case .rest: (.clear, nil, Palette.muted, false)
         case .override: (.clear, Palette.muted, Palette.muted, false)
+        }
+    }
+
+    /// 非今天的日号颜色，与上面的表一致。
+    private static func textColor(_ kind: CalendarDayKind) -> Color {
+        switch kind {
+        case .fullAttendance: Palette.money
+        case .deducted: Palette.loss
+        case .leave: Palette.accent
+        case .upcoming: Palette.ink
+        case .rest, .override: Palette.muted
         }
     }
 }

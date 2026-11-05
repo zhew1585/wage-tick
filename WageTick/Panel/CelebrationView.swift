@@ -39,7 +39,9 @@ struct CelebrationView: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .contentShape(Rectangle())
+        // 点一下提前结束：整块手型光标；是动画，不加底色。
         .onTapGesture(perform: finish)
+        .pointingHandCursor()
         .onAppear {
             pieces = ConfettiPiece.random(count: Self.confettiCount, within: Self.duration)
             // 文字弹出：带一点回弹。

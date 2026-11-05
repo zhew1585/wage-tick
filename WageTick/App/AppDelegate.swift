@@ -17,7 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainMenu: MainMenu!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // 设计稿只有浅色一套 token (`Palette`)，App 窗口与菜单固定浅色外观；菜单栏小牛是模板图，仍跟随菜单栏深浅。
+        // 设计稿只有浅色一套 token (`Palette`)，App 窗口固定浅色外观；菜单都是原生菜单，跟随系统深浅 (ADR-0004)。
         NSApp.appearance = NSAppearance(named: .aqua)
         model = AppModel(store: StateStore())
         // 菜单栏第一次刷新就会推进到此刻，事件出口要先接好。
@@ -37,10 +37,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] in
             self?.statusItem.refresh()
         }
-        // 引导第 3 步完成后直接打开今日概览，不让界面凭空消失。
-        onboarding = OnboardingWindowController(model: model) { [weak self] in
+        // 引导第 3 步完成后在引导窗口原位打开今日概览，不让界面凭空消失，也不跳位置。
+        onboarding = OnboardingWindowController(model: model) { [weak self] frame in
             self?.statusItem.refresh()
-            self?.todayPanel.show()
+            self?.todayPanel.show(replacing: frame)
         }
         statusItem = StatusItemController(
             model: model,

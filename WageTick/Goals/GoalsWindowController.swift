@@ -39,6 +39,7 @@ final class GoalsWindowController: NSObject, NSWindowDelegate {
     private let model: AppModel
     private let content = GoalsContent()
     private lazy var window: NSWindow = makeWindow()
+    private lazy var placement = WindowPlacement(window: window, name: "Goals")
     private var timer: Timer?
 
     init(model: AppModel) {
@@ -48,7 +49,7 @@ final class GoalsWindowController: NSObject, NSWindowDelegate {
     func show() {
         refresh()
         NSApp.activate()
-        if !window.isVisible { window.center() }
+        if !window.isVisible && !window.isMiniaturized { placement.place() }
         window.makeKeyAndOrderFront(nil)
     }
 

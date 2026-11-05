@@ -226,7 +226,7 @@ struct PanelDeductionList: View {
                 .padding(Spacing.s2)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.highlight(radius: Radius.r4, outset: Spacing.s1))
         .help(help)
     }
 }

@@ -1,2 +1,4 @@
-/* 屏幕顶部主菜单的粗体 App 名用 CFBundleName；PRODUCT_NAME (WageTick) 还给模块名与包名用，这里只改给人看的名字。 */
+/* App 名已由 PRODUCT_NAME (牛马鼓励器) 写进 Base 的 Info.plist，任何系统语言下都一样；这里与之保持一致。
+   保留本文件让 App 带 zh-Hans 本地化，系统自带的文字 (输入框右键菜单等) 才是中文。 */
 "CFBundleName" = "牛马鼓励器";
+"CFBundleDisplayName" = "牛马鼓励器";

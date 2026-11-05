@@ -5,9 +5,6 @@ import WageCore
 /// 顶部步骤条，中间是当前步，底部「上一步」与「下一步 / 开始搬砖」。
 /// 每一步点"下一步"时用核心的 `Validation` 校验，失败停留当前步并展示提示。
 struct OnboardingView: View {
-    /// 窗口内容尺寸 (设计稿 360×560)。
-    static let size = CGSize(width: 360, height: 560)
-
     let model: AppModel
     let onFinish: () -> Void
 
@@ -28,11 +25,11 @@ struct OnboardingView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             OnboardingStepper(step: step)
-            content
-                .frame(maxHeight: .infinity, alignment: .top)
+            // 设计稿三屏正好 560 高；万一放不下 (如提示文字较长)，中间滚动，步骤条与底部按钮不动。
+            ScrollBody { content }
             footer
         }
-        .frame(width: Self.size.width, height: Self.size.height)
+        .frame(width: WindowMetrics.size.width, height: WindowMetrics.size.height)
         .background(Palette.bg)
         // 窗口标题栏透明、内容铺满 (见 `OnboardingWindowController`)，不让出标题栏的安全区。
         .ignoresSafeArea()

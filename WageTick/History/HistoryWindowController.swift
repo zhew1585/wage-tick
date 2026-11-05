@@ -28,6 +28,7 @@ final class HistoryWindowController: NSObject, NSWindowDelegate {
     private let onStateChange: () -> Void
     private let content = HistoryContent()
     private lazy var window: NSWindow = makeWindow()
+    private lazy var placement = WindowPlacement(window: window, name: "History")
     private var timer: Timer?
 
     init(model: AppModel, onStateChange: @escaping () -> Void) {
@@ -38,7 +39,7 @@ final class HistoryWindowController: NSObject, NSWindowDelegate {
     func show() {
         refresh()
         NSApp.activate()
-        if !window.isVisible { window.center() }
+        if !window.isVisible && !window.isMiniaturized { placement.place() }
         window.makeKeyAndOrderFront(nil)
     }
 

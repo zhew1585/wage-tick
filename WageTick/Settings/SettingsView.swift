@@ -15,13 +15,10 @@ struct SettingsView: View {
         var id: Self { self }
     }
 
-    /// 内容超过这个高度时滚动。
-    private static let maxBodyHeight: CGFloat = 660
-
     var body: some View {
         VStack(spacing: 0) {
             PageHeader("设置", back: close)
-            ScrollView {
+            ScrollBody {
                 VStack(alignment: .leading, spacing: Spacing.s18) {
                     moneySection
                     menuBarSection
@@ -34,8 +31,6 @@ struct SettingsView: View {
                 .padding(.top, Spacing.s16)
                 .padding(.bottom, Spacing.screen)
             }
-            .frame(maxHeight: Self.maxBodyHeight)
-            .fixedSize(horizontal: false, vertical: true)
         }
         .frame(width: Spacing.pageWidth)
         .sheet(item: $sheet) { sheet in
@@ -122,7 +117,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.highlight(radius: Radius.r5, outset: Spacing.s3))
             .help(form.isRecordingHotkey ? "取消录制" : "点一下录制新的快捷键")
         }
         .padding(.horizontal, Spacing.s14)
@@ -165,7 +160,7 @@ struct SettingsView: View {
             .background(Palette.accentSoft, in: RoundedRectangle(cornerRadius: Radius.control))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.highlight(radius: Radius.control))
         .help("打开系统设置")
     }
 
@@ -196,7 +191,7 @@ private struct SettingsGroup<Content: View>: View {
     }
 }
 
-/// 卡片里可点开的一行：左边名称，右边当前值 (12 号等宽) 与箭头。
+/// 卡片里可点开的一行：左边名称，右边当前值 (12 号等宽) 与箭头；悬停、按下整行叠一层底，手型光标。
 private struct NavigationRow: View {
     let title: String
     let value: String
@@ -219,7 +214,7 @@ private struct NavigationRow: View {
             .padding(.vertical, Spacing.s10)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.highlight(radius: 0))
     }
 }
 

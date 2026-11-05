@@ -3,6 +3,7 @@ import SwiftUI
 /// 时刻选择 (时:分)，放进 `Field` 里用：`Field("上班") { TimeInput(selection: $start) }`。
 /// 外观照设计稿 P1 引导 · 2 作息：输入框里是 JetBrains Mono 14 的「09:00」，右侧一个向下箭头，不能手填。
 /// 点开弹出 `TimePickerPopover`：左列小时 00-23、右列分钟 00-59。选小时后留在弹层里，选分钟后收起。
+/// 悬停手型、箭头变 ink (外框描边由 `Field` 变)，按下时箭头 accent。
 struct TimeInput: View {
     @Binding var selection: Date
     @State private var isOpen = false
@@ -11,27 +12,34 @@ struct TimeInput: View {
         Button {
             isOpen.toggle()
         } label: {
+            Text(TimeOfDay(selection).text)
+                .font(AppFont.numField)
+                .foregroundStyle(Palette.ink)
+        }
+        .buttonStyle(InteractiveButtonStyle { label, state in
             HStack(spacing: Spacing.s8) {
-                Text(TimeOfDay(selection).text)
-                    .font(AppFont.numField)
-                    .foregroundStyle(Palette.ink)
+                label
                 Spacer(minLength: 0)
                 PhosphorIcon(.caretDown, size: 12)
-                    .foregroundStyle(isOpen ? Palette.accent : Palette.muted)
+                    .foregroundStyle(caretColor(state))
             }
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
+        })
         .accessibilityValue(TimeOfDay(selection).text)
         .popover(isPresented: $isOpen, arrowEdge: .bottom) {
             TimePickerPopover(selection: $selection) { isOpen = false }
         }
     }
+
+    private func caretColor(_ state: InteractionState) -> Color {
+        if isOpen || state.isPressed { return Palette.accent }
+        return state.isHovered ? Palette.ink : Palette.muted
+    }
 }
 
 /// 弹出的时间选择：两列可滚动列表，打开时自动滚到当前值。
-/// 选中项 accent-soft 底、accent 字；悬停项 surface 底；其余 ink 字。
+/// 选中项 accent-soft 底、accent 字；悬停、按下叠一层底 (选中项上也叠)；其余 ink 字；悬停手型。
 struct TimePickerPopover: View {
     @Binding var selection: Date
     let dismiss: () -> Void
@@ -97,26 +105,23 @@ private struct TimeCell: View {
     let value: Int
     let isSelected: Bool
     let action: () -> Void
-    @State private var isHovered = false
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.r6)
         Button(action: action) {
             Text(String(format: "%02d", value))
                 .font(AppFont.num(13, isSelected ? .semibold : .regular))
                 .foregroundStyle(isSelected ? Palette.accent : Palette.ink)
                 .frame(maxWidth: .infinity)
                 .frame(height: 28)
-                .background(background, in: RoundedRectangle(cornerRadius: Radius.r6))
-                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
+        .buttonStyle(InteractiveButtonStyle { label, state in
+            label
+                .background(isSelected ? Palette.accentSoft : .clear, in: shape)
+                .overlay(shape.fill(state.overlay))
+                .contentShape(Rectangle())
+        })
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    private var background: Color {
-        if isSelected { return Palette.accentSoft }
-        return isHovered ? Palette.surface : .clear
     }
 }
 

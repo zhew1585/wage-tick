@@ -23,29 +23,33 @@ struct DayDetailView: View {
     var body: some View {
         VStack(spacing: 0) {
             PageHeader(detail.title, back: back) { sourceChip }
-            if let notice = detail.notice {
-                Text(notice)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Palette.accent)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, Spacing.screen)
-                    .padding(.vertical, Spacing.s10)
-                    .background(Palette.accentSoft)
-            }
-            if let settled = detail.stats.first {
-                settlement(settled, rest: Array(detail.stats.dropFirst()))
-            }
-            deductionSection
-            leaveSection
-            unpaidWorkSection
-            overrideSection
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(AppFont.caption)
-                    .foregroundStyle(Palette.loss)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, Spacing.screen)
-                    .padding(.bottom, Spacing.s14)
+            ScrollBody {
+                VStack(spacing: 0) {
+                    if let notice = detail.notice {
+                        Text(notice)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Palette.accent)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, Spacing.screen)
+                            .padding(.vertical, Spacing.s10)
+                            .background(Palette.accentSoft)
+                    }
+                    if let settled = detail.stats.first {
+                        settlement(settled, rest: Array(detail.stats.dropFirst()))
+                    }
+                    deductionSection
+                    leaveSection
+                    unpaidWorkSection
+                    overrideSection
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(AppFont.caption)
+                            .foregroundStyle(Palette.loss)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, Spacing.screen)
+                            .padding(.bottom, Spacing.s14)
+                    }
+                }
             }
         }
         .sheet(item: $deductionForm) { request in
@@ -273,7 +277,7 @@ private struct DetailSection<Content: View>: View {
                         .foregroundStyle(Palette.accent)
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.highlight(radius: Radius.r6, outset: Spacing.s4))
                 }
             }
             content()
@@ -332,6 +336,7 @@ private struct DetailLine: View {
         .background(tone == .loss ? Palette.lossSoft : Palette.accentSoft, in: RoundedRectangle(cornerRadius: Radius.control))
         .contentShape(Rectangle())
         .onTapGesture { edit?() }
+        .hoverFeedback(cornerRadius: Radius.control, isEnabled: edit != nil)
         .onHover { hovering = $0 }
         .help(edit == nil ? "" : "点一下修改")
     }
@@ -362,6 +367,7 @@ private struct UnpaidWorkLine: View {
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.control))
         .contentShape(Rectangle())
         .onTapGesture { edit?() }
+        .hoverFeedback(cornerRadius: Radius.control, isEnabled: edit != nil)
         .onHover { hovering = $0 }
     }
 }

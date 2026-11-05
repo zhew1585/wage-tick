@@ -16,6 +16,7 @@ struct HistoryView: View {
             }
         }
         .frame(width: Spacing.pageWidth)
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     @ViewBuilder
@@ -46,26 +47,21 @@ private struct MonthListView: View {
     let open: (YearMonth) -> Void
     let back: () -> Void
 
-    /// 列表超过这个高度时滚动。
-    private static let maxHeight: CGFloat = 560
-
     var body: some View {
         VStack(spacing: 0) {
             PageHeader("历史", back: back) {
                 Text("按月倒序").font(AppFont.caption).foregroundStyle(Palette.muted)
             }
-            ScrollView {
+            ScrollBody {
                 VStack(spacing: 0) {
                     ForEach(months) { summary in
                         Button { open(summary.month) } label: { MonthRow(summary: summary) }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.highlight(radius: 0))
                         CardDivider()
                     }
                 }
                 .padding(.vertical, Spacing.s6)
             }
-            .frame(maxHeight: Self.maxHeight)
-            .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

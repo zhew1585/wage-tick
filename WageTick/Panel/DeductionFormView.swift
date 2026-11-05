@@ -224,6 +224,7 @@ struct DeductionFormView: View {
 }
 
 /// 原因标签：圆角 16 的胶囊，选中墨色底浅色字，未选中透明底 line 描边。
+/// 悬停、按下：选中的墨色底变浅 / 变深，未选中的叠一层底；手型光标。
 private struct ReasonPill: View {
     let title: String
     let selected: Bool
@@ -237,11 +238,19 @@ private struct ReasonPill: View {
                 .foregroundStyle(selected ? Palette.bg : Palette.ink)
                 .padding(.horizontal, Spacing.s12)
                 .padding(.vertical, Spacing.s6)
-                .background(selected ? Palette.ink : Color.clear, in: shape)
-                .overlay(shape.strokeBorder(selected ? Palette.ink : Palette.line, lineWidth: 1))
-                .contentShape(shape)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(InteractiveButtonStyle { label, state in
+            label
+                .background(fill(state), in: shape)
+                .overlay(shape.strokeBorder(selected ? fill(state) : Palette.line, lineWidth: 1))
+                .contentShape(shape)
+        })
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func fill(_ state: InteractionState) -> Color {
+        guard selected else { return state.overlay }
+        if state.isPressed { return Palette.inkPressed }
+        return state.isHovered ? Palette.inkHover : Palette.ink
     }
 }

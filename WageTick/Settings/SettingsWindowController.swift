@@ -6,15 +6,16 @@ import SwiftUI
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     private let form: SettingsFormModel
     private lazy var window: NSWindow = makeWindow()
+    private lazy var placement = WindowPlacement(window: window, name: "Settings")
 
     init(form: SettingsFormModel) {
         self.form = form
     }
 
     func show() {
-        if !window.isVisible {
+        if !window.isVisible && !window.isMiniaturized {
             form.reload()
-            window.center()
+            placement.place()
         }
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)

@@ -23,8 +23,8 @@ final class TodayPanelContent {
 }
 
 /// 今日概览面板 (PRD F4，页面 P2)，从左键菜单、主菜单「今日概览 ⌘1」、Dock 图标或通知打开。
-/// 普通窗口 (ADR-0005)：系统红绿灯，透明标题栏，宽 360 (设计稿 P2)。
-/// 没开着时打开出现在鼠标所在屏幕的正中；点红绿灯、按 Esc 或 ⌘W 关掉，失去焦点不收起。
+/// 普通窗口 (ADR-0005)：系统红绿灯，透明标题栏，固定尺寸 (`WindowMetrics`)，展开目标、打开表单时在窗口里滚动。
+/// 没开着时打开的位置见 `WindowPlacement` (引导刚完成时接在引导窗口原位)；点红绿灯、按 Esc 或 ⌘W 关掉，失去焦点不收起。
 /// 只在面板可见时刷新：上班中或白干中按滚动频率，其余每秒一次 (倒计时、时钟)。
 @MainActor
 final class TodayPanelWindowController: NSObject, NSWindowDelegate {
@@ -37,10 +37,9 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     /// 命令改了状态后通知外壳其余部分 (菜单栏小牛) 立即重绘，如白干计时开始后马上冒汗。
     private let onStateChange: () -> Void
     private let navigation: PanelNavigation
-    /// 窗口顶边位置 (打开时定下，拖动后跟着更新)；内容变高 (展开目标、打开表单) 时顶边不动，往下长。
-    private var topEdge: CGFloat?
     private let content = TodayPanelContent()
     private lazy var panel: PanelWindow = makePanel()
+    private lazy var placement = WindowPlacement(window: panel, name: "TodayPanel")
     private var timer: Timer?
     private let logger = Logger(subsystem: AppIdentity.bundleID, category: "TodayPanel")
 
@@ -54,17 +53,21 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         self.onStateChange = onStateChange
     }
 
-    /// 打开 (或从最小化恢复) 并前置。没开着时回到概览、放到屏幕正中；开着或最小化时保持原样 (正在填的表单不丢)。
-    func show() {
+    /// 打开 (或从最小化恢复) 并前置。没开着时回到概览、摆好位置；开着或最小化时保持原样 (正在填的表单不丢)。
+    /// `replacing`：接替的窗口 (引导) 的 frame，今日概览出现在它原来的位置，不跳。
+    func show(replacing frame: NSRect? = nil) {
         let isOpen = panel.isVisible || panel.isMiniaturized
         if !isOpen {
             content.route = .home
         }
         refresh()
         NSApp.activate()
-        panel.layoutIfNeeded()
         if !isOpen {
-            centerOnScreen()
+            if let frame {
+                placement.place(replacing: frame)
+            } else {
+                placement.place()
+            }
         }
         panel.makeKeyAndOrderFront(nil)
     }
@@ -74,16 +77,6 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     /// 点红绿灯、按 Esc 或 ⌘W 关窗后停止刷新。
     func windowWillClose(_ notification: Notification) {
         stop()
-    }
-
-    /// 内容高度变了 (展开目标、打开表单) 后窗口跟着变高，顶边保持不动。
-    func windowDidResize(_ notification: Notification) {
-        keepTopEdge()
-    }
-
-    /// 牛马拖动窗口后，以新位置的顶边为准。
-    func windowDidMove(_ notification: Notification) {
-        topEdge = panel.frame.maxY
     }
 
     // MARK: 刷新
@@ -131,25 +124,6 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
 
     // MARK: 窗口
 
-    /// 放到鼠标所在屏幕可用区域的正中，并记下顶边。
-    private func centerOnScreen() {
-        let size = panel.frame.size
-        let mouse = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
-        guard let visible = screen?.visibleFrame else { return }
-        let origin = NSPoint(x: (visible.midX - size.width / 2).rounded(), y: (visible.midY - size.height / 2).rounded())
-        panel.setFrameOrigin(origin)
-        topEdge = origin.y + size.height
-    }
-
-    private func keepTopEdge() {
-        guard let topEdge else { return }
-        let y = (topEdge - panel.frame.height).rounded()
-        if panel.frame.origin.y != y {
-            panel.setFrameOrigin(NSPoint(x: panel.frame.origin.x, y: y))
-        }
-    }
-
     private func makePanel() -> PanelWindow {
         let actions = PanelActions(
             dryRun: { [model] command in model.dryRun(command) },
@@ -165,11 +139,7 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         // 顶部整条让出标准标题栏 (28) 放红绿灯，下面按设计稿排。
         let view = TodayPanelView(content: content, actions: actions, navigation: navigation)
             .padding(.top, WindowChrome.Titlebar.standard.height)
-        let controller = NSHostingController(rootView: view)
-        // 内容画到透明标题栏底下 (上面的 padding 自己让位)；默认的 sizingOptions 让窗口大小跟着 SwiftUI 内容走。
-        controller.safeAreaRegions = []
-        let panel = PanelWindow(contentViewController: controller)
-        WindowChrome.apply(to: panel, title: "今日概览", titlebar: .standard)
+        let panel = WindowChrome.makeWindow(PanelWindow.self, title: "今日概览", titlebar: .standard, rootView: view)
         panel.delegate = self
         return panel
     }
