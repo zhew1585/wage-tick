@@ -1,6 +1,6 @@
 import Foundation
 
-/// 配置校验规则 (PRD 4.3.5 #1 至 #3)，`apply` 执行命令前用它们拦截，读回状态文件时也用它们把关。
+/// 录入校验规则 (PRD 4.3.5 #1 至 #3；扣钱 #5 见 `DeductionCommands.swift`)，`apply` 执行命令前用它们拦截，读回状态文件时也用它们把关。
 /// 外壳的分步表单 (如引导第 1 步只填了月薪) 也直接调用，保证提示与命令一致。
 public enum Validation {
     /// 月薪必须大于 0 (#1)，最多 2 位小数 (PRD 4.2.1)。
@@ -18,6 +18,18 @@ public enum Validation {
             let inside = schedule.start <= lunch.start && lunch.end <= schedule.end
             let coversWholeDay = lunch.start == schedule.start && lunch.end == schedule.end
             guard lunch.end > lunch.start, inside, !coversWholeDay else { return .lunchOutsideWorkHours }
+        }
+        return nil
+    }
+
+    /// 老板路过快捷键 (#5 遗留)：主键是单个大写字母或数字，外壳才能映射成按键码；
+    /// 修饰键至少两个且含 ⌃ 或 ⌘。macOS 15 起系统不允许只用 ⌥ 或 ⌥⇧ 注册全局快捷键，
+    /// 单个修饰键又会在所有 App 里抢走 ⌘C、⌃A 这类常用键，一并拦下。
+    public static func hotkey(_ hotkey: Hotkey) -> CommandError? {
+        guard hotkey.key.wholeMatch(of: /[A-Z0-9]/) != nil else { return .hotkeyKeyInvalid }
+        let modifiers = hotkey.modifiers
+        guard modifiers.count >= 2, !modifiers.isDisjoint(with: [.control, .command]) else {
+            return .hotkeyModifiersInvalid
         }
         return nil
     }

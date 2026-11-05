@@ -8,10 +8,12 @@ import WageCore
 @Observable
 final class TodayPanelContent {
     var panel: TodayPanel?
+    /// 请假入口 (F6)；nil 时今天不能请假。
+    var leaveForm: LeaveForm?
 }
 
 /// 今日概览面板窗口 (PRD F4，页面 P2)，从左键菜单「今日概览 ⌘1」打开。
-/// 只在窗口可见时刷新：上班中按滚动频率，其余每秒一次 (倒计时、时钟)。
+/// 只在窗口可见时刷新：上班中或白干中按滚动频率，其余每秒一次 (倒计时、时钟)。
 @MainActor
 final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     /// 上班中主数字滚动的刷新间隔，与菜单栏一致 (AC-BAR-02)。
@@ -20,15 +22,18 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     private static let idleInterval: TimeInterval = 1
 
     private let model: AppModel
+    /// 命令改了状态后通知外壳其余部分 (菜单栏小牛) 立即重绘，如白干计时开始后马上冒汗。
+    private let onStateChange: () -> Void
+    /// 点击空的目标区时打开目标管理 (F9)。
     private let openGoals: () -> Void
     private let content = TodayPanelContent()
     private lazy var window: NSWindow = makeWindow()
     private var timer: Timer?
 
-    /// `openGoals`：点击空的目标区时打开目标管理 (F9)。
-    init(model: AppModel, openGoals: @escaping () -> Void) {
+    init(model: AppModel, openGoals: @escaping () -> Void, onStateChange: @escaping () -> Void) {
         self.model = model
         self.openGoals = openGoals
+        self.onStateChange = onStateChange
     }
 
     func show() {
@@ -46,7 +51,8 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     private func refresh() {
         let snap = model.currentSnapshot()
         content.panel = snap.panel
-        scheduleNextRefresh(rolling: snap.today?.isEarning == true)
+        content.leaveForm = snap.leaveForm
+        scheduleNextRefresh(rolling: snap.today?.isRolling == true)
     }
 
     private func scheduleNextRefresh(rolling: Bool) {
@@ -59,7 +65,18 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow() -> NSWindow {
-        let window = NSWindow(contentViewController: NSHostingController(rootView: TodayPanelView(content: content, openGoals: openGoals)))
+        let actions = PanelActions(
+            dryRun: { [model] command in model.dryRun(command) },
+            send: { [weak self] command throws(CommandError) in
+                guard let self else { return }
+                try model.send(command)
+                // 立即刷新，让今日已赚当场往下掉一截 (F5)、小牛当场冒汗 (F7)，不等下一次定时刷新。
+                refresh()
+                onStateChange()
+            }
+        )
+        let view = TodayPanelView(content: content, actions: actions, openGoals: openGoals)
+        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
         window.title = "今日概览"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false

@@ -8,6 +8,8 @@ import WageCore
 final class AppModel {
     private let store: StateStore
     private var state: AppState
+    /// 节假日表，由 `HolidayUpdater` 从数据源适配器取来；未就绪时为空表，只按双休。
+    var holidays: HolidayTable = .empty
     private let logger = Logger(subsystem: AppIdentity.bundleID, category: "AppModel")
 
     init(store: StateStore) {
@@ -19,27 +21,37 @@ final class AppModel {
 
     /// 执行命令并立即落盘。校验失败时抛出 `CommandError`，状态不变。
     func send(_ command: Command) throws(CommandError) {
-        let result = try apply(command, to: state, at: Self.now())
+        let result = try apply(command, to: state, at: Self.now(), holidays: holidays)
         state = result.state
         store.save(state)
     }
 
-    /// 先推进到此刻 (如累计中目标达成)，再按系统当前时间与时区取快照。每次刷新都走这里。
+    /// 试算：在当前状态上执行命令但不保存，返回执行后的快照。表单实时预览用它，校验失败时返回错误。
+    func dryRun(_ command: Command) -> Result<Snapshot, CommandError> {
+        let now = Self.now()
+        do {
+            return .success(snapshot(of: try apply(command, to: state, at: now, holidays: holidays).state, at: now, holidays: holidays))
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    /// 先发「推进到此刻」处理随时间发生的变化 (白干到 23:59:59 自动停止、累计中目标达成)，
+    /// 再按同一此刻、当前节假日表取快照。每次刷新都会调用，只在状态真的变了才落盘。
     func currentSnapshot() -> Snapshot {
         let now = Self.now()
         advance(at: now)
-        return snapshot(of: state, at: now)
+        return snapshot(of: state, at: now, holidays: holidays)
     }
 
-    /// 发「推进到此刻」命令。刷新很频繁，只在状态真的变化时落盘。
-    /// 领域事件 (目标达成通知) 留给 #13。
     private func advance(at now: Moment) {
         do {
-            let result = try apply(.advance, to: state, at: now)
-            guard result.state != state else { return }
-            state = result.state
+            let next = try apply(.advance, to: state, at: now, holidays: holidays).state
+            guard next != state else { return }
+            state = next
             store.save(state)
         } catch {
+            // 推进到此刻没有校验，正常不会被拒绝；万一被拒，状态不变，下次刷新再推进。
             logger.error("推进到此刻失败：\(error.message, privacy: .public)")
         }
     }

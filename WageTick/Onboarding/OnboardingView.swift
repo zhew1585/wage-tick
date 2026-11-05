@@ -9,11 +9,7 @@ struct OnboardingView: View {
 
     @State private var step = Step.salary
     @State private var salaryText = ""
-    @State private var start = TimeOfDay.pickerDate(WorkSchedule.default.start)
-    @State private var end = TimeOfDay.pickerDate(WorkSchedule.default.end)
-    @State private var lunchEnabled = true
-    @State private var lunchStart = TimeOfDay.pickerDate(LunchBreak.default.start)
-    @State private var lunchEnd = TimeOfDay.pickerDate(LunchBreak.default.end)
+    @State private var scheduleDraft = ScheduleDraft(.default)
     @State private var launchAtLogin = true
     @State private var errorMessage: String?
 
@@ -46,13 +42,7 @@ struct OnboardingView: View {
         case .schedule:
             Text("几点上下班？").font(.title2.bold())
             Form {
-                DatePicker("计划上班", selection: $start, displayedComponents: .hourAndMinute)
-                DatePicker("计划下班", selection: $end, displayedComponents: .hourAndMinute)
-                Toggle("午休", isOn: $lunchEnabled)
-                if lunchEnabled {
-                    DatePicker("午休开始", selection: $lunchStart, displayedComponents: .hourAndMinute)
-                    DatePicker("午休结束", selection: $lunchEnd, displayedComponents: .hourAndMinute)
-                }
+                ScheduleFields(draft: $scheduleDraft)
             }
         case .launch:
             Text("最后一步").font(.title2.bold())
@@ -107,30 +97,7 @@ struct OnboardingView: View {
         self.step = step
     }
 
-    /// 只认纯数字写法，其他写法视为未填；正数、小数位等规则交给核心的 `Validation`。
-    private var parsedSalary: Decimal? {
-        let text = salaryText.trimmingCharacters(in: .whitespaces)
-        guard text.wholeMatch(of: /[0-9]+(\.[0-9]+)?/) != nil else { return nil }
-        return Decimal(string: text, locale: Locale(identifier: "en_US_POSIX"))
-    }
+    private var parsedSalary: Decimal? { SalaryText.parse(salaryText) }
 
-    private var schedule: WorkSchedule {
-        WorkSchedule(
-            start: TimeOfDay(pickerDate: start),
-            end: TimeOfDay(pickerDate: end),
-            lunch: lunchEnabled ? LunchBreak(start: TimeOfDay(pickerDate: lunchStart), end: TimeOfDay(pickerDate: lunchEnd)) : nil
-        )
-    }
-}
-
-/// 时间选择器用 `Date` 表示时刻，这里与核心的 `TimeOfDay` 互转。
-private extension TimeOfDay {
-    init(pickerDate: Date) {
-        let parts = Calendar.current.dateComponents([.hour, .minute], from: pickerDate)
-        self.init(hour: parts.hour ?? 0, minute: parts.minute ?? 0)
-    }
-
-    static func pickerDate(_ time: TimeOfDay) -> Date {
-        Calendar.current.date(bySettingHour: time.hour, minute: time.minute, second: 0, of: Date()) ?? Date()
-    }
+    private var schedule: WorkSchedule { scheduleDraft.schedule }
 }

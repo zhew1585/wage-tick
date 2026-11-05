@@ -6,10 +6,37 @@ public enum Command: Sendable, Equatable {
     case completeOnboarding(OnboardingInput)
     /// 开启或关闭老板路过模式 (PRD 4.7.1 第 3 条)，由全局快捷键或左键菜单发出。
     case toggleBossMode
+    /// 修改当月月薪，对当月整月生效 (PRD 4.2.1 #1)。
+    case changeMonthlySalary(Decimal)
+    /// 修改作息，从今天起生效 (PRD 4.2.3 #2)。
+    case changeSchedule(WorkSchedule)
+    /// 切换菜单栏显示模式 (PRD 4.7.1 第 2 条)。
+    case setMenuBarMode(MenuBarMode)
+    /// 修改老板路过快捷键 (PRD 4.7.2)。
+    case setBossModeHotkey(Hotkey)
+    /// 开关开机自动启动 (PRD 4.7.2)。
+    case setLaunchAtLogin(Bool)
+    /// 给今天记一笔扣钱 (PRD 4.4.1、F5)。
+    case addDeduction(DeductionInput)
+    /// 修改今天的一笔扣钱记录。
+    case editDeduction(id: Int, DeductionInput)
+    /// 删除今天的一笔扣钱记录。
+    case deleteDeduction(id: Int)
+    /// 今天请假 (PRD 4.4.2、F6)：与今天已有的另一半天假合并为全天 (4.3.5 #21)，其余情况替换。
+    case requestLeave(Leave)
+    /// 修改今天的请假：整条替换，不合并 (4.4.2 #5)。
+    case editLeave(Leave)
+    /// 撤销今天的请假，当天恢复为普通应出勤日 (4.4.2 #5)；没有请假时什么都不变。
+    case cancelLeave
+    /// 开始白干计时 (PRD 4.4.3)："我还没走"或"被迫营业"。
+    case startUnpaidWork
+    /// 停止白干计时："终于下班了"。
+    case stopUnpaidWork
+    /// 推进到此刻：处理随时间发生的状态变化，依次为白干到 23:59:59 自动停止、累计中目标达成。
+    /// 外壳每次刷新时先发它，再取快照。
+    case advance
     /// 新建目标 (PRD 4.5.2)，名称与金额未经校验。
     case createGoal(name: String, amount: Decimal)
-    /// 推进到此刻：外壳每次刷新时先发它，再取快照。处理随时间发生的状态变化，如累计中目标达成。
-    case advance
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -35,8 +62,18 @@ public enum CommandError: Error, Sendable, Equatable {
     case endNotAfterStart
     case lunchOutsideWorkHours
     case alreadyOnboarded
-    case invalidGoal
     case notOnboarded
+    case hotkeyKeyInvalid
+    case hotkeyModifiersInvalid
+    case deductionNotPositive
+    case deductionNoteTooLong
+    case notAttendanceDay
+    case deductionNotFound
+    case leavePercentOutOfRange
+    case unpaidWorkUnavailable
+    case unpaidWorkAlreadyRunning
+    case unpaidWorkNotRunning
+    case invalidGoal
     case goalAlreadyAccumulating
 
     public var message: String {
@@ -45,8 +82,20 @@ public enum CommandError: Error, Sendable, Equatable {
         case .endNotAfterStart: "下班时间要晚于上班时间"
         case .lunchOutsideWorkHours: "午休要在上下班时间之内"
         case .alreadyOnboarded: "已经完成过引导了"
-        case .invalidGoal: "给目标起个名字，金额得大于 0"
         case .notOnboarded: "还没完成引导"
+        case .hotkeyKeyInvalid: "主键只能是字母或数字"
+        case .hotkeyModifiersInvalid: "快捷键要按住两个以上修饰键，且包含 ⌃ 或 ⌘"
+        case .deductionNotPositive: "扣钱金额得大于 0"
+        case .deductionNoteTooLong: "备注最多 \(Validation.deductionNoteLimit) 个字"
+        case .notAttendanceDay: "今天本来就不上班"
+        case .deductionNotFound: "这笔扣钱已经不在了"
+        case .leavePercentOutOfRange: "扣薪比例要在 0% 到 100% 之间"
+        // 以下三条 PRD 没给文案：外壳只在快照允许时才提供按钮，正常用不到。
+        case .unpaidWorkUnavailable: "下班后或休息日才能白干计时"
+        case .unpaidWorkAlreadyRunning: "已经在白干计时了"
+        case .unpaidWorkNotRunning: "没有在白干计时"
+        case .invalidGoal: "给目标起个名字，金额得大于 0"
+        // PRD 没给文案：排队属于目标队列 (#12)，本期外壳在已有累计中目标时也提供新建入口，由这条提示拦下。
         case .goalAlreadyAccumulating: "先攒完当前这个目标吧"
         }
     }
@@ -54,10 +103,12 @@ public enum CommandError: Error, Sendable, Equatable {
 
 /// 核心入口一：在 `now` 时刻对 `state` 执行 `command`，返回新状态与领域事件。
 /// 校验失败时抛出 `CommandError`，原状态不受影响。
+/// `holidays` 用于需要判定应出勤日的命令 (如记扣钱、请假、白干计时、新建目标、推进到此刻)；不传时为空表，只按双休。
 public func apply(
     _ command: Command,
     to state: AppState,
-    at now: Moment
+    at now: Moment,
+    holidays: HolidayTable = .empty
 ) throws(CommandError) -> (state: AppState, events: [DomainEvent]) {
     switch command {
     case .completeOnboarding(let input):
@@ -66,10 +117,36 @@ public func apply(
         var next = state
         next.settings.bossMode.toggle()
         return (next, [])
-    case .createGoal(let name, let amount):
-        return (try createGoal(name: name, amount: amount, state: state, now: now), [])
+    case .changeMonthlySalary(let amount):
+        return (try changeMonthlySalary(amount, state: state, now: now), [])
+    case .changeSchedule(let schedule):
+        return (try changeSchedule(schedule, state: state, now: now), [])
+    case .setMenuBarMode(let mode):
+        return (setMenuBarMode(mode, state: state), [])
+    case .setBossModeHotkey(let hotkey):
+        return (try setBossModeHotkey(hotkey, state: state), [])
+    case .setLaunchAtLogin(let enabled):
+        return (try setLaunchAtLogin(enabled, state: state), [])
+    case .addDeduction(let input):
+        return (try addDeduction(input, state: state, now: now, holidays: holidays), [])
+    case .editDeduction(let id, let input):
+        return (try editDeduction(id: id, input, state: state, now: now), [])
+    case .deleteDeduction(let id):
+        return (try deleteDeduction(id: id, state: state, now: now), [])
+    case .requestLeave(let leave):
+        return (try setLeave(leave, mergingWithExisting: true, state: state, now: now, holidays: holidays), [])
+    case .editLeave(let leave):
+        return (try setLeave(leave, mergingWithExisting: false, state: state, now: now, holidays: holidays), [])
+    case .cancelLeave:
+        return (cancelLeave(state: state, now: now), [])
+    case .startUnpaidWork:
+        return (try startUnpaidWork(state: state, now: now, holidays: holidays), [])
+    case .stopUnpaidWork:
+        return (try stopUnpaidWork(state: state, now: now), [])
     case .advance:
-        return (advance(state, now: now), [])
+        return advance(state, now: now, holidays: holidays)
+    case .createGoal(let name, let amount):
+        return (try createGoal(name: name, amount: amount, state: state, now: now, holidays: holidays), [])
     }
 }
 

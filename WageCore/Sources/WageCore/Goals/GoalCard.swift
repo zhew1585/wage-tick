@@ -31,32 +31,32 @@ extension GoalCard {
 extension ActiveGoalCard {
     /// 累计中目标的卡片；没有累计中目标时为 nil。
     /// 累计额 = 累计收入 - 起算基准 (PRD 4.5.2)。
-    init?(state: AppState, profile: Profile, today: Today) {
+    init?(state: AppState, profile: Profile, today: Today, holidays: HolidayTable) {
         guard let current = state.accumulatingGoal else { return nil }
-        let income = Ledger.cumulativeIncome(profile: profile, today: today)
-        self.init(goal: current.goal, accumulated: income - current.baseline, today: today)
+        let income = Ledger.cumulativeIncome(profile: profile, dayRecords: state.dayRecords, today: today, holidays: holidays)
+        self.init(goal: current.goal, accumulated: income - current.baseline, today: today, rule: AttendanceRule(holidays: holidays))
     }
 
-    private init(goal: Goal, accumulated: Decimal, today: Today) {
+    private init(goal: Goal, accumulated: Decimal, today: Today, rule: AttendanceRule) {
         let shown = min(max(accumulated, 0), goal.amount)
         id = goal.id
         name = goal.name
         amountText = "\(Format.money(max(accumulated, 0))) / \(Format.money(goal.amount))"
         progress = NSDecimalNumber(decimal: shown / goal.amount).doubleValue
-        estimate = Self.estimate(remaining: goal.amount - accumulated, today: today)
+        estimate = Self.estimate(remaining: goal.amount - accumulated, today: today, rule: rule)
     }
 
     /// 预计完成 (PRD 4.5.3)：
     /// 今天是应出勤日且未下班时，先扣除今日剩余可赚 (今日上限 - 今日已赚)，扣除后不大于 0 即「今天就能达成」；
     /// 否则 N = 剩余金额 ÷ 当月日薪 向上取整，从明天起数第 N 个应出勤日，跨月仍按当月日薪【D7】。
-    private static func estimate(remaining: Decimal, today: Today) -> String {
+    private static func estimate(remaining: Decimal, today: Today, rule: AttendanceRule) -> String {
         var rest = remaining
         if let earnings = today.earnings, today.status != .offWork {
             rest -= earnings.cap - earnings.earned
         }
         guard rest > 0 else { return "今天就能达成" }
         let days = NSDecimalNumber(decimal: roundedUp(rest / today.dailyWage)).intValue
-        let finish = AttendanceRule.attendanceDay(days, after: today.date)
+        let finish = rule.attendanceDay(days, after: today.date)
         return "还需搬砖 \(days) 天 · \(Format.monthDay(finish))"
     }
 
@@ -71,7 +71,7 @@ extension ActiveGoalCard {
 
 extension AttendanceRule {
     /// `day` 之后 (不含当天) 的第 `count` 个应出勤日，`count` 至少为 1。
-    static func attendanceDay(_ count: Int, after day: LocalDate) -> LocalDate {
+    func attendanceDay(_ count: Int, after day: LocalDate) -> LocalDate {
         var found = 0
         var date = day
         while found < count {

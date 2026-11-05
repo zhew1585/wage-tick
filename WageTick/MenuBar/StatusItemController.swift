@@ -14,6 +14,7 @@ final class StatusItemController: NSObject {
     private let model: AppModel
     private let openOnboarding: () -> Void
     private let openTodayPanel: () -> Void
+    private let openSettings: () -> Void
     private let openGoals: () -> Void
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
@@ -23,16 +24,20 @@ final class StatusItemController: NSObject {
     private var shown: MenuBarDisplay?
     /// 注册失败时为 nil，只能从左键菜单切换 (PRD 6.4)。
     private var bossModeHotkey: GlobalHotkey?
+    /// 设置页正在录制新快捷键，期间全局快捷键保持暂停，菜单合上也不恢复。
+    private var isRecordingHotkey = false
 
     init(
         model: AppModel,
         openOnboarding: @escaping () -> Void,
         openTodayPanel: @escaping () -> Void,
+        openSettings: @escaping () -> Void,
         openGoals: @escaping () -> Void
     ) {
         self.model = model
         self.openOnboarding = openOnboarding
         self.openTodayPanel = openTodayPanel
+        self.openSettings = openSettings
         self.openGoals = openGoals
         super.init()
         configureButton()
@@ -41,6 +46,7 @@ final class StatusItemController: NSObject {
         menu.addItem(withTitle: "今日概览", action: #selector(todayPanelClicked), keyEquivalent: "1").target = self
         menu.addItem(withTitle: "目标", action: #selector(goalsClicked), keyEquivalent: "2").target = self
         menu.addItem(bossModeItem)
+        menu.addItem(withTitle: "设置…", action: #selector(settingsClicked), keyEquivalent: ",").target = self
         menu.addItem(withTitle: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         registerBossModeHotkey()
         observeClockChanges()
@@ -54,7 +60,7 @@ final class StatusItemController: NSObject {
         item.menu = model.isOnboarded ? menu : nil
         render(snap.menuBar)
         renderBossModeItem(snap.settings)
-        scheduleNextRefresh(rolling: snap.today?.isEarning == true)
+        scheduleNextRefresh(rolling: snap.today?.isRolling == true)
     }
 
     private func configureButton() {
@@ -94,8 +100,11 @@ final class StatusItemController: NSObject {
     }
 
     private func registerBossModeHotkey() {
-        let hotkey = model.currentSnapshot().settings.bossModeHotkey
-        bossModeHotkey = GlobalHotkey(hotkey) { [weak self] in
+        bossModeHotkey = makeBossModeHotkey(model.currentSnapshot().settings.bossModeHotkey)
+    }
+
+    private func makeBossModeHotkey(_ hotkey: Hotkey) -> GlobalHotkey? {
+        GlobalHotkey(hotkey) { [weak self] in
             // 引导前菜单栏本就只有小牛，切换了也看不到，忽略，免得引导完数字莫名被藏。
             guard let self, self.model.isOnboarded else { return }
             self.toggleBossMode()
@@ -138,8 +147,36 @@ final class StatusItemController: NSObject {
         openTodayPanel()
     }
 
+    @objc private func settingsClicked() {
+        openSettings()
+    }
+
     @objc private func goalsClicked() {
         openGoals()
+    }
+}
+
+/// 设置页改老板路过快捷键 (#5 遗留)：录制期间暂停全局快捷键，免得按下当前组合直接切换了老板路过；
+/// 新组合在系统注册成功后才保存，旧的同时失效。
+extension StatusItemController {
+    func suspendBossModeHotkey() {
+        isRecordingHotkey = true
+        bossModeHotkey?.suspend()
+    }
+
+    func resumeBossModeHotkey() {
+        isRecordingHotkey = false
+        bossModeHotkey?.resume()
+    }
+
+    /// 换成新组合，返回是否注册成功；失败时旧组合保持有效。
+    /// 启动时注册失败过 (没有实例) 的，用新组合重新建一个。
+    func rebindBossModeHotkey(_ hotkey: Hotkey) -> Bool {
+        if let bossModeHotkey {
+            return bossModeHotkey.rebind(to: hotkey)
+        }
+        bossModeHotkey = makeBossModeHotkey(hotkey)
+        return bossModeHotkey != nil
     }
 }
 
@@ -151,6 +188,7 @@ extension StatusItemController: NSMenuDelegate {
     }
 
     func menuDidClose(_ menu: NSMenu) {
+        guard !isRecordingHotkey else { return }
         bossModeHotkey?.resume()
     }
 }

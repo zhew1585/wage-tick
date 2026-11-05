@@ -4,10 +4,20 @@ import Foundation
 enum Format {
     /// 滚动区域 (菜单栏数字、面板主数字)：四舍五入到 4 位，永远显示 4 位小数，不带货币符号。
     static func rolling(_ amount: Decimal) -> String {
-        let text = NSDecimalNumber(decimal: round(amount, scale: 4)).stringValue
+        fixed(amount, scale: 4)
+    }
+
+    /// 菜单栏进度模式：工作进度百分比四舍五入到 2 位，永远显示 2 位小数，如 `57.14%`、`0.00%`，滚动时宽度不跳。
+    static func rollingPercent(_ ratio: Decimal) -> String {
+        fixed(ratio * 100, scale: 2) + "%"
+    }
+
+    /// 四舍五入到 `scale` 位，并补足 `scale` 位小数。
+    private static func fixed(_ value: Decimal, scale: Int) -> String {
+        let text = NSDecimalNumber(decimal: round(value, scale: scale)).stringValue
         let parts = text.split(separator: ".", omittingEmptySubsequences: false)
         let fraction = parts.count > 1 ? String(parts[1]) : ""
-        return "\(parts[0]).\(fraction.padding(toLength: 4, withPad: "0", startingAt: 0))"
+        return "\(parts[0]).\(fraction.padding(toLength: scale, withPad: "0", startingAt: 0))"
     }
 
     /// 滚动区域以外的数字：四舍五入到 4 位后截掉末尾的 0，整数不显示小数点，如 `1000`、`952.381`。

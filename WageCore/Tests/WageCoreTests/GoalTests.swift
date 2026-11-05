@@ -2,6 +2,9 @@ import Foundation
 import Testing
 import WageCore
 
+// 目标 (PRD 4.5、F8、F9)。除「接入节假日」一组外都用空节假日表 (只按双休)，
+// 与 Support.swift 标准算例的约定一致：2026 年 2 月按双休有 20 个应出勤日，日薪 1000。
+
 /// 面板目标区；未完成引导时测试失败。
 func goalCard(_ state: AppState, at now: Moment) throws -> GoalCard {
     try #require(snapshot(of: state, at: now).panel).goal
@@ -300,5 +303,68 @@ struct GoalPersistenceTests {
         #expect(throws: Never.self) { try JSONDecoder().decode(AppState.self, from: Data(#"{"goals":[\#(valid)]}"#.utf8)) }
 
         #expect(throws: DecodingError.self) { try JSONDecoder().decode(AppState.self, from: Data(#"{"goals":[\#(goal)]}"#.utf8)) }
+    }
+}
+
+/// 2026 年春节放假安排 (holiday-cn 2026.json)：2 月 15 日至 23 日放假，2 月 14 日、28 日周六调休上班。
+/// 2 月应出勤 16 天，月薪 20000 时日薪 1250。
+private let springFestival2026 = HolidayTable(days: Dictionary(uniqueKeysWithValues:
+    (15...23).map { (LocalDate(year: 2026, month: 2, day: $0), HolidayKind.holiday) }
+        + [14, 28].map { (LocalDate(year: 2026, month: 2, day: $0), HolidayKind.makeupDay) }
+))
+
+@Suite("目标：接入节假日、扣钱与请假")
+struct GoalSettlementTests {
+    @Test("PRD 4.5.3 #3 预计完成日按节假日数：春节前还差 2500，第 1 个是调休的 2 月 14 日周六，跳过放假到 2 月 24 日")
+    func estimateSkipsSpringFestival() throws {
+        // 2 月 13 日周五下班后新建，日薪 1250，N = 2500 ÷ 1250 = 2。
+        let created = moment(2026, 2, 13, 18, 30)
+        let command = Command.createGoal(name: "键盘", amount: 2500)
+        let state = try apply(command, to: try onboarded(at: created), at: created, holidays: springFestival2026).state
+        let card = try #require(snapshot(of: state, at: created, holidays: springFestival2026).panel?.goal)
+
+        guard case .active(let goal) = card else { Issue.record("期望累计中目标"); return }
+        #expect(goal.amountText == "¥0 / ¥2500")
+        #expect(goal.estimate == "还需搬砖 2 天 · 2月24日")
+    }
+
+    @Test("PRD 4.5.1 累计收入只算应出勤日：2 月 13 日下班后新建，24 日 09:00 只多了调休的 14 日 1250")
+    func incomeSkipsHolidays() throws {
+        let created = moment(2026, 2, 13, 18, 30)
+        let command = Command.createGoal(name: "键盘", amount: 10000)
+        let state = try apply(command, to: try onboarded(at: created), at: created, holidays: springFestival2026).state
+        let card = try #require(snapshot(of: state, at: moment(2026, 2, 24, 9, 0), holidays: springFestival2026).panel?.goal)
+
+        guard case .active(let goal) = card else { Issue.record("期望累计中目标"); return }
+        #expect(goal.amountText == "¥1250 / ¥10000")
+    }
+
+    @Test("PRD 4.5.2 / 4.3.4 当天扣钱 50：今日已赚按今日上限 950 计入累计额，次日结算为 950")
+    func deductionLowersAccumulation() throws {
+        let created = try creatingGoal("键盘", 10000, in: try onboarded(), at: standardDay(9, 0))
+        let fined = try apply(.addDeduction(DeductionInput(amount: .fixed(50), reason: .late, note: "")), to: created, at: standardDay(15, 0)).state
+
+        #expect(try activeGoal(fined, at: standardDay(15, 0)).amountText == "¥542.8571 / ¥10000")
+        #expect(try activeGoal(fined, at: moment(2026, 2, 12, 9, 0)).amountText == "¥950 / ¥10000")
+    }
+
+    @Test("PRD 4.5.2 / 4.4.2 今天全天请假扣 100%：今天结算为 0，不计入累计额")
+    func fullDayLeaveEarnsNothing() throws {
+        let created = try creatingGoal("键盘", 10000, in: try onboarded(), at: standardDay(9, 0))
+        let onLeave = try apply(.requestLeave(Leave(period: .fullDay, deductionPercent: 100)), to: created, at: standardDay(9, 0)).state
+
+        #expect(try activeGoal(onLeave, at: moment(2026, 2, 12, 9, 0)).amountText == "¥0 / ¥10000")
+    }
+
+    @Test("spec #1 推进到此刻依次处理：跨过 23:59:59 的白干自动停止，同一次推进里累计中目标也达成")
+    func advanceStopsUnpaidWorkAndCompletesGoal() throws {
+        // 09:00 新建 1000 元目标；18:30 开始白干，到次日 09:00 才推进。
+        let created = try creatingGoal("键盘", 1000, in: try onboarded(), at: standardDay(9, 0))
+        let working = try apply(.startUnpaidWork, to: created, at: standardDay(18, 30)).state
+        let next = moment(2026, 2, 12, 9, 0)
+        let advanced = try apply(.advance, to: working, at: next).state
+
+        #expect(advanced.goals.map(\.status) == [.completed(at: next.date)])
+        #expect(snapshot(of: advanced, at: next).today?.unpaidWork.isRunning == false)
     }
 }
