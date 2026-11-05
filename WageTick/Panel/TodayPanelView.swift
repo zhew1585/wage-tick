@@ -112,8 +112,7 @@ struct TodayPanelView: View {
             label: content.status == .offWork ? "今日结算" : "今日已赚",
             headline: attendance.headline,
             caption: attendance.caption,
-            notice: attendance.notice,
-            currencyColor: Palette.money
+            notice: attendance.notice
         )
         progressZone {
             if let progress = attendance.progress {
@@ -140,8 +139,7 @@ struct TodayPanelView: View {
         PanelHero(
             label: "今日已倒贴",
             headline: unpaidWork.headline,
-            caption: unpaidWork.caption,
-            currencyColor: Palette.loss
+            caption: unpaidWork.caption
         )
         progressZone { unpaidWorkButton(button) }
         PanelDivider()

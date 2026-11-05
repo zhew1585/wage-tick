@@ -72,7 +72,6 @@ struct PanelHero: View {
     let caption: String
     /// 快照里的额外提示，如扣款超过日薪 (PRD 4.3.5 #6)。
     var notice: String?
-    let currencyColor: Color
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s2) {
@@ -96,7 +95,7 @@ struct PanelHero: View {
         let (currency, number) = Self.split(headline)
         return HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
             if let currency {
-                Text(currency).font(AppFont.num(22, .semibold)).foregroundStyle(currencyColor)
+                Text(currency).font(AppFont.num(22, .semibold)).foregroundStyle(Palette.ink)
             }
             Text(number)
                 .font(AppFont.num(40, .bold))
