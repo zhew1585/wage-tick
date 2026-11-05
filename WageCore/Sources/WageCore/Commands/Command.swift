@@ -40,6 +40,10 @@ public enum Command: Sendable, Equatable {
     case createGoal(name: String, amount: Decimal)
     /// 开关下班通知 (PRD 4.7.2)。
     case setOffWorkNotification(Bool)
+    /// 历史编辑 (PRD 4.6.1、F11)：在单日详情里改某一天，可编辑范围见 `DayEdit`。
+    case editDay(LocalDate, DayEdit)
+    /// 改某个月的月薪 (PRD 4.2.1 #2、4.6.1)：只影响该月，限安装当月至本月。
+    case setMonthlySalary(YearMonth, Decimal)
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -80,6 +84,12 @@ public enum CommandError: Error, Sendable, Equatable {
     case unpaidWorkNotRunning
     case invalidGoal
     case goalAlreadyAccumulating
+    case dateOutOfRange
+    case futureDate
+    case unpaidWorkEndNotAfterStart
+    case unpaidWorkOverlap
+    case unpaidWorkInFuture
+    case unpaidWorkNotFound
 
     public var message: String {
         switch self {
@@ -102,6 +112,13 @@ public enum CommandError: Error, Sendable, Equatable {
         case .invalidGoal: "给目标起个名字，金额得大于 0"
         // PRD 没给文案：排队属于目标队列 (#12)，本期外壳在已有累计中目标时也提供新建入口，由这条提示拦下。
         case .goalAlreadyAccumulating: "先攒完当前这个目标吧"
+        // 以下为历史编辑 (#15) 的提示，PRD 没给文案。外壳只在快照允许时提供入口，前两条正常用不到。
+        case .dateOutOfRange: "这天不在历史范围内"
+        case .futureDate: "还没到这一天，只能请假或设置单日覆盖"
+        case .unpaidWorkEndNotAfterStart: "结束时间要晚于开始时间"
+        case .unpaidWorkOverlap: "和这天已有的白干段重叠了"
+        case .unpaidWorkInFuture: "还没到这个时间"
+        case .unpaidWorkNotFound: "这段白干已经不在了"
         }
     }
 }
@@ -109,12 +126,14 @@ public enum CommandError: Error, Sendable, Equatable {
 /// 核心入口一：在 `now` 时刻对 `state` 执行 `command`，返回新状态与领域事件。
 /// 校验失败时抛出 `CommandError`，原状态不受影响。
 /// `holidays` 用于需要判定应出勤日的命令 (如记扣钱、请假、白干计时、新建目标、推进到此刻)；不传时为空表，只按双休。
+/// 状态里的单日覆盖在这里并入节假日表，各命令拿到的 `holidays` 已带上覆盖 (PRD 4.2.2)。
 public func apply(
     _ command: Command,
     to state: AppState,
     at now: Moment,
     holidays: HolidayTable = .empty
 ) throws(CommandError) -> (state: AppState, events: [DomainEvent]) {
+    let holidays = holidays.overlaying(state.dayRecords)
     switch command {
     case .completeOnboarding(let input):
         return (try completeOnboarding(input, state: state, now: now), [])
@@ -132,18 +151,20 @@ public func apply(
         return (try setBossModeHotkey(hotkey, state: state), [])
     case .setLaunchAtLogin(let enabled):
         return (try setLaunchAtLogin(enabled, state: state), [])
+    // 面板上的扣钱、请假只作用于今天 (#7、#8)，与历史编辑走同一套逻辑；不检查历史范围，
+    // 系统时间被拨回到安装当月之前时 (PRD 4.3.5 #11) 今天的操作照旧。
     case .addDeduction(let input):
-        return (try addDeduction(input, state: state, now: now, holidays: holidays), [])
+        return (try addDeduction(input, on: now.localDate, state: state, now: now, holidays: holidays), [])
     case .editDeduction(let id, let input):
-        return (try editDeduction(id: id, input, state: state, now: now), [])
+        return (try editDeduction(id: id, input, on: now.localDate, state: state, now: now, holidays: holidays), [])
     case .deleteDeduction(let id):
-        return (try deleteDeduction(id: id, state: state, now: now), [])
+        return (try deleteDeduction(id: id, on: now.localDate, state: state), [])
     case .requestLeave(let leave):
-        return (try setLeave(leave, mergingWithExisting: true, state: state, now: now, holidays: holidays), [])
+        return (try setLeave(leave, mergingWithExisting: true, on: now.localDate, state: state, holidays: holidays), [])
     case .editLeave(let leave):
-        return (try setLeave(leave, mergingWithExisting: false, state: state, now: now, holidays: holidays), [])
+        return (try setLeave(leave, mergingWithExisting: false, on: now.localDate, state: state, holidays: holidays), [])
     case .cancelLeave:
-        return (cancelLeave(state: state, now: now), [])
+        return (cancelLeave(on: now.localDate, state: state), [])
     case .startUnpaidWork:
         return (try startUnpaidWork(state: state, now: now, holidays: holidays), [])
     case .stopUnpaidWork:
@@ -154,6 +175,10 @@ public func apply(
         return (try createGoal(name: name, amount: amount, state: state, now: now, holidays: holidays), [])
     case .setOffWorkNotification(let enabled):
         return (setOffWorkNotification(enabled, state: state), [])
+    case .editDay(let date, let edit):
+        return (try editDay(date, edit, state: state, now: now, holidays: holidays), [])
+    case .setMonthlySalary(let month, let amount):
+        return (try setMonthlySalary(amount, for: month, state: state, now: now), [])
     }
 }
 

@@ -55,6 +55,8 @@ extension ActiveGoalCard {
             rest -= earnings.cap - earnings.earned
         }
         guard rest > 0 else { return "今天就能达成" }
+        // 本月全部覆盖为不上班时日薪为 0 (PRD 4.3.5 #19)，没法按当月日薪估算。
+        guard today.dailyWage > 0 else { return "本月没有要上班的日子，暂时没法预计" }
         let days = NSDecimalNumber(decimal: roundedUp(rest / today.dailyWage)).intValue
         let finish = rule.attendanceDay(days, after: today.date)
         return "还需搬砖 \(days) 天 · \(Format.monthDay(finish))"

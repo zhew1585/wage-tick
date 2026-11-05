@@ -15,6 +15,8 @@ public struct HolidayTable: Sendable, Equatable {
     public let days: [LocalDate: HolidayKind]
     /// 获取失败、数据缺失的年份：该年按双休计算，今天落在其中时面板顶部提示 (PRD 4.3.5 #10)。
     public let missingYears: Set<Int>
+    /// 单日覆盖 (PRD 4.2.2)：不来自数据源，由 `apply`、`snapshot` 入口从状态并入 (见 `overlaying(_:)`)，判定时优先于上面的一切。
+    var overrides: [LocalDate: DayOverride] = [:]
 
     public init(days: [LocalDate: HolidayKind], missingYears: Set<Int> = []) {
         self.days = days

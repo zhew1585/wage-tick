@@ -44,8 +44,8 @@ struct ScheduleFields: View {
     }
 }
 
-/// 时间选择器用 `Date` 表示时刻，这里与核心的 `TimeOfDay` 互转。
-private extension TimeOfDay {
+/// 时间选择器用 `Date` 表示时刻，这里与核心的 `TimeOfDay` 互转。作息表单与白干段表单共用。
+extension TimeOfDay {
     init(pickerDate: Date) {
         let parts = Calendar.current.dateComponents([.hour, .minute], from: pickerDate)
         self.init(hour: parts.hour ?? 0, minute: parts.minute ?? 0)

@@ -1,13 +1,16 @@
 import SwiftUI
 import WageCore
 
-/// 月日历与单日详情 (PRD F11)，本票只读。颜色类型、详情文字都取自快照的 `HistoryMonth`。
+/// 月日历与单日详情 (PRD F11)。颜色类型、详情文字都取自快照的 `HistoryMonth`；
+/// 单日详情里可编辑那一天 (#15)，月薪行可改该月月薪。
 struct MonthCalendarView: View {
     let month: HistoryMonth
+    let actions: PanelActions
     let back: () -> Void
 
     /// 点开的那一天；nil 时提示点某天。
     @State private var selectedDay: LocalDate?
+    @State private var editingSalary = false
 
     private static let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
 
@@ -15,11 +18,14 @@ struct MonthCalendarView: View {
         VStack(alignment: .leading, spacing: 14) {
             header
             HistoryStatsGrid(stats: month.summary.stats)
+            salaryRow
             calendarGrid
             legend
             Divider()
             if let day = month.days.first(where: { $0.date == selectedDay }) {
-                DayDetailView(day: day)
+                DayDetailView(day: day, actions: actions)
+                    // 换一天时丢掉上一天的表单与提示。
+                    .id(day.date)
             } else {
                 Text("点某天看详情").font(.callout).foregroundStyle(.secondary)
             }
@@ -33,6 +39,22 @@ struct MonthCalendarView: View {
             Spacer()
             Text(month.summary.title).font(.headline)
             Spacer()
+        }
+    }
+
+    /// 该月月薪与「改月薪」入口 (PRD 4.2.1 #2)。
+    private var salaryRow: some View {
+        HStack {
+            Text(month.salary.title).font(.callout).foregroundStyle(.secondary)
+            Text(month.salary.value).font(.callout.weight(.medium)).monospacedDigit()
+            Spacer()
+            Button("改月薪") { editingSalary = true }
+        }
+        .sheet(isPresented: $editingSalary) {
+            SalaryFormView(
+                month: month.summary.month, title: month.summary.title, current: month.monthlySalary, actions: actions,
+                dismiss: { editingSalary = false }
+            )
         }
     }
 
@@ -87,60 +109,6 @@ struct MonthCalendarView: View {
             swatch().frame(width: 12, height: 12)
             Text(label).font(.caption).foregroundStyle(.secondary)
         }
-    }
-}
-
-/// 单日详情：判定来源、结算、扣款明细、请假、白干段 (PRD 4.6.1)。
-private struct DayDetailView: View {
-    let day: HistoryDay
-
-    var body: some View {
-        let detail = day.detail
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(detail.title).font(.headline)
-                Text(day.kind.label)
-                    .font(.caption.weight(.medium))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(day.kind.color, in: Capsule())
-                Spacer()
-                Text("\(detail.sourceItem.title) \(detail.sourceItem.value)").font(.callout).foregroundStyle(.secondary)
-            }
-            if !detail.stats.isEmpty {
-                HistoryStatsGrid(stats: detail.stats)
-            }
-            ForEach(detail.deductions) { item in
-                line(title: item.title, detail: item.detail, value: item.amount)
-            }
-            if let leave = detail.leave {
-                line(leave)
-            }
-            ForEach(Array(detail.unpaidWork.enumerated()), id: \.offset) { _, segment in
-                line(segment)
-            }
-            if let summary = detail.unpaidWorkSummary {
-                Text(summary).font(.callout).foregroundStyle(.secondary).monospacedDigit()
-            }
-        }
-    }
-
-    private func line(_ line: HistoryLine) -> some View {
-        self.line(title: line.title, detail: line.detail, value: line.value)
-    }
-
-    private func line(title: String, detail: String?, value: String) -> some View {
-        HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).monospacedDigit()
-                if let detail {
-                    Text(detail).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-            Text(value).monospacedDigit()
-        }
-        .font(.callout)
     }
 }
 

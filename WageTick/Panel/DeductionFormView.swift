@@ -24,12 +24,15 @@ enum DeductionFormRequest: Identifiable {
 
 /// 扣钱表单 (PRD F5)：按金额 / 按日薪百分比、原因标签、备注，实时预览「今日上限 ¥x → ¥y」。
 /// 预览与校验都来自核心：草稿交给 `dryRun` 试算，拿试算后快照里的扣钱入口与当前的对比。
+/// 今日概览面板记今天的，历史单日详情补记那一天的 (#15)。
 struct DeductionFormView: View {
     let request: DeductionFormRequest
     /// 当前快照里的扣钱入口，预览的起点；跨过零点变成休息日时为 nil。
     let entry: DeductionEntry?
     let actions: PanelActions
     let dismiss: () -> Void
+    /// 作用的日子：今天或历史里的某一天。
+    let target: FormTarget
 
     @State private var method: Method
     @State private var valueText: String
@@ -41,10 +44,14 @@ struct DeductionFormView: View {
         case fixed, percent
     }
 
-    init(request: DeductionFormRequest, entry: DeductionEntry?, actions: PanelActions, dismiss: @escaping () -> Void) {
+    init(
+        request: DeductionFormRequest, entry: DeductionEntry?, actions: PanelActions, target: FormTarget = .today,
+        dismiss: @escaping () -> Void
+    ) {
         self.request = request
         self.entry = entry
         self.actions = actions
+        self.target = target
         self.dismiss = dismiss
         let input: DeductionInput? = if case .edit(let item) = request { item.input } else { nil }
         _method = State(initialValue: input.map { if case .percentOfDailyWage = $0.amount { .percent } else { .fixed } } ?? .fixed)
@@ -55,7 +62,7 @@ struct DeductionFormView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(isEditing ? "改一笔扣钱" : "今天扣钱了").font(.title3.bold())
+            Text(title).font(.title3.bold())
             Picker("记账方式", selection: $method) {
                 Text("按金额").tag(Method.fixed)
                 Text("按日薪百分比").tag(Method.percent)
@@ -128,21 +135,27 @@ struct DeductionFormView: View {
         }
     }
 
-    private var isEditing: Bool {
-        if case .edit = request { true } else { false }
+    private var title: String {
+        switch (request, target) {
+        case (.edit, _): "改一笔扣钱"
+        case (.add, .today): "今天扣钱了"
+        case (.add, .day): "补记扣钱"
+        }
     }
 
     /// 草稿试算后的扣钱入口；还没填好 (校验不过) 时为 nil，预览只显示起点。
     private var draftEntry: DeductionEntry? {
         guard case .success(let snap) = actions.dryRun(command) else { return nil }
-        return snap.panel?.deductionEntry
+        return target.deductionEntry(in: snap)
     }
 
     private var command: Command {
         let input = DeductionInput(amount: amount, reason: reason, note: note)
-        return switch request {
-        case .add: .addDeduction(input)
-        case .edit(let item): .editDeduction(id: item.id, input)
+        return switch (request, target) {
+        case (.add, .today): .addDeduction(input)
+        case (.edit(let item), .today): .editDeduction(id: item.id, input)
+        case (.add, .day(let date)): .editDay(date, .addDeduction(input))
+        case (.edit(let item), .day(let date)): .editDay(date, .editDeduction(id: item.id, input))
         }
     }
 

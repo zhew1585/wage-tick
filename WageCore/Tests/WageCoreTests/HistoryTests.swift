@@ -130,8 +130,7 @@ struct HistoryCalendarTests {
         #expect(kinds == [.fullAttendance, .deducted, .leave, .rest, .fullAttendance, .fullAttendance, .upcoming])
         #expect(try [10, 11, 12].map { try day(snap, feb($0)).isToday } == [false, true, false])
         #expect(CalendarDayKind.allCases.map(\.label) == ["满勤", "被扣钱", "请假", "休息日", "单日覆盖", "未到"])
-        // 单日覆盖只在类型上预留 (#15)，图例里先不出现。
-        #expect(CalendarDayKind.legend.map(\.label) == ["满勤", "被扣钱", "请假", "休息日", "未到"])
+        #expect(CalendarDayKind.legend.map(\.label) == ["满勤", "被扣钱", "请假", "休息日", "单日覆盖", "未到"])
         #expect(CalendarDayKind.todayLabel == "今天")
     }
 

@@ -13,19 +13,22 @@ final class HistoryContent {
     var selectedMonth: YearMonth?
 }
 
-/// 历史窗口 (PRD F10、F11，页面 P4、P5)，从左键菜单「历史 ⌘3」打开。本票只读。
+/// 历史窗口 (PRD F10、F11，页面 P4、P5)，从左键菜单「历史 ⌘3」打开，可编辑历史 (#15)。
 /// 只在窗口可见时每秒刷新一次：本月结算总额含今日已赚，要跟着本月累计走 (AC-HIS-01)。
 @MainActor
 final class HistoryWindowController: NSObject, NSWindowDelegate {
     private static let refreshInterval: TimeInterval = 1
 
     private let model: AppModel
+    /// 编辑改了状态后通知外壳其余部分 (菜单栏) 立即重绘，如把今天改成不上班日后小牛马上晒太阳。
+    private let onStateChange: () -> Void
     private let content = HistoryContent()
     private lazy var window: NSWindow = makeWindow()
     private var timer: Timer?
 
-    init(model: AppModel) {
+    init(model: AppModel, onStateChange: @escaping () -> Void) {
         self.model = model
+        self.onStateChange = onStateChange
     }
 
     func show() {
@@ -54,7 +57,17 @@ final class HistoryWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow() -> NSWindow {
-        let window = NSWindow(contentViewController: NSHostingController(rootView: HistoryView(content: content)))
+        let actions = PanelActions(
+            dryRun: { [model] command in model.dryRun(command) },
+            send: { [weak self] command throws(CommandError) in
+                guard let self else { return }
+                try model.send(command)
+                // 立即刷新，编辑后所在月份与目标当场重算 (PRD 4.6.1)，不等下一次定时刷新。
+                refresh()
+                onStateChange()
+            }
+        )
+        let window = NSWindow(contentViewController: NSHostingController(rootView: HistoryView(content: content, actions: actions)))
         window.title = "历史"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false

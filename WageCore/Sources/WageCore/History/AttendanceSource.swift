@@ -8,7 +8,7 @@ public enum AttendanceSource: Sendable, Equatable, CaseIterable {
     case publicHoliday
     /// 调休上班：应出勤，即使落在周六日。
     case makeupDay
-    /// 单日覆盖：牛马手动改成上班日或不上班日。预留给 #15，本票不会出现。
+    /// 单日覆盖：牛马手动改成上班日或不上班日 (#15)。
     case override
 
     /// 展示文案。
@@ -23,9 +23,10 @@ public enum AttendanceSource: Sendable, Equatable, CaseIterable {
 }
 
 extension AttendanceRule {
-    /// 某天的判定来源，与 `isAttendanceDay` 同一判定顺序：调休上班日 > 法定节假日 > 周六日 > 其余。
+    /// 某天的判定来源，与 `isAttendanceDay` 同一判定顺序：单日覆盖 > 调休上班日 > 法定节假日 > 周六日 > 其余。
     func source(on date: LocalDate) -> AttendanceSource {
-        switch holidays.kind(on: date) {
+        if holidays.overrides[date] != nil { return .override }
+        return switch holidays.kind(on: date) {
         case .makeupDay: .makeupDay
         case .holiday: .publicHoliday
         case nil: .weekend
@@ -35,7 +36,7 @@ extension AttendanceRule {
 
 extension AttendanceRule {
     /// 当月日薪 = 当月月薪 ÷ 当月应出勤日数 (PRD 4.2.4)，今天与历史同用。
-    /// 应出勤日数为 0 时没有日薪，记 0，结算与本月累计随之为 0 (PRD 4.3.5 #19)；面板提示随单日覆盖 (#15) 一起做。
+    /// 应出勤日数为 0 时没有日薪，记 0，结算与本月累计随之为 0；面板提示见 `TodayPanel.notices` (PRD 4.3.5 #19)。
     func dailyWage(in month: YearMonth, profile: Profile) -> Decimal {
         let count = attendanceDayCount(in: month)
         return count > 0 ? profile.salary(for: month) / Decimal(count) : 0
