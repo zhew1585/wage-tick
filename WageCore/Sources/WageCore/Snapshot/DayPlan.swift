@@ -1,13 +1,19 @@
 import Foundation
 
-/// 应出勤日判定 (PRD 4.2.2)。
-/// 本期只按双休：周六、周日不应出勤，其余应出勤；节假日与单日覆盖留给后续票。
-enum AttendanceRule {
-    static func isAttendanceDay(_ date: LocalDate) -> Bool {
-        !date.isWeekend
+/// 应出勤日判定 (PRD 4.2.2)，先命中者为准：调休上班日 > 法定节假日 > 周六日 > 其余应出勤。
+/// 单日覆盖留给后续票。节假日表里没有的年份 (含缺失年份) 自然落到按双休判定。
+struct AttendanceRule {
+    let holidays: HolidayTable
+
+    func isAttendanceDay(_ date: LocalDate) -> Bool {
+        switch holidays.kind(on: date) {
+        case .makeupDay: true
+        case .holiday: false
+        case nil: !date.isWeekend
+        }
     }
 
-    static func attendanceDayCount(in month: YearMonth) -> Int {
+    func attendanceDayCount(in month: YearMonth) -> Int {
         month.days.filter(isAttendanceDay).count
     }
 
@@ -15,8 +21,8 @@ enum AttendanceRule {
     private static let lookaheadDays = 366
 
     /// `day` 之后 (不含当天) 的第一个应出勤日；一年内都没有时为 nil。
-    static func nextAttendanceDay(after day: LocalDate) -> LocalDate? {
-        (1...lookaheadDays).lazy.map { day.adding(days: $0) }.first(where: isAttendanceDay)
+    func nextAttendanceDay(after day: LocalDate) -> LocalDate? {
+        (1...Self.lookaheadDays).lazy.map { day.adding(days: $0) }.first(where: isAttendanceDay)
     }
 }
 

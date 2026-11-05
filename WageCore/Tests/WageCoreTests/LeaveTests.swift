@@ -41,9 +41,10 @@ struct HalfDayLeaveTests {
 
         #expect(panel.statusLabel == "已下班")
         #expect(body.headline == "¥500.0000")
-        // 2 月 11 日前 7 个应出勤日满勤 7000，加今日结算 500。
+        // 2 月 11 日前 7 个应出勤日满勤 7000，加今日结算 500；请假扣薪计入当日扣款。
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥500"),
+            StatItem(title: "扣款", value: "−¥500"),
             StatItem(title: "本月累计", value: "¥7500"),
         ])
     }
@@ -182,6 +183,51 @@ struct LeaveMonthToDateTests {
 
         #expect(rounded4(try #require(snapshot(of: state, at: moment(2026, 5, 6, 18, 0)).today?.earnings).cap) == rounded4(Decimal(10000) / Decimal(21)))
         #expect(snapshot(of: state, at: moment(2026, 5, 6, 18, 0)).menuBar.text == "476.1905")
+    }
+}
+
+@Suite("请假：与扣钱记录合计")
+struct LeaveWithDeductionTests {
+    private let fifty = Command.addDeduction(DeductionInput(amount: .fixed(50), reason: .late, note: ""))
+
+    @Test("GLOSSARY 当日扣款 = 扣钱记录合计 + 请假扣薪：下午假 50% 再扣 50，今日上限 450，已下班统计行扣款 −¥550")
+    func deductionAndLeaveAddUp() throws {
+        let state = try sending(fifty, to: try onLeave(.afternoon, 50))
+        let body = try attendancePanel(state, at: standardDay(12, 30))
+
+        #expect(snapshot(of: state, at: standardDay(11, 0)).today?.earnings?.cap == 450)
+        #expect(snapshot(of: state, at: standardDay(11, 0)).today?.earnings?.deductionTotal == 550)
+        #expect(body.stats == [
+            StatItem(title: "今日结算", value: "¥450"),
+            StatItem(title: "扣款", value: "−¥550"),
+            StatItem(title: "本月累计", value: "¥7450"),
+        ])
+        // 次日本月累计里，这一天按结算 450 计入。
+        #expect(snapshot(of: state, at: moment(2026, 2, 12, 9, 0)).today?.monthToDate == 7450)
+    }
+
+    @Test("PRD 4.3.4【D1】全天请假 100% 再扣钱：今日上限停在 0，提示今天已经白干了")
+    func fullDayLeavePlusDeductionFloorsAtZero() throws {
+        let state = try sending(fifty, to: try onLeave(.fullDay, 100))
+        let snap = snapshot(of: state, at: standardDay(11, 0))
+
+        #expect(snap.today?.earnings?.cap == 0)
+        #expect(snap.today?.monthToDate == 7000)
+        #expect(snap.panel?.deductionEntry?.warning == "今天已经白干了，再扣就倒贴了")
+    }
+
+    @Test("撤销请假后扣钱记录保留；删掉最后一笔扣钱后请假保留")
+    func leaveAndDeductionsShareOneDayRecord() throws {
+        let both = try sending(fifty, to: try onLeave(.afternoon, 50))
+        let leaveCancelled = try sending(.cancelLeave, to: both)
+        let id = try #require(snapshot(of: both, at: standardDay(11, 0)).panel.flatMap {
+            if case .attendance(let body) = $0.body { body.deductions.first?.id } else { nil }
+        })
+        let deductionDeleted = try sending(.deleteDeduction(id: id), to: both)
+
+        #expect(snapshot(of: leaveCancelled, at: standardDay(11, 0)).today?.earnings?.cap == 950)
+        #expect(snapshot(of: deductionDeleted, at: standardDay(11, 0)).today?.earnings?.cap == 500)
+        #expect(try sending(.cancelLeave, to: deductionDeleted) == (try onboarded()))
     }
 }
 

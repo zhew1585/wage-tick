@@ -1,35 +1,26 @@
 import Foundation
 
-// 请假命令 (PRD 4.4.2、F6)。本票只覆盖今天，未来日期请假留给历史编辑票。
+// 请假命令 (PRD 4.4.2、F6)。本票只覆盖今天，未来日期请假留给历史编辑票 (#15)。
 
 /// 给今天设置请假。`mergingWithExisting` 为 true 时 (新请一条) 与已有的另一半天假合并为全天，
-/// 为 false 时 (编辑) 整条替换。今天不是应出勤日或比例越界时拒绝 (PRD 4.3.5 #8、#22)。
-func setLeave(_ leave: Leave, mergingWithExisting: Bool, state: AppState, now: Moment) throws(CommandError) -> AppState {
+/// 为 false 时 (编辑) 整条替换。今天不应出勤 (按节假日表判定) 或比例越界时拒绝 (PRD 4.3.5 #8、#22)。
+func setLeave(
+    _ leave: Leave, mergingWithExisting: Bool, state: AppState, now: Moment, holidays: HolidayTable
+) throws(CommandError) -> AppState {
     guard state.profile != nil else { throw .notOnboarded }
     let today = now.localDate
-    guard AttendanceRule.isAttendanceDay(today) else { throw .notAttendanceDay }
+    guard AttendanceRule(holidays: holidays).isAttendanceDay(today) else { throw .notAttendanceDay }
     if let error = Validation.leaveDeductionPercent(leave.deductionPercent) { throw error }
-    return state.updatingRecord(on: today) { record in
-        record.leave = mergingWithExisting ? leave.merged(into: record.leave) : leave
-    }
+    var record = state.dayRecord(on: today) ?? DayRecord(date: today)
+    record.leave = mergingWithExisting ? leave.merged(into: record.leave) : leave
+    return state.replacingDayRecord(record)
 }
 
-/// 撤销今天的请假；没有请假时原样返回。
+/// 撤销今天的请假；没有请假时原样返回。日记录因此变空时一并删掉。
 func cancelLeave(state: AppState, now: Moment) -> AppState {
-    let today = now.localDate
-    guard state.dayRecords[today]?.leave != nil else { return state }
-    return state.updatingRecord(on: today) { $0.leave = nil }
-}
-
-extension AppState {
-    /// 返回改过 `day` 那条日记录的新状态，原状态不变；那天还没有记录时从空记录开始。
-    func updatingRecord(on day: LocalDate, _ change: (inout DayRecord) -> Void) -> AppState {
-        var record = dayRecords[day] ?? DayRecord()
-        change(&record)
-        var next = self
-        next.dayRecords[day] = record
-        return next
-    }
+    guard var record = state.dayRecord(on: now.localDate), record.leave != nil else { return state }
+    record.leave = nil
+    return state.replacingDayRecord(record)
 }
 
 extension Validation {

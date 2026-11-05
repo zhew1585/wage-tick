@@ -16,7 +16,7 @@ struct BossModeTests {
         #expect(snapshot(of: state, at: standardDay(11, 0)).menuBar == MenuBarDisplay(pose: .grinding, text: nil))
     }
 
-    @Test("AC-BOSS-02 再按一次：恢复为金额模式 (目前唯一的显示模式) 的今日已赚")
+    @Test("AC-BOSS-02 再按一次：恢复为设置中的显示模式 (默认金额) 的今日已赚")
     func secondToggleRestoresNumber() throws {
         let on = try toggled(try onboarded(), at: standardDay(11, 0))
         let off = try toggled(on, at: standardDay(11, 0))

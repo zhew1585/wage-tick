@@ -1,17 +1,16 @@
+import OSLog
 import SwiftUI
 import WageCore
 
 /// 今日概览面板 (PRD F4)。所有文字和数字原样取自快照的 `TodayPanel`，这里只管排版。
-/// 目标区、「今天扣钱了」「被迫营业」「我还没走」按钮本期只占位，功能留给后续票。
+/// 目标区、被迫营业按钮、「我还没走」按钮只占位，功能留给后续票。
 struct TodayPanelView: View {
     let content: TodayPanelContent
-    /// 情绪按钮的表单通过它发命令、试算。
-    let model: AppModel
-    /// 表单保存后立即刷新面板，不等下一次定时刷新。
-    let onStateChanged: () -> Void
+    let actions: PanelActions
 
+    @State private var deductionForm: DeductionFormRequest?
     /// 正在弹出的请假表单；nil 时没有表单。
-    @State private var leaveMode: LeaveFormView.Mode?
+    @State private var leaveForm: LeaveFormView.Mode?
 
     /// 进度区高度：已下班时换成「我还没走」按钮，高度保持一致 (AC-HOME-11)。
     private static let progressAreaHeight: CGFloat = 44
@@ -19,6 +18,7 @@ struct TodayPanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if let panel = content.panel {
+                ForEach(panel.notices, id: \.self, content: noticeBanner)
                 header(panel)
                 switch panel.body {
                 case .attendance(let attendance):
@@ -29,34 +29,29 @@ struct TodayPanelView: View {
                 goalPlaceholder
                 Divider()
                 currentLeaveRow
-                moodButtons(isRestDay: panel.body.isRest)
+                moodButtons(panel)
             }
         }
         .padding(20)
         .frame(width: 340)
-        .sheet(item: $leaveMode) { mode in
-            LeaveFormView(
-                model: model,
-                mode: mode,
-                onSaved: {
-                    leaveMode = nil
-                    onStateChanged()
-                },
-                onCancel: { leaveMode = nil }
+        .sheet(item: $deductionForm) { request in
+            DeductionFormView(
+                request: request,
+                entry: content.panel?.deductionEntry,
+                actions: actions,
+                dismiss: { deductionForm = nil }
             )
         }
     }
 
-    /// 今天已请假时显示一句描述和「修改」入口，撤销在修改表单里。
-    @ViewBuilder
-    private var currentLeaveRow: some View {
-        if let form = content.leaveForm, let current = form.current, let text = form.currentText {
-            HStack {
-                Text(text).font(.callout).foregroundStyle(.secondary)
-                Spacer()
-                Button("修改") { leaveMode = .edit(current) }
-            }
-        }
+    /// 面板顶部提示条，如节假日数据缺失 (AC-HOME-08)。文案原样取自快照。
+    private func noticeBanner(_ text: String) -> some View {
+        Label(text, systemImage: "exclamationmark.triangle.fill")
+            .font(.callout)
+            .foregroundStyle(.orange)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func header(_ panel: TodayPanel) -> some View {
@@ -82,6 +77,9 @@ struct TodayPanelView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+            if let notice = attendance.notice {
+                Text(notice).font(.callout).foregroundStyle(.orange)
+            }
         }
         Group {
             if let progress = attendance.progress {
@@ -94,7 +92,45 @@ struct TodayPanelView: View {
         }
         .frame(height: Self.progressAreaHeight)
         statsRow(attendance.stats)
+        if !attendance.deductions.isEmpty {
+            deductionList(attendance.deductions)
+        }
     }
+
+    /// 今天的扣钱明细，每笔可编辑、删除 (AC-FINE-04、PRD 4.4.1 #1)。
+    private func deductionList(_ items: [DeductionItem]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(items) { item in
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(item.title)
+                        if let detail = item.detail {
+                            Text(detail).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Text(item.amount).monospacedDigit()
+                    Button { deductionForm = .edit(item) } label: { Image(systemName: "pencil") }
+                        .help("编辑")
+                    Button { send(.deleteDeduction(id: item.id)) } label: { Image(systemName: "trash") }
+                        .help("删除")
+                }
+                .buttonStyle(.borderless)
+                .font(.callout)
+            }
+        }
+    }
+
+    /// 面板上直接发出的命令 (如删除)。正常操作下不会失败，失败时只记日志，面板不变。
+    private func send(_ command: Command) {
+        do {
+            try actions.send(command)
+        } catch {
+            Self.logger.error("面板命令失败：\(error.message, privacy: .public)")
+        }
+    }
+
+    private static let logger = Logger(subsystem: AppIdentity.bundleID, category: "TodayPanel")
 
     @ViewBuilder
     private func restSection(_ rest: RestPanel) -> some View {
@@ -137,18 +173,37 @@ struct TodayPanelView: View {
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
     }
 
-    /// 情绪按钮：应出勤日为扣钱、请假，休息日为被迫营业 (F5、F7 本期占位)。
-    /// 请假入口只在今天应出勤时出现 (PRD 4.3.5 #8)；能否新请由核心决定。
-    private func moodButtons(isRestDay: Bool) -> some View {
+    /// 今天已请假时显示一句描述和「修改」入口，撤销在修改表单里 (F6)。
+    @ViewBuilder
+    private var currentLeaveRow: some View {
+        if let form = content.leaveForm, let current = form.current, let text = form.currentText {
+            HStack {
+                Text(text).font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                Button("修改") { leaveForm = .edit(current) }
+            }
+        }
+    }
+
+    /// 情绪按钮：应出勤日为扣钱、请假，休息日为被迫营业 (F4)。
+    /// 「今天扣钱了」只在快照给出入口时出现 (AC-FINE-07)；请假入口与能否新请由核心决定 (PRD 4.3.5 #8)；
+    /// 被迫营业 (F7) 留给后续票，先占位。
+    private func moodButtons(_ panel: TodayPanel) -> some View {
         HStack {
-            if isRestDay {
+            if panel.body.isRest {
                 Button("被迫营业") {}.disabled(true)
             } else {
-                Button("今天扣钱了") {}.disabled(true)
+                if panel.deductionEntry != nil {
+                    Button("今天扣钱了") { deductionForm = .add }
+                }
             }
             if content.leaveForm?.canRequest == true {
-                Button("请假") { leaveMode = .request }
+                Button("请假") { leaveForm = .request }
             }
+        }
+        // 与扣钱表单分开挂，避免同一视图上挂两个 sheet。
+        .sheet(item: $leaveForm) { mode in
+            LeaveFormView(mode: mode, actions: actions, dismiss: { leaveForm = nil })
         }
     }
 }
