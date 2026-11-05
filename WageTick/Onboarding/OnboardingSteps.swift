@@ -57,8 +57,8 @@ struct OnboardingScheduleStep: View {
 
     private func timeRow(_ startLabel: String, _ start: Binding<Date>, _ endLabel: String, _ end: Binding<Date>) -> some View {
         HStack(spacing: Spacing.s10) {
-            Field(startLabel, suffix: "▾") { TimeInput(selection: start) }
-            Field(endLabel, suffix: "▾") { TimeInput(selection: end) }
+            Field(startLabel) { TimeInput(selection: start) }
+            Field(endLabel) { TimeInput(selection: end) }
         }
     }
 }
