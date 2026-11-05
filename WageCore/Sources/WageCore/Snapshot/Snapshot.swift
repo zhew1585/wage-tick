@@ -45,7 +45,7 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
             settingsForm: nil
         )
     }
-    let today = Today(profile: profile, now: now, holidays: holidays)
+    let today = Today(profile: profile, dayRecords: state.dayRecords, now: now, holidays: holidays)
     return Snapshot(
         menuBar: MenuBarDisplay(today: today, settings: state.settings),
         today: today,

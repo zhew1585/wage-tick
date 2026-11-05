@@ -160,3 +160,20 @@ private func attendancePanel(_ state: AppState, at now: Moment, holidays: Holida
     }
     return body
 }
+
+@Suite("节假日：命令里的应出勤判定")
+struct HolidayCommandTests {
+    private let fifty = DeductionInput(amount: .fixed(50), reason: nil, note: "")
+
+    @Test("PRD 4.3.5 #8 国庆放假当天不能记扣钱，调休上班的周六可以")
+    func deductionFollowsHolidayTable() throws {
+        let state = try onboarded()
+
+        #expect(throws: CommandError.notAttendanceDay) {
+            try apply(.addDeduction(fifty), to: state, at: moment(2026, 10, 5, 11, 0), holidays: holidays2026)
+        }
+        #expect(throws: Never.self) {
+            try apply(.addDeduction(fifty), to: state, at: moment(2026, 10, 10, 11, 0), holidays: holidays2026)
+        }
+    }
+}

@@ -26,6 +26,8 @@ public struct Today: Sendable, Equatable {
     public let nextAttendanceDay: LocalDate?
     /// 当日计划；休息日为 nil。面板据此推导进度与倒计时。
     let plan: DayPlan?
+    /// 今天的结算推导 (当日扣款明细、今日上限)；休息日为 nil。
+    let settlement: DaySettlement?
 
     /// 今日已赚是否正在增长：只在上班中增长 (PRD 4.3.3 不变量 3)。外壳据此决定刷新频率。
     public var isEarning: Bool { status == .working }
@@ -41,41 +43,50 @@ public struct Earnings: Sendable, Equatable {
     public let earned: Decimal
     /// 上班中今日已赚每秒的增量 = 今日上限 ÷ 应有有效工时 (秒)。
     public let perSecond: Decimal
+    /// 当日扣款 = 扣钱记录合计 (PRD 4.3.1)。
+    public let deductionTotal: Decimal
 }
 
 extension Today {
-    init(profile: Profile, now: Moment, holidays: HolidayTable) {
+    init(profile: Profile, dayRecords: [DayRecord], now: Moment, holidays: HolidayTable) {
         let rule = AttendanceRule(holidays: holidays)
         let day = now.localDate
         let month = day.yearMonth
         // 真实放假安排下最少的月份 (如春节、国庆) 也有十几个应出勤日，适配器拒收日期离谱的数据；
         // 应出勤日数为 0 的兜底 (PRD 4.3.5 #19) 随单日覆盖一起做。
         let wage = profile.salary(for: month) / Decimal(rule.attendanceDayCount(in: month))
-        // 本期没有扣款，每个已过的应出勤日结算都等于日薪。
-        let attended = month.days.filter { $0 < day && rule.isAttendanceDay($0) }.count
+        let settle = { (date: LocalDate) in
+            DaySettlement(dailyWage: wage, record: dayRecords.first { $0.date == date })
+        }
+        let pastDays = month.days.filter { $0 < day && rule.isAttendanceDay($0) }
+        let settledSum = pastDays.map { settle($0).cap }.reduce(0, +)
         date = day
         dailyWage = wage
-        attendedDays = attended
+        attendedDays = pastDays.count
         nextAttendanceDay = rule.nextAttendanceDay(after: day)
         guard rule.isAttendanceDay(day) else {
             status = .restDay
             earnings = nil
             plan = nil
-            monthToDate = wage * Decimal(attended)
+            settlement = nil
+            monthToDate = settledSum
             return
         }
+        let todaySettlement = settle(day)
         let todayPlan = DayPlan(schedule: profile.schedule(on: day), on: day, now: now)
-        let todayEarnings = Earnings(cap: wage, plan: todayPlan, now: now.date)
+        let todayEarnings = Earnings(settlement: todaySettlement, plan: todayPlan, now: now.date)
         status = todayPlan.status(at: now.date)
         earnings = todayEarnings
         plan = todayPlan
-        monthToDate = wage * Decimal(attended) + todayEarnings.earned
+        settlement = todaySettlement
+        monthToDate = settledSum + todayEarnings.earned
     }
 }
 
 extension Earnings {
-    /// 本期没有扣款，今日上限 = 日薪。
-    init(cap: Decimal, plan: DayPlan, now: Date) {
+    /// 今日上限取自当天的结算推导，已扣掉当日扣款。
+    init(settlement: DaySettlement, plan: DayPlan, now: Date) {
+        let cap = settlement.cap
         let total = Decimal(plan.effectiveMilliseconds)
         let elapsed = Decimal(plan.elapsedMilliseconds(at: now))
         self.cap = cap
@@ -83,6 +94,7 @@ extension Earnings {
         // 先乘后除，减少中间舍入。
         earned = cap * elapsed / total
         perSecond = cap * 1000 / total
+        deductionTotal = settlement.deductionTotal
     }
 }
 

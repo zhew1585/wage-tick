@@ -7,12 +7,15 @@ public struct AppState: Sendable, Equatable, Codable {
     public internal(set) var profile: Profile?
     /// 界面设置 (老板路过等)，引导前也有默认值。
     public internal(set) var settings: InterfaceSettings
+    /// 日记录 (PRD 4.3.1)：一天最多一条，只存牛马手动产生的内容，按日期升序。
+    public internal(set) var dayRecords: [DayRecord]
 
-    private enum CodingKeys: String, CodingKey { case profile, settings }
+    private enum CodingKeys: String, CodingKey { case profile, settings, dayRecords }
 
     public init() {
         profile = nil
         settings = InterfaceSettings()
+        dayRecords = []
     }
 
     /// #2 写出的旧文件没有 `settings`，读入时取默认值，不当作损坏文件。
@@ -20,6 +23,13 @@ public struct AppState: Sendable, Equatable, Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         profile = try container.decodeIfPresent(Profile.self, forKey: .profile)
         settings = try container.decodeIfPresent(InterfaceSettings.self, forKey: .settings) ?? InterfaceSettings()
+        // #7 之前的旧文件没有日记录。
+        let records = try container.decodeIfPresent([DayRecord].self, forKey: .dayRecords) ?? []
+        let ids = records.flatMap(\.deductions).map(\.id)
+        guard Set(records.map(\.date)).count == records.count, Set(ids).count == ids.count else {
+            throw DecodingError.dataCorruptedError(forKey: .dayRecords, in: container, debugDescription: "同一天有多条日记录，或扣钱记录标识重复")
+        }
+        dayRecords = records.sorted { $0.date < $1.date }
     }
 }
 

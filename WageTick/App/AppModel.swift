@@ -19,9 +19,19 @@ final class AppModel {
 
     /// 执行命令并立即落盘。校验失败时抛出 `CommandError`，状态不变。
     func send(_ command: Command) throws(CommandError) {
-        let result = try apply(command, to: state, at: Self.now())
+        let result = try apply(command, to: state, at: Self.now(), holidays: holidays)
         state = result.state
         store.save(state)
+    }
+
+    /// 试算：在当前状态上执行命令但不保存，返回执行后的快照。表单实时预览用它，校验失败时返回错误。
+    func dryRun(_ command: Command) -> Result<Snapshot, CommandError> {
+        let now = Self.now()
+        do {
+            return .success(snapshot(of: try apply(command, to: state, at: now, holidays: holidays).state, at: now, holidays: holidays))
+        } catch {
+            return .failure(error)
+        }
     }
 
     /// 按系统当前时间与时区、当前节假日表取快照。

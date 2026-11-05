@@ -16,6 +16,12 @@ public enum Command: Sendable, Equatable {
     case setBossModeHotkey(Hotkey)
     /// 开关开机自动启动 (PRD 4.7.2)。
     case setLaunchAtLogin(Bool)
+    /// 给今天记一笔扣钱 (PRD 4.4.1、F5)。
+    case addDeduction(DeductionInput)
+    /// 修改今天的一笔扣钱记录。
+    case editDeduction(id: Int, DeductionInput)
+    /// 删除今天的一笔扣钱记录。
+    case deleteDeduction(id: Int)
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -44,6 +50,10 @@ public enum CommandError: Error, Sendable, Equatable {
     case notOnboarded
     case hotkeyKeyInvalid
     case hotkeyModifiersInvalid
+    case deductionNotPositive
+    case deductionNoteTooLong
+    case notAttendanceDay
+    case deductionNotFound
 
     public var message: String {
         switch self {
@@ -54,16 +64,22 @@ public enum CommandError: Error, Sendable, Equatable {
         case .notOnboarded: "还没完成引导"
         case .hotkeyKeyInvalid: "主键只能是字母或数字"
         case .hotkeyModifiersInvalid: "快捷键要按住两个以上修饰键，且包含 ⌃ 或 ⌘"
+        case .deductionNotPositive: "扣钱金额得大于 0"
+        case .deductionNoteTooLong: "备注最多 \(Validation.deductionNoteLimit) 个字"
+        case .notAttendanceDay: "今天本来就不上班"
+        case .deductionNotFound: "这笔扣钱已经不在了"
         }
     }
 }
 
 /// 核心入口一：在 `now` 时刻对 `state` 执行 `command`，返回新状态与领域事件。
 /// 校验失败时抛出 `CommandError`，原状态不受影响。
+/// `holidays` 用于需要判定应出勤日的命令 (如记扣钱)；不传时为空表，只按双休。
 public func apply(
     _ command: Command,
     to state: AppState,
-    at now: Moment
+    at now: Moment,
+    holidays: HolidayTable = .empty
 ) throws(CommandError) -> (state: AppState, events: [DomainEvent]) {
     switch command {
     case .completeOnboarding(let input):
@@ -82,6 +98,12 @@ public func apply(
         return (try setBossModeHotkey(hotkey, state: state), [])
     case .setLaunchAtLogin(let enabled):
         return (try setLaunchAtLogin(enabled, state: state), [])
+    case .addDeduction(let input):
+        return (try addDeduction(input, state: state, now: now, holidays: holidays), [])
+    case .editDeduction(let id, let input):
+        return (try editDeduction(id: id, input, state: state, now: now), [])
+    case .deleteDeduction(let id):
+        return (try deleteDeduction(id: id, state: state, now: now), [])
     }
 }
 
