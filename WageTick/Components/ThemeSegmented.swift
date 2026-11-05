@@ -5,6 +5,7 @@ import SwiftUI
 /// 每段可带一行 9 号等宽小字 (`subtitle`)。不可用的段变淡、点不动。
 ///
 /// 用法：`ThemeSegmented(options: modes.map { .init(id: $0, title: $0.label) }, selection: mode) { setMode($0) }`
+/// 表单里直接绑定：`ThemeSegmented(selection: $method, options: [(.fixed, "按金额"), (.percent, "按日薪百分比")])`
 struct ThemeSegmented<ID: Hashable>: View {
     struct Option: Identifiable {
         let id: ID
@@ -16,6 +17,24 @@ struct ThemeSegmented<ID: Hashable>: View {
     let options: [Option]
     let selection: ID?
     let select: (ID) -> Void
+    /// 选项文字字号：默认 12，请假表单 13。
+    var fontSize: CGFloat = 12
+
+    init(options: [Option], selection: ID?, fontSize: CGFloat = 12, select: @escaping (ID) -> Void) {
+        self.options = options
+        self.selection = selection
+        self.fontSize = fontSize
+        self.select = select
+    }
+
+    /// 表单用：选中值直接绑定，每段只有标题。
+    init(selection: Binding<ID>, options: [(value: ID, title: String)], fontSize: CGFloat = 12) {
+        self.init(
+            options: options.map { Option(id: $0.value, title: $0.title) },
+            selection: selection.wrappedValue,
+            fontSize: fontSize
+        ) { selection.wrappedValue = $0 }
+    }
 
     private static var disabledOpacity: Double { 0.5 }
 
@@ -36,7 +55,7 @@ struct ThemeSegmented<ID: Hashable>: View {
         } label: {
             VStack(spacing: Spacing.s1) {
                 Text(option.title)
-                    .font(selected ? AppFont.captionSemibold : AppFont.caption)
+                    .font(AppFont.ui(fontSize, selected ? .semibold : .regular))
                     .foregroundStyle(selected ? Palette.ink : Palette.muted)
                 if let subtitle = option.subtitle {
                     Text(subtitle).font(AppFont.num(9)).foregroundStyle(Palette.muted)
