@@ -15,6 +15,10 @@ public struct ActiveGoalCard: Sendable, Equatable {
     public let name: String
     /// 累计额与目标金额，如「¥3000 / ¥10000」；累计额为负时显示 ¥0 (PRD 4.3.5 #17)。
     public let amountText: String
+    /// 单独的累计额，如「¥3000」，与 `amountText` 前半段相同，供大号数字分开排版。
+    public let accumulatedText: String
+    /// 单独的目标金额，如「¥10000」。
+    public let targetText: String
     /// 进度条比例，0 至 1；累计额为负时为 0 (PRD 4.3.5 #17)，达标后为 1。
     public let progress: Double
     /// 预计完成 (PRD 4.5.3)，如「还需搬砖 7 天 · 2月20日」或「今天就能达成」。
@@ -40,11 +44,14 @@ extension ActiveGoalCard {
         self.init(goal: current.goal, accumulated: income - current.baseline, today: today, rule: AttendanceRule(holidays: holidays))
     }
 
-    private init(goal: Goal, accumulated: Decimal, today: Today, rule: AttendanceRule) {
+    /// `goal` 以累计额 `accumulated` 累计时的卡片；目标管理页也用它预览排队中目标排到第一个时的样子。
+    init(goal: Goal, accumulated: Decimal, today: Today, rule: AttendanceRule) {
         let shown = min(max(accumulated, 0), goal.amount)
         id = goal.id
         name = goal.name
-        amountText = "\(Format.money(max(accumulated, 0))) / \(Format.money(goal.amount))"
+        accumulatedText = Format.money(max(accumulated, 0))
+        targetText = Format.money(goal.amount)
+        amountText = "\(accumulatedText) / \(targetText)"
         progress = NSDecimalNumber(decimal: shown / goal.amount).doubleValue
         (estimate, finishDate) = Self.estimate(remaining: goal.amount - accumulated, today: today, rule: rule)
     }
@@ -53,6 +60,8 @@ extension ActiveGoalCard {
     /// 今天是应出勤日且未下班时，先扣除今日剩余可赚 (今日上限 - 今日已赚)，扣除后不大于 0 即「今天就能达成」；
     /// 否则 N = 剩余金额 ÷ 当月日薪 向上取整，从明天起数第 N 个应出勤日，跨月仍按当月日薪【D7】。
     private static func estimate(remaining: Decimal, today: Today, rule: AttendanceRule) -> (text: String, finish: LocalDate?) {
+        // 只有目标管理页的预览会走到：真正累计中的目标达标即完成【D6】。
+        guard remaining > 0 else { return (reachedPreview, today.date) }
         var rest = remaining
         if let earnings = today.earnings, today.status != .offWork {
             rest -= earnings.cap - earnings.earned
@@ -76,6 +85,9 @@ extension ActiveGoalCard {
         NSDecimalRound(&result, &cleaned, 0, .up)
         return NSDecimalNumber(decimal: result).intValue
     }
+
+    /// 排队中目标拖到第一个时已攒够：松手即完成【D6】。
+    static let reachedPreview = "已经攒够，排到第一个就达成"
 
     /// 日薪为 0 时累计中目标的预计文案。
     static let noEstimate = "本月没有要上班的日子，暂时没法预计"

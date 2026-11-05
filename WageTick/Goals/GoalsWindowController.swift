@@ -7,24 +7,16 @@ import WageCore
 @MainActor
 @Observable
 final class GoalsContent {
-    var rows: [GoalRow] = []
-    /// 累计中目标的卡片 (进度条、预计完成)，与面板目标区同一份；没有累计中目标时为 nil。
-    var active: ActiveGoalCard?
+    var list = GoalList.empty
     /// 队列为空时的提示，如「给自己定个目标吧」。
     var emptyText: String?
 
     /// 按快照填好各项。
     func update(from snap: Snapshot) {
-        rows = snap.goals ?? []
-        switch snap.panel?.goal {
-        case .active(let card):
-            active = card
-            emptyText = nil
-        case .empty(let text):
-            active = nil
+        list = snap.goals ?? .empty
+        if case .empty(let text) = snap.panel?.goal {
             emptyText = text
-        case nil:
-            active = nil
+        } else {
             emptyText = nil
         }
     }

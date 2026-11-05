@@ -42,7 +42,8 @@ public enum Command: Sendable, Equatable {
     case editGoal(id: Int, name: String, amount: Decimal)
     /// 删除目标 (PRD 4.5.2)：删除累计中目标时下一个排队目标继承其起算基准，已累计的钱不丢【D5】。
     case deleteGoal(id: Int)
-    /// 调整队列顺序 (PRD 4.5.2)：`ids` 是累计中和排队中目标的新顺序，累计中必须在最前【D6】。
+    /// 调整攒钱队列顺序 (PRD 4.5.2)：`ids` 是全部未完成目标 (累计中 + 排队中) 的任意新顺序，第一个即累计中【D6】。
+    /// 第一个换人时新的第一个继承原累计中目标的起算基准，继承后已达标的立即完成。
     case reorderGoals(ids: [Int])
     /// 切换面板目标区的展开或收起 (PRD F9)，会被记住【O3】。
     case toggleGoalQueueExpanded
@@ -100,7 +101,6 @@ public enum CommandError: Error, Sendable, Equatable {
     case invalidGoal
     case goalNotFound
     case goalCompleted
-    case goalOrderLocked
     case dateOutOfRange
     case futureDate
     case unpaidWorkEndNotAfterStart
@@ -127,11 +127,10 @@ public enum CommandError: Error, Sendable, Equatable {
         case .unpaidWorkAlreadyRunning: "已经在白干计时了"
         case .unpaidWorkNotRunning: "没有在白干计时"
         case .invalidGoal: "给目标起个名字，金额得大于 0"
-        // 以下三条 PRD 没给文案：外壳只对快照允许的行提供编辑、删除，排队中目标只能在排队中一组里拖动，
+        // 以下两条 PRD 没给文案：外壳只对快照允许的行提供编辑、删除，只在攒钱队列一组里拖动，
         // 正常只在列表过期 (如目标刚好达成) 时用到。
         case .goalNotFound: "这个目标已经不在了"
         case .goalCompleted: "已完成的目标不能再改"
-        case .goalOrderLocked: "累计中的目标固定在最前"
         // 以下为历史编辑 (#15) 的提示，PRD 没给文案。`futureDate` 也作为单日详情里入口不可用的原因展示。
         case .dateOutOfRange: "这天不在历史范围内"
         case .futureDate: "还没到这一天，只能请假或设置单日覆盖"
@@ -198,7 +197,7 @@ public func apply(
     case .deleteGoal(let id):
         return try deleteGoal(id: id, state: state, now: now, holidays: holidays)
     case .reorderGoals(let ids):
-        return (try reorderGoals(ids: ids, state: state), [])
+        return try reorderGoals(ids: ids, state: state, now: now, holidays: holidays)
     case .toggleGoalQueueExpanded:
         var next = state
         next.settings.goalQueueExpanded.toggle()

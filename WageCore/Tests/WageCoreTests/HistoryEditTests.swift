@@ -342,9 +342,10 @@ struct HistoryEditGoalTests {
         state = try editing(feb(2), .addDeduction(fifty), in: state, at: now)
         let after = try #require(snapshot(of: state, at: now).goals)
 
-        #expect(before.map(\.detail) == ["¥2000 / ¥5000", "¥1000 · 2月3日达成"])
-        #expect(after.map(\.detail) == ["¥1950 / ¥5000", "¥1000 · 2月3日达成"])
-        #expect(after.map(\.statusLabel) == ["累计中", "已完成"])
+        #expect(before.queue.map(\.asFirst.amountText) == ["¥2000 / ¥5000"])
+        #expect(after.queue.map(\.asFirst.amountText) == ["¥1950 / ¥5000"])
+        #expect(after.completed == before.completed)
+        #expect(after.completed.map { [$0.name, $0.amountText, $0.completedText] } == [["键盘", "¥1000", "2月3日达成"]])
     }
 
     @Test("本月没有要上班的日子时，目标预计完成不按日薪 0 去除")
@@ -378,22 +379,22 @@ struct HistoryEditGoalTests {
         state = try creatingGoal("Switch 2", 5000, in: state, at: moment(2026, 2, 2, 9, 0))
         let now = moment(2026, 2, 3, 9, 0)
         state = try apply(.advance, to: state, at: now).state
-        #expect(try #require(snapshot(of: state, at: now).goals).map(\.statusLabel) == ["累计中", "排队中"])
+        #expect(try #require(snapshot(of: state, at: now).goals).queue.map(\.name) == ["键盘", "Switch 2"])
 
         let result = try apply(.editDay(feb(1), .setOverride(.attendanceDay)), to: state, at: now)
-        let rows = try #require(snapshot(of: result.state, at: now).goals)
+        let list = try #require(snapshot(of: result.state, at: now).goals)
 
         #expect(result.events == [.goalReached(message: "🎉 目标「键盘」达成")])
         #expect(snapshot(of: result.state, at: now).celebration?.goalID == 1)
-        #expect(rows.map(\.statusLabel) == ["累计中", "已完成"])
-        #expect(rows.map(\.name) == ["Switch 2", "键盘"])
+        #expect(list.queue.map(\.name) == ["Switch 2"])
+        #expect(list.completed.map(\.name) == ["键盘"])
         // 零头结转：1904.7619 - 1100 = 804.7619。
-        #expect(rows.first?.detail == "¥804.7619 / ¥5000")
+        #expect(list.queue.first?.asFirst.amountText == "¥804.7619 / ¥5000")
 
         // 再撤销覆盖让累计收入回落：已完成目标冻结，不会变回累计中。
         let undone = try apply(.editDay(feb(1), .clearOverride), to: result.state, at: now)
         #expect(undone.events.isEmpty)
-        #expect(try #require(snapshot(of: undone.state, at: now).goals).map(\.statusLabel) == ["累计中", "已完成"])
+        #expect(try #require(snapshot(of: undone.state, at: now).goals).completed.map(\.name) == ["键盘"])
     }
 
     @Test("在历史里改月薪让当前目标达标：同样立即完成")
@@ -404,7 +405,9 @@ struct HistoryEditGoalTests {
         let result = try apply(.setMonthlySalary(february, 40000), to: state, at: now)
 
         #expect(result.events == [.goalReached(message: "🎉 目标「键盘」达成")])
-        #expect(try #require(snapshot(of: result.state, at: now).goals).map(\.statusLabel) == ["已完成"])
+        #expect(try #require(snapshot(of: result.state, at: now).goals) == GoalList(
+            queue: [], completed: [CompletedGoalRow(id: 1, name: "键盘", amountText: "¥1500", completedText: "2月3日达成")]
+        ))
     }
 }
 
