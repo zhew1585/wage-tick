@@ -23,7 +23,7 @@ final class TodayPanelContent {
 }
 
 /// 今日概览面板 (PRD F4，页面 P2)，从左键菜单「今日概览 ⌘1」或通知打开。
-/// 像 popover 一样贴在菜单栏小牛下方弹出 (宽 360，设计稿 P2)；点面板外面、按 Esc 或切到别的 App 时收起。
+/// 每次打开都出现在鼠标所在屏幕的正中 (宽 360，设计稿 P2)；点面板外面、按 Esc 或切到别的 App 时收起。
 /// 只在面板可见时刷新：上班中或白干中按滚动频率，其余每秒一次 (倒计时、时钟)。
 @MainActor
 final class TodayPanelWindowController: NSObject, NSWindowDelegate {
@@ -31,17 +31,13 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     private static let rollingInterval: TimeInterval = 0.1
     /// 其他日状态只需让倒计时与时钟逐秒走 (AC-HOME-02)。
     private static let idleInterval: TimeInterval = 1
-    /// 面板顶边与菜单栏底边的间距。
-    private static let anchorGap: CGFloat = 6
-    /// 面板离屏幕边缘至少留这么多。
-    private static let screenMargin: CGFloat = 8
 
     private let model: AppModel
     /// 命令改了状态后通知外壳其余部分 (菜单栏小牛) 立即重绘，如白干计时开始后马上冒汗。
     private let onStateChange: () -> Void
     private let navigation: PanelNavigation
-    /// 菜单栏小牛按钮在屏幕上的位置，面板贴着它的下方弹出；拿不到时 (如菜单栏条目被系统藏起) 为 nil，面板放到屏幕右上角。
-    private let anchor: () -> NSRect?
+    /// 打开时定下的顶边位置；内容变高 (展开目标、打开表单) 时顶边不动，往下长。
+    private var topEdge: CGFloat?
     private let content = TodayPanelContent()
     private lazy var panel: PopoverPanel = makePanel()
     private var timer: Timer?
@@ -50,12 +46,10 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     init(
         model: AppModel,
         navigation: PanelNavigation,
-        anchor: @escaping () -> NSRect?,
         onStateChange: @escaping () -> Void
     ) {
         self.model = model
         self.navigation = navigation
-        self.anchor = anchor
         self.onStateChange = onStateChange
     }
 
@@ -66,7 +60,9 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         refresh()
         NSApp.activate()
         panel.layoutIfNeeded()
-        position()
+        if !panel.isVisible {
+            centerOnScreen()
+        }
         panel.makeKeyAndOrderFront(nil)
         // 投影按内容形状 (圆角) 算，内容画出来后再算一次。
         panel.invalidateShadow()
@@ -85,9 +81,9 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         close()
     }
 
-    /// 内容高度变了 (展开目标、打开表单) 后窗口跟着变高，顶边保持贴着菜单栏。
+    /// 内容高度变了 (展开目标、打开表单) 后窗口跟着变高，顶边保持不动。
     func windowDidResize(_ notification: Notification) {
-        position()
+        keepTopEdge()
         panel.invalidateShadow()
     }
 
@@ -136,34 +132,23 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
 
     // MARK: 窗口
 
-    /// 顶边贴着菜单栏小牛下方，水平居中对准小牛，超出屏幕时往里收。
-    private func position() {
+    /// 放到鼠标所在屏幕可用区域的正中，并记下顶边。
+    private func centerOnScreen() {
         let size = panel.frame.size
-        let screen = anchorScreen
-        let visible = screen?.visibleFrame ?? NSRect(origin: .zero, size: size)
-        let top: CGFloat
-        let centerX: CGFloat
-        if let anchor = anchor() {
-            top = anchor.minY - Self.anchorGap
-            centerX = anchor.midX
-        } else {
-            top = visible.maxY - Self.anchorGap
-            centerX = visible.maxX - size.width / 2 - Self.screenMargin
-        }
-        let minX = visible.minX + Self.screenMargin
-        let maxX = visible.maxX - Self.screenMargin - size.width
-        let x = min(max(centerX - size.width / 2, minX), max(minX, maxX))
-        let origin = NSPoint(x: x.rounded(), y: (top - size.height).rounded())
-        if panel.frame.origin != origin {
-            panel.setFrameOrigin(origin)
-        }
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
+        guard let visible = screen?.visibleFrame else { return }
+        let origin = NSPoint(x: (visible.midX - size.width / 2).rounded(), y: (visible.midY - size.height / 2).rounded())
+        panel.setFrameOrigin(origin)
+        topEdge = origin.y + size.height
     }
 
-    /// 小牛所在的屏幕；拿不到小牛位置时用主屏。
-    private var anchorScreen: NSScreen? {
-        guard let anchor = anchor() else { return NSScreen.main }
-        let point = NSPoint(x: anchor.midX, y: anchor.midY)
-        return NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main
+    private func keepTopEdge() {
+        guard let topEdge else { return }
+        let y = (topEdge - panel.frame.height).rounded()
+        if panel.frame.origin.y != y {
+            panel.setFrameOrigin(NSPoint(x: panel.frame.origin.x, y: y))
+        }
     }
 
     private func makePanel() -> PopoverPanel {

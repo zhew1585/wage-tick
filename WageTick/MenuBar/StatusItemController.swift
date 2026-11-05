@@ -223,11 +223,3 @@ extension StatusItemController: NSMenuDelegate {
     }
 }
 
-/// 今日概览面板贴着小牛下方弹出，要知道小牛按钮在屏幕上的位置。
-extension StatusItemController {
-    /// 小牛按钮在屏幕坐标里的范围；条目被系统藏起 (菜单栏放不下) 时为 nil。
-    var buttonScreenFrame: NSRect? {
-        guard let button = item.button, let window = button.window, window.isVisible else { return nil }
-        return window.convertToScreen(button.convert(button.bounds, to: nil))
-    }
-}

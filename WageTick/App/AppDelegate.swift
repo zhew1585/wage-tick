@@ -31,13 +31,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 openHistory: { [weak self] in self?.history.show() },
                 openGoals: { [weak self] in self?.goals.show() },
                 openSettings: { [weak self] in self?.settings.show() }
-            ),
-            anchor: { [weak self] in self?.statusItem.buttonScreenFrame }
+            )
         ) { [weak self] in
             self?.statusItem.refresh()
         }
+        // 引导第 3 步完成后直接打开今日概览，不让界面凭空消失。
         onboarding = OnboardingWindowController(model: model) { [weak self] in
             self?.statusItem.refresh()
+            self?.todayPanel.show()
         }
         statusItem = StatusItemController(
             model: model,

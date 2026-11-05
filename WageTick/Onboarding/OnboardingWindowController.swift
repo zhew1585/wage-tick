@@ -8,7 +8,7 @@ final class OnboardingWindowController {
     private let onComplete: () -> Void
     private lazy var window: NSWindow = makeWindow()
 
-    /// `onComplete`：引导完成、窗口关闭后回调，用来刷新菜单栏。
+    /// `onComplete`：引导完成、窗口关闭后回调，用来刷新菜单栏并打开今日概览。
     init(model: AppModel, onComplete: @escaping () -> Void) {
         self.model = model
         self.onComplete = onComplete
