@@ -293,6 +293,7 @@ struct LeaveFormTests {
 
         #expect(form.current == nil)
         #expect(form.currentText == nil)
+        #expect(form.canRequest)
         #expect(form.summary == [
             StatItem(title: "当日计划", value: "10:00 至 18:00"),
             StatItem(title: "请假扣薪", value: "¥0"),
@@ -306,6 +307,8 @@ struct LeaveFormTests {
 
         #expect(form.current == Leave(period: .afternoon, deductionPercent: 50))
         #expect(form.currentText == "已请下午假 · 扣薪 50%")
+        // 已请半天假时还能再请另一半 (AC-LEAVE-05)。
+        #expect(form.canRequest)
         #expect(form.summary == [
             StatItem(title: "当日计划", value: "10:00 至 12:00"),
             StatItem(title: "请假扣薪", value: "¥500"),
@@ -318,6 +321,8 @@ struct LeaveFormTests {
         let form = try #require(snapshot(of: try onLeave(.fullDay, Decimal(string: "12.5")!), at: standardDay(11, 0)).leaveForm)
 
         #expect(form.currentText == "已请全天假 · 扣薪 12.5%")
+        // 已请全天假时只能修改或撤销。
+        #expect(!form.canRequest)
         #expect(form.summary == [
             StatItem(title: "当日计划", value: "全天请假"),
             StatItem(title: "请假扣薪", value: "¥125"),

@@ -66,7 +66,9 @@ struct LeaveFormView: View {
     @ViewBuilder
     private var summary: some View {
         switch previewResult {
-        case .success(let form):
+        case .success(nil):
+            EmptyView()
+        case .success(let form?):
             VStack(spacing: 6) {
                 ForEach(form.summary, id: \.title) { item in
                     HStack {
@@ -96,11 +98,10 @@ struct LeaveFormView: View {
     }
 
     private func save() {
-        guard let command = pendingCommand else {
-            errorMessage = Validation.leaveDeductionPercent(nil)?.message
-            return
+        switch pendingCommand {
+        case .success(let command): send(command)
+        case .failure(let error): errorMessage = error.message
         }
-        send(command)
     }
 
     private func send(_ command: Command) {
@@ -112,19 +113,18 @@ struct LeaveFormView: View {
         }
     }
 
-    /// 待保存的命令；比例没填或不是数字时为 nil。
-    private var pendingCommand: Command? {
-        guard let percent = parsedPercent else { return nil }
+    /// 待保存的命令；比例没填或不是数字时给出核心的校验提示 (PRD 4.3.5 #22)。
+    private var pendingCommand: Result<Command, CommandError> {
+        guard let percent = parsedPercent else {
+            return .failure(Validation.leaveDeductionPercent(nil) ?? .leavePercentOutOfRange)
+        }
         let leave = Leave(period: period, deductionPercent: percent)
-        return mode == .request ? .requestLeave(leave) : .editLeave(leave)
+        return .success(mode == .request ? .requestLeave(leave) : .editLeave(leave))
     }
 
-    /// 试算结果：比例填错时给出核心的校验提示。
-    private var previewResult: Result<LeaveForm, CommandError> {
-        guard let command = pendingCommand else { return .failure(.leavePercentOutOfRange) }
-        return model.preview(command).flatMap { snap in
-            snap.leaveForm.map { .success($0) } ?? .failure(.notAttendanceDay)
-        }
+    /// 试算结果：命令被核心拒绝时为对应提示；今天没有请假表单时 (理论上不会) 为 nil。
+    private var previewResult: Result<LeaveForm?, CommandError> {
+        pendingCommand.flatMap { model.preview($0) }.map(\.leaveForm)
     }
 
     /// 只认纯数字写法 (可带小数)，其他写法视为未填；范围交给核心的 `Validation`。

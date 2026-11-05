@@ -18,15 +18,6 @@ public enum LeavePeriod: String, Sendable, Equatable, Codable, CaseIterable {
     case morning    // 上午
     case afternoon  // 下午
 
-    /// 表单里的时段名，如「下午」。
-    public var label: String {
-        switch self {
-        case .fullDay: "全天"
-        case .morning: "上午"
-        case .afternoon: "下午"
-        }
-    }
-
     /// 切换时段时带出的扣薪比例 (%)：全天 100、半天 50【D4】，牛马可再修改。
     public var defaultDeductionPercent: Decimal {
         self == .fullDay ? 100 : 50

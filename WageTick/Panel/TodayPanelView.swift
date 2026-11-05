@@ -138,7 +138,7 @@ struct TodayPanelView: View {
     }
 
     /// 情绪按钮：应出勤日为扣钱、请假，休息日为被迫营业 (F5、F7 本期占位)。
-    /// 请假入口只在今天应出勤时出现 (PRD 4.3.5 #8)；已请全天假时只能修改，不再新请。
+    /// 请假入口只在今天应出勤时出现 (PRD 4.3.5 #8)；能否新请由核心决定。
     private func moodButtons(isRestDay: Bool) -> some View {
         HStack {
             if isRestDay {
@@ -146,7 +146,7 @@ struct TodayPanelView: View {
             } else {
                 Button("今天扣钱了") {}.disabled(true)
             }
-            if let form = content.leaveForm, form.current?.period != .fullDay {
+            if content.leaveForm?.canRequest == true {
                 Button("请假") { leaveMode = .request }
             }
         }

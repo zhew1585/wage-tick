@@ -9,6 +9,19 @@ public struct LeaveForm: Sendable, Equatable {
     public let currentText: String?
     /// 汇总：当日计划、请假扣薪、今日上限。
     public let summary: [StatItem]
+    /// 能否再新请一条：已请全天假时只能修改或撤销 (PRD 4.4.2 #4)。
+    public let canRequest: Bool
+}
+
+extension LeavePeriod {
+    /// 表单里的时段名，如「下午」。
+    public var label: String {
+        switch self {
+        case .fullDay: "全天"
+        case .morning: "上午"
+        case .afternoon: "下午"
+        }
+    }
 }
 
 extension LeaveForm {
@@ -16,6 +29,7 @@ extension LeaveForm {
     init?(today: Today, now: Moment) {
         guard let settlement = today.settlement else { return nil }
         current = today.leave
+        canRequest = today.leave?.period != .fullDay
         currentText = today.leave.map { "已请\($0.period.label)假 · 扣薪 \(Format.percent($0.deductionPercent / 100))" }
         let plan = today.plan.map { "\(Self.clock($0.start, now)) 至 \(Self.clock($0.end, now))" } ?? "全天请假"
         summary = [

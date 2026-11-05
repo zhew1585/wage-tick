@@ -9,21 +9,27 @@ func setLeave(_ leave: Leave, mergingWithExisting: Bool, state: AppState, now: M
     let today = now.localDate
     guard AttendanceRule.isAttendanceDay(today) else { throw .notAttendanceDay }
     if let error = Validation.leaveDeductionPercent(leave.deductionPercent) { throw error }
-    var record = state.dayRecords[today] ?? DayRecord()
-    record.leave = mergingWithExisting ? leave.merged(into: record.leave) : leave
-    var next = state
-    next.dayRecords[today] = record
-    return next
+    return state.updatingRecord(on: today) { record in
+        record.leave = mergingWithExisting ? leave.merged(into: record.leave) : leave
+    }
 }
 
 /// 撤销今天的请假；没有请假时原样返回。
 func cancelLeave(state: AppState, now: Moment) -> AppState {
     let today = now.localDate
-    guard var record = state.dayRecords[today], record.leave != nil else { return state }
-    record.leave = nil
-    var next = state
-    next.dayRecords[today] = record
-    return next
+    guard state.dayRecords[today]?.leave != nil else { return state }
+    return state.updatingRecord(on: today) { $0.leave = nil }
+}
+
+extension AppState {
+    /// 返回改过 `day` 那条日记录的新状态，原状态不变；那天还没有记录时从空记录开始。
+    func updatingRecord(on day: LocalDate, _ change: (inout DayRecord) -> Void) -> AppState {
+        var record = dayRecords[day] ?? DayRecord()
+        change(&record)
+        var next = self
+        next.dayRecords[day] = record
+        return next
+    }
 }
 
 extension Validation {
