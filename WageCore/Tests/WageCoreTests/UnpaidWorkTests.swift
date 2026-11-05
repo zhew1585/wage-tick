@@ -307,3 +307,96 @@ struct UnpaidWorkPersistenceTests {
         #expect(try attendancePanel(old, at: standardDay(18, 30)).caption == "准点下班，赢")
     }
 }
+
+@Suite("白干计时：节假日、请假、扣钱、作息")
+struct UnpaidWorkWithDayRecordsTests {
+    /// 2026 年春节：2 月 15 日至 23 日放假，2 月 14 日、28 日周六调休上班；2 月应出勤 16 天，日薪 1250。
+    private let springFestival = HolidayTable(
+        days: Dictionary(uniqueKeysWithValues:
+            (15...23).map { (LocalDate(year: 2026, month: 2, day: $0), HolidayKind.holiday) }
+            + [14, 28].map { (LocalDate(year: 2026, month: 2, day: $0), HolidayKind.makeupDay) }
+        )
+    )
+
+    @Test("PRD 4.4.3 #1 被迫营业按节假日表判定：春节放假的周一是休息日，可以被迫营业；时薪按当月日薪 1250 ÷ 7")
+    func forcedOnStatutoryHoliday() throws {
+        let monday = { (hour: Int) in moment(2026, 2, 16, hour, 0) }
+        let state = try onboarded()
+
+        #expect(snapshot(of: state, at: monday(10), holidays: springFestival).panel?.unpaidWorkButton
+            == UnpaidWorkButton(title: "被迫营业", command: .startUnpaidWork))
+        let running = try apply(.startUnpaidWork, to: state, at: monday(10), holidays: springFestival).state
+        let today = try #require(snapshot(of: running, at: monday(11), holidays: springFestival).today)
+        #expect(today.status == .restDay)
+        #expect(today.unpaidWork.isRunning)
+        // 1250 ÷ 7 = 178.5714
+        #expect(rounded4(today.unpaidWork.owed) == Decimal(string: "178.5714")!)
+    }
+
+    @Test("PRD 4.4.3 #1 调休上班的周六按应出勤日：上班中不能被迫营业，已下班才是「我还没走」")
+    func makeupSaturdayIsAttendance() throws {
+        let saturday = { (hour: Int) in moment(2026, 2, 14, hour, 0) }
+        let state = try onboarded()
+
+        #expect(snapshot(of: state, at: saturday(15), holidays: springFestival).panel?.unpaidWorkButton == nil)
+        #expect(throws: CommandError.unpaidWorkUnavailable) {
+            try apply(.startUnpaidWork, to: state, at: saturday(15), holidays: springFestival)
+        }
+        #expect(snapshot(of: state, at: saturday(19), holidays: springFestival).panel?.unpaidWorkButton
+            == UnpaidWorkButton(title: "我还没走", command: .startUnpaidWork))
+    }
+
+    @Test("全天请假按休息日呈现，可以被迫营业；白干中统计行带今日结算、扣款、本月累计")
+    func forcedOnFullDayLeave() throws {
+        let state = try onLeave(.fullDay, 100)
+
+        #expect(snapshot(of: state, at: standardDay(10, 0)).panel?.unpaidWorkButton
+            == UnpaidWorkButton(title: "被迫营业", command: .startUnpaidWork))
+        let running = try applied(.startUnpaidWork, to: state, at: standardDay(10, 0))
+        let panel = try #require(snapshot(of: running, at: standardDay(10, 30)).panel)
+        #expect(panel.statusLabel == "白干中")
+        #expect(panel.body == .unpaidWork(UnpaidWorkPanel(
+            headline: "¥71.4286",
+            caption: "10:00 起 · 已白干 0:30:00 · 每秒 +0.0397",
+            stats: [
+                StatItem(title: "今日结算", value: "¥0"),
+                StatItem(title: "扣款", value: "−¥1000"),
+                StatItem(title: "本月累计", value: "¥7000"),
+            ],
+            isRestDay: true
+        )))
+    }
+
+    @Test("AC-HOME-10 有扣款时白干中统计行为今日结算、扣款、本月累计；白干不改变扣款后的结算")
+    func runningStatsIncludeDeduction() throws {
+        let fined = try recordingDeduction(.fixed(50), on: try onboarded(), at: standardDay(15, 0))
+        let running = try applied(.startUnpaidWork, to: fined, at: standardDay(18, 0))
+        guard case .unpaidWork(let body) = snapshot(of: running, at: standardDay(18, 30)).panel?.body else {
+            Issue.record("期望白干中面板")
+            return
+        }
+
+        #expect(body.stats == [
+            StatItem(title: "今日结算", value: "¥950"),
+            StatItem(title: "扣款", value: "−¥50"),
+            StatItem(title: "本月累计", value: "¥7950"),
+        ])
+    }
+
+    @Test("PRD 4.4.3 #4 半天假不影响时薪：上午请假后白干 1 小时仍倒贴 ¥142.8571；撤销请假后白干段仍在")
+    func halfDayLeaveKeepsHourlyWageAndRecord() throws {
+        let worked = try unpaidWork(try onLeave(.morning, 50), from: standardDay(18, 0), to: standardDay(19, 0))
+        let cancelled = try applied(.cancelLeave, to: worked, at: standardDay(19, 10))
+
+        #expect(try attendancePanel(worked, at: standardDay(19, 5)).caption == "今日白干 1:00 · 倒贴 ¥142.8571")
+        #expect(try attendancePanel(cancelled, at: standardDay(19, 30)).caption == "今日白干 1:00 · 倒贴 ¥142.8571")
+    }
+
+    @Test("PRD 4.2.3 #2 今天改了作息：时薪按今天生效的作息算，默认作息 8 小时，白干 1 小时倒贴 ¥125")
+    func scheduleChangedToday() throws {
+        let changed = try applied(.changeSchedule(.default), to: try onboarded(), at: standardDay(18, 10))
+        let state = try unpaidWork(changed, from: standardDay(18, 30), to: standardDay(19, 30))
+
+        #expect(try attendancePanel(state, at: standardDay(19, 30)).caption == "今日白干 1:00 · 倒贴 ¥125")
+    }
+}

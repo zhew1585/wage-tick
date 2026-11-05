@@ -37,11 +37,16 @@ extension UnpaidWorkPanel {
         headline = Format.rollingMoney(unpaidWork.owed)
         caption = "\(start) 起 · 已白干 \(Format.elapsed(milliseconds: unpaidWork.milliseconds)) · 每秒 +\(Format.trimmed(unpaidWork.perSecond))"
         isRestDay = today.status == .restDay
-        // 被迫营业的休息日没有收入，今日结算为 0 (AC-OT-04)。
-        stats = today.earnings.map { AttendancePanel.offWorkStats(today: today, earnings: $0) } ?? [
-            StatItem(title: "今日结算", value: Format.money(0)),
-            StatItem(title: "本月累计", value: Format.money(today.monthToDate)),
-        ]
+        if let earnings = today.earnings, let settlement = today.settlement {
+            // 应出勤日，含按休息日呈现的全天请假日：统计行与已下班相同，带今日结算与扣款。
+            stats = AttendancePanel.offWorkStats(today: today, earnings: earnings, settlement: settlement)
+        } else {
+            // 不应出勤的休息日被迫营业：没有收入，今日结算为 0 (AC-OT-04)。
+            stats = [
+                StatItem(title: "今日结算", value: Format.money(0)),
+                StatItem(title: "本月累计", value: Format.money(today.monthToDate)),
+            ]
+        }
     }
 }
 

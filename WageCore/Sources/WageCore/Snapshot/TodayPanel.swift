@@ -9,6 +9,10 @@ public struct TodayPanel: Sendable, Equatable {
     /// 顶部状态标签，如「上班中」；白干计时中为「白干中」(只是展示，不是日状态)。
     public let statusLabel: String
     public let body: Body
+    /// 面板顶部的提示条，按顺序展示，没有时为空，如节假日数据缺失 (AC-HOME-08)。
+    public let notices: [String]
+    /// 「今天扣钱了」入口 (F5)；休息日为 nil，不显示按钮 (AC-FINE-07)。
+    public let deductionEntry: DeductionEntry?
     /// 白干计时按钮 (F7)：已下班为「我还没走」、休息日为「被迫营业」、计时中为「终于下班了」；不可用时为 nil。
     public let unpaidWorkButton: UnpaidWorkButton?
 
@@ -54,6 +58,10 @@ public struct AttendancePanel: Sendable, Equatable {
     public let progress: WorkProgress?
     /// 统计行，如距离下班倒计时、本月累计。
     public let stats: [StatItem]
+    /// 今天的扣钱明细，按记录先后 (AC-FINE-04)。
+    public let deductions: [DeductionItem]
+    /// 当日扣款超过日薪时的提示 (PRD 4.3.5 #6)，否则为 nil。
+    public let notice: String?
 }
 
 /// 工作进度区。
@@ -80,45 +88,48 @@ public struct ProgressSegment: Sendable, Equatable {
 }
 
 extension TodayPanel {
-    init(today: Today, now: Moment) {
+    init(today: Today, now: Moment, holidays: HolidayTable) {
         dateText = Format.date(today.date, relativeTo: today.date)
         timeText = Format.time(now)
         statusLabel = today.unpaidWork.isRunning ? "白干中" : today.status.label
+        notices = [holidays.missingNotice(on: today.date)].compactMap { $0 }
+        deductionEntry = today.settlement.map(DeductionEntry.init(settlement:))
         unpaidWorkButton = UnpaidWorkButton(today: today)
         if today.unpaidWork.isRunning {
             body = .unpaidWork(UnpaidWorkPanel(today: today, now: now))
             return
         }
-        guard let earnings = today.earnings, let plan = today.plan else {
+        guard let earnings = today.earnings, let plan = today.plan, let settlement = today.settlement else {
             body = .rest(RestPanel(today: today))
             return
         }
-        body = .attendance(AttendancePanel(today: today, earnings: earnings, plan: plan, now: now.date))
+        body = .attendance(AttendancePanel(today: today, earnings: earnings, settlement: settlement, plan: plan, now: now.date))
     }
 }
 
 extension AttendancePanel {
-    init(today: Today, earnings: Earnings, plan: DayPlan, now: Date) {
+    init(today: Today, earnings: Earnings, settlement: DaySettlement, plan: DayPlan, now: Date) {
         let monthToDate = StatItem(title: "本月累计", value: Format.money(today.monthToDate))
         // 已下班时今日已赚 = 今日上限 = 今日结算 (PRD 4.3.4)。
         headline = Format.rollingMoney(earnings.earned)
         if today.status == .offWork {
             caption = today.unpaidWork.offWorkCaption
             progress = nil
-            stats = Self.offWorkStats(today: today, earnings: earnings)
+            stats = Self.offWorkStats(today: today, earnings: earnings, settlement: settlement)
         } else {
             caption = "今日上限 \(Format.money(earnings.cap)) · 每秒 +\(Format.trimmed(earnings.perSecond))"
             progress = WorkProgress(plan: plan, progress: earnings.progress, now: now)
             stats = [StatItem(title: "距离下班", value: Format.countdown(from: now, to: plan.end)), monthToDate]
         }
+        deductions = settlement.deductions.map(DeductionItem.init)
+        notice = Self.notice(settlement)
     }
 
-    /// 已下班的统计行：今日结算、本月累计。白干计时中的统计行与它相同 (F4 第 5 条)。
-    static func offWorkStats(today: Today, earnings: Earnings) -> [StatItem] {
-        [
-            StatItem(title: "今日结算", value: Format.money(earnings.cap)),
-            StatItem(title: "本月累计", value: Format.money(today.monthToDate)),
-        ]
+    /// 已下班的统计行：今日结算、扣款 (有扣款才显示)、本月累计。白干计时中的统计行与它相同 (F4 第 5 条)。
+    static func offWorkStats(today: Today, earnings: Earnings, settlement: DaySettlement) -> [StatItem] {
+        let settled = StatItem(title: "今日结算", value: Format.money(earnings.cap))
+        let monthToDate = StatItem(title: "本月累计", value: Format.money(today.monthToDate))
+        return [settled, deductionStat(settlement), monthToDate].compactMap { $0 }
     }
 }
 
@@ -127,7 +138,9 @@ extension RestPanel {
         let next = today.nextAttendanceDay.map {
             StatItem(title: "下一个应出勤日", value: Format.date($0, relativeTo: today.date))
         }
-        self.init(headline: "今天休息", stats: [
+        // 全天请假按休息日呈现，但标题为「今天请假」(AC-HOME-07)。
+        let headline = today.leave?.period == .fullDay ? "今天请假" : "今天休息"
+        self.init(headline: headline, stats: [
             StatItem(title: "本月已上班", value: "\(today.attendedDays) 天"),
             StatItem(title: "本月累计", value: Format.money(today.monthToDate)),
         ] + [next].compactMap { $0 })
@@ -140,6 +153,7 @@ extension WorkProgress {
         let total = Format.trimmed(Format.hours(milliseconds: plan.effectiveMilliseconds))
         label = "已工作 \(elapsed) / \(total) 小时"
         percent = Format.percent(progress)
+        // 半天假后那半天没有工时时没有任何一段，`barLength` 不会被用作除数。
         let barLength = plan.workPeriods.map(\.length).reduce(0, +)
         segments = plan.workPeriods.map { period in
             let walked = min(max(now.timeIntervalSince(period.start), 0), period.length)

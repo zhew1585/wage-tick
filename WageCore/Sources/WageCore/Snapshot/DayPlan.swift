@@ -1,13 +1,19 @@
 import Foundation
 
-/// 应出勤日判定 (PRD 4.2.2)。
-/// 本期只按双休：周六、周日不应出勤，其余应出勤；节假日与单日覆盖留给后续票。
-enum AttendanceRule {
-    static func isAttendanceDay(_ date: LocalDate) -> Bool {
-        !date.isWeekend
+/// 应出勤日判定 (PRD 4.2.2)，先命中者为准：调休上班日 > 法定节假日 > 周六日 > 其余应出勤。
+/// 单日覆盖留给后续票。节假日表里没有的年份 (含缺失年份) 自然落到按双休判定。
+struct AttendanceRule {
+    let holidays: HolidayTable
+
+    func isAttendanceDay(_ date: LocalDate) -> Bool {
+        switch holidays.kind(on: date) {
+        case .makeupDay: true
+        case .holiday: false
+        case nil: !date.isWeekend
+        }
     }
 
-    static func attendanceDayCount(in month: YearMonth) -> Int {
+    func attendanceDayCount(in month: YearMonth) -> Int {
         month.days.filter(isAttendanceDay).count
     }
 
@@ -15,8 +21,8 @@ enum AttendanceRule {
     private static let lookaheadDays = 366
 
     /// `day` 之后 (不含当天) 的第一个应出勤日；一年内都没有时为 nil。
-    static func nextAttendanceDay(after day: LocalDate) -> LocalDate? {
-        (1...lookaheadDays).lazy.map { day.adding(days: $0) }.first(where: isAttendanceDay)
+    func nextAttendanceDay(after day: LocalDate) -> LocalDate? {
+        (1...Self.lookaheadDays).lazy.map { day.adding(days: $0) }.first(where: isAttendanceDay)
     }
 }
 
@@ -34,7 +40,7 @@ struct DayPlan: Sendable, Equatable {
     let end: Date
     let lunch: Period?
 
-    /// 当日计划 = 作息 (本期没有半天假调整)。
+    /// 作息原样落到这一天；按半天假调整见 `init(schedule:leave:on:now:)`。
     init(schedule: WorkSchedule, on day: LocalDate, now: Moment) {
         start = now.date(on: day, at: schedule.start)
         end = now.date(on: day, at: schedule.end)
@@ -50,10 +56,11 @@ struct DayPlan: Sendable, Equatable {
     }
 
     /// 计入有效工时的时段：有午休时为上午、下午两段，关闭午休时为一整段。
-    /// 午休紧贴计划上班或下班时，那一侧没有时长，不算一段。
+    /// 没有时长的段不算 (午休紧贴计划上班或下班，或半天假后那半天没有工时)。
     var workPeriods: [Period] {
-        guard let lunch else { return [Period(start: start, end: end)] }
-        return [Period(start: start, end: lunch.start), Period(start: lunch.end, end: end)].filter { $0.length > 0 }
+        let periods = lunch.map { [Period(start: start, end: $0.start), Period(start: $0.end, end: end)] }
+            ?? [Period(start: start, end: end)]
+        return periods.filter { $0.length > 0 }
     }
 
     /// 应有有效工时 (毫秒)：计划上下班之间扣除午休；关闭午休时全部计入 (PRD 4.2.3 #4)。

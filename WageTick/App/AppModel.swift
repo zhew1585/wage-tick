@@ -8,6 +8,8 @@ import WageCore
 final class AppModel {
     private let store: StateStore
     private var state: AppState
+    /// 节假日表，由 `HolidayUpdater` 从数据源适配器取来；未就绪时为空表，只按双休。
+    var holidays: HolidayTable = .empty
     private let logger = Logger(subsystem: AppIdentity.bundleID, category: "AppModel")
 
     init(store: StateStore) {
@@ -19,22 +21,32 @@ final class AppModel {
 
     /// 执行命令并立即落盘。校验失败时抛出 `CommandError`，状态不变。
     func send(_ command: Command) throws(CommandError) {
-        let result = try apply(command, to: state, at: Self.now())
+        let result = try apply(command, to: state, at: Self.now(), holidays: holidays)
         state = result.state
         store.save(state)
     }
 
-    /// 先发「推进到此刻」处理随时间发生的变化 (白干到 23:59:59 自动停止)，再按同一此刻取快照。
-    /// 每次刷新都会调用，只在状态真的变了才落盘。
+    /// 试算：在当前状态上执行命令但不保存，返回执行后的快照。表单实时预览用它，校验失败时返回错误。
+    func dryRun(_ command: Command) -> Result<Snapshot, CommandError> {
+        let now = Self.now()
+        do {
+            return .success(snapshot(of: try apply(command, to: state, at: now, holidays: holidays).state, at: now, holidays: holidays))
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    /// 先发「推进到此刻」处理随时间发生的变化 (白干到 23:59:59 自动停止)，
+    /// 再按同一此刻、当前节假日表取快照。每次刷新都会调用，只在状态真的变了才落盘。
     func currentSnapshot() -> Snapshot {
         let now = Self.now()
         advance(at: now)
-        return snapshot(of: state, at: now)
+        return snapshot(of: state, at: now, holidays: holidays)
     }
 
     private func advance(at now: Moment) {
         do {
-            let next = try apply(.advance, to: state, at: now).state
+            let next = try apply(.advance, to: state, at: now, holidays: holidays).state
             guard next != state else { return }
             state = next
             store.save(state)
