@@ -49,15 +49,15 @@ struct TodayPanelWorkingTests {
         #expect(try attendancePanel(try onboarded(), at: almostSix).stats.first?.value == "0:00:01")
     }
 
-    @Test("F4 场景级：本月前 9 个应出勤日满勤，15:00 本月累计 ¥9571.4286；上班中小字为今日上限与每秒增量")
+    @Test("F4 场景级：本月前 9 个应出勤日满勤，15:00 本月累计 ¥9571.4286；上班中小字为满勤日薪与时薪")
     func statsAndCaptionWhileWorking() throws {
         // 2026-02-13 周五是 2 月第 10 个应出勤日。
         let body = try attendancePanel(try onboarded(), at: moment(2026, 2, 13, 15, 0))
 
-        #expect(body.caption == "今日上限 ¥1000 · 每秒 +0.0397")
+        #expect(body.caption == "满勤日薪 ¥1000 · 时薪 ¥142.8571")
         #expect(body.stats == [
             StatItem(title: "距离下班", value: "3:00:00"),
-            StatItem(title: "扣款", value: "¥0"),
+            StatItem(title: "今日扣款", value: "¥0"),
             StatItem(title: "本月累计", value: "¥9571.4286"),
         ])
     }
@@ -105,10 +105,11 @@ struct TodayPanelRestDayTests {
         #expect(panel.statusLabel == "休息日")
         #expect(panel.body == .rest(RestPanel(
             headline: "今天休息",
+            tagline: "不搬砖，不计钱。",
+            nextAttendanceText: "下一个上班日 2月16日 周一",
             stats: [
-                StatItem(title: "本月已上班", value: "10 天"),
+                StatItem(title: "本月已上班", value: "10/20 天"),
                 StatItem(title: "本月累计", value: "¥10000"),
-                StatItem(title: "下一个应出勤日", value: "2月16日 周一"),
             ]
         )))
     }
@@ -129,7 +130,7 @@ struct TodayPanelOffWorkTests {
         #expect(body.progress == nil)
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥1000"),
-            StatItem(title: "扣款", value: "¥0"),
+            StatItem(title: "今日扣款", value: "¥0"),
             StatItem(title: "本月累计", value: "¥8000"),
         ])
     }
@@ -142,7 +143,7 @@ struct TodayPanelFormatTests {
         let body = try attendancePanel(try onboarded(), at: standardDay(15, 0))
 
         #expect(body.headline == "¥571.4286")
-        #expect(body.caption == "今日上限 ¥1000 · 每秒 +0.0397")
+        #expect(body.caption == "满勤日薪 ¥1000 · 时薪 ¥142.8571")
     }
 
     @Test("PRD 4.7.1 #5 日薪 952.380952…：主数字补足 4 位 ¥952.3810，其他位置四舍五入后截掉末尾 0 为 ¥952.381")
@@ -152,11 +153,11 @@ struct TodayPanelFormatTests {
         let working = try attendancePanel(state, at: moment(2026, 5, 6, 15, 0))
         let offWork = try attendancePanel(state, at: moment(2026, 5, 6, 18, 30))
 
-        #expect(working.caption == "今日上限 ¥952.381 · 每秒 +0.0378")
+        #expect(working.caption == "满勤日薪 ¥952.381 · 时薪 ¥136.0544")
         #expect(offWork.headline == "¥952.3810")
         #expect(offWork.stats == [
             StatItem(title: "今日结算", value: "¥952.381"),
-            StatItem(title: "扣款", value: "¥0"),
+            StatItem(title: "今日扣款", value: "¥0"),
             // 4 × 20000 ÷ 21 = 3809.5238…
             StatItem(title: "本月累计", value: "¥3809.5238"),
         ])
@@ -188,7 +189,7 @@ struct TodayPanelLayoutTests {
         let panel = try #require(snapshot(of: try onboarded(), at: standardDay(15, 7, 30)).panel)
 
         #expect(panel.dateText == "2月11日 周三")
-        #expect(panel.timeText == "15:07")
+        #expect(panel.timeText == "15:07:30")
     }
 
     @Test("F4 进度条午休显示为间隔：上午、下午各一段，按有效工时占比分宽度")
