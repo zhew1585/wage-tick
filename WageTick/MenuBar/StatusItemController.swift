@@ -13,6 +13,7 @@ final class StatusItemController: NSObject {
 
     private let model: AppModel
     private let openOnboarding: () -> Void
+    private let openTodayPanel: () -> Void
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
     private let bossModeItem = NSMenuItem(title: "老板路过", action: #selector(bossModeClicked), keyEquivalent: "")
@@ -22,13 +23,15 @@ final class StatusItemController: NSObject {
     /// 注册失败时为 nil，只能从左键菜单切换 (PRD 6.4)。
     private var bossModeHotkey: GlobalHotkey?
 
-    init(model: AppModel, openOnboarding: @escaping () -> Void) {
+    init(model: AppModel, openOnboarding: @escaping () -> Void, openTodayPanel: @escaping () -> Void) {
         self.model = model
         self.openOnboarding = openOnboarding
+        self.openTodayPanel = openTodayPanel
         super.init()
         configureButton()
         bossModeItem.target = self
         menu.delegate = self
+        menu.addItem(withTitle: "今日概览", action: #selector(todayPanelClicked), keyEquivalent: "1").target = self
         menu.addItem(bossModeItem)
         menu.addItem(withTitle: "退出", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         registerBossModeHotkey()
@@ -121,6 +124,10 @@ final class StatusItemController: NSObject {
 
     @objc private func bossModeClicked() {
         toggleBossMode()
+    }
+
+    @objc private func todayPanelClicked() {
+        openTodayPanel()
     }
 }
 

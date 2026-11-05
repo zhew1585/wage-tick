@@ -8,6 +8,8 @@ public struct Snapshot: Sendable, Equatable {
     public let today: Today?
     /// 界面设置原样带出，供外壳展示菜单勾选与快捷键。
     public let settings: InterfaceSettings
+    /// 今日概览面板的展示内容；未完成引导时为 nil。
+    public let panel: TodayPanel?
 }
 
 /// 菜单栏内容：小牛姿势 + 可选数字 (PRD 4.7.1 第 1、2 条)。
@@ -34,8 +36,13 @@ public enum CowPose: Sendable, Equatable {
 /// 核心入口二：推导 `state` 在 `now` 时刻的快照，纯函数，不改状态。
 public func snapshot(of state: AppState, at now: Moment) -> Snapshot {
     guard let profile = state.profile else {
-        return Snapshot(menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings)
+        return Snapshot(menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil)
     }
     let today = Today(profile: profile, now: now)
-    return Snapshot(menuBar: MenuBarDisplay(today: today, settings: state.settings), today: today, settings: state.settings)
+    return Snapshot(
+        menuBar: MenuBarDisplay(today: today, settings: state.settings),
+        today: today,
+        settings: state.settings,
+        panel: TodayPanel(today: today, now: now)
+    )
 }

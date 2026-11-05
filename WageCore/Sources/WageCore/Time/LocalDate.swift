@@ -20,8 +20,19 @@ public struct LocalDate: Sendable, Hashable, Comparable, Codable {
 
     /// 是否周六或周日。星期与时区无关，用 UTC 公历计算。
     var isWeekend: Bool {
-        let weekday = LocalDate.utcCalendar.component(.weekday, from: utcNoon)
-        return weekday == 1 || weekday == 7
+        weekday == 1 || weekday == 7
+    }
+
+    /// 星期几：1 为周日，2 为周一，…，7 为周六 (公历 weekday 口径)。
+    var weekday: Int {
+        LocalDate.utcCalendar.component(.weekday, from: utcNoon)
+    }
+
+    /// 往后数 `days` 天的日期。
+    func adding(days: Int) -> LocalDate {
+        let date = LocalDate.utcCalendar.date(byAdding: .day, value: days, to: utcNoon)!
+        let parts = LocalDate.utcCalendar.dateComponents([.year, .month, .day], from: date)
+        return LocalDate(year: parts.year!, month: parts.month!, day: parts.day!)
     }
 
     private var utcNoon: Date {

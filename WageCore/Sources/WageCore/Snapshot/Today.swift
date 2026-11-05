@@ -17,6 +17,15 @@ public struct Today: Sendable, Equatable {
     public let dailyWage: Decimal
     /// 应出勤日的收入数字；休息日为 nil。
     public let earnings: Earnings?
+    /// 本月累计 = 本月今天之前各应出勤日的结算之和 + 今日已赚 (PRD 4.3.4)。
+    /// 安装日之前已过的应出勤日没有日记录，天然按满勤结算 (PRD 4.1.1)。
+    public let monthToDate: Decimal
+    /// 本月今天之前已过的应出勤日数。
+    public let attendedDays: Int
+    /// 明天起第一个应出勤日。
+    public let nextAttendanceDay: LocalDate?
+    /// 当日计划；休息日为 nil。面板据此推导进度与倒计时。
+    let plan: DayPlan?
 
     /// 今日已赚是否正在增长：只在上班中增长 (PRD 4.3.3 不变量 3)。外壳据此决定刷新频率。
     public var isEarning: Bool { status == .working }
@@ -40,16 +49,25 @@ extension Today {
         let month = day.yearMonth
         // 当月至少有 20 个应出勤日 (只按双休时)，除数不会为 0；单日覆盖引入后见 PRD 4.3.5 #19。
         let wage = profile.salary(for: month) / Decimal(AttendanceRule.attendanceDayCount(in: month))
+        // 本期没有扣款，每个已过的应出勤日结算都等于日薪。
+        let attended = month.days.filter { $0 < day && AttendanceRule.isAttendanceDay($0) }.count
         date = day
         dailyWage = wage
+        attendedDays = attended
+        nextAttendanceDay = AttendanceRule.nextAttendanceDay(after: day)
         guard AttendanceRule.isAttendanceDay(day) else {
             status = .restDay
             earnings = nil
+            plan = nil
+            monthToDate = wage * Decimal(attended)
             return
         }
-        let plan = DayPlan(schedule: profile.schedule, on: day, now: now)
-        status = plan.status(at: now.date)
-        earnings = Earnings(cap: wage, plan: plan, now: now.date)
+        let todayPlan = DayPlan(schedule: profile.schedule, on: day, now: now)
+        let todayEarnings = Earnings(cap: wage, plan: todayPlan, now: now.date)
+        status = todayPlan.status(at: now.date)
+        earnings = todayEarnings
+        plan = todayPlan
+        monthToDate = wage * Decimal(attended) + todayEarnings.earned
     }
 }
 
