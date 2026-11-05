@@ -1,7 +1,8 @@
 import Foundation
 
-/// 面板该播放的目标达成庆祝动画 (PRD F9、AC-GPRG-04)，只播放一次。
-/// 外壳在面板上播放后发 `.acknowledgeCelebration(goalID:)`，之后的快照里就没有了。
+/// 面板该播放的目标达成庆祝动画 (PRD F9、AC-GPRG-04)，每个目标只播放一次。
+/// 外壳在面板上开始播放时发 `.acknowledgeCelebration(goalID:)`，之后的快照里就没有它了；
+/// 还有别的目标在等时，下一次快照给出下一个。
 public struct GoalCelebration: Sendable, Equatable {
     /// 达成的目标编号，确认时原样带回。
     public let goalID: Int
@@ -15,11 +16,12 @@ public struct GoalCelebration: Sendable, Equatable {
 }
 
 extension GoalCelebration {
-    /// 待播放的目标还在且已完成时才播放；该目标后来被删掉了就不播放。
+    /// 待播放里按达成先后取第一个仍在且已完成的目标；后来被删掉的跳过。
     init?(state: AppState) {
-        guard let id = state.pendingCelebration,
-              let goal = state.goals.first(where: { $0.id == id }),
-              case .completed = goal.status else { return nil }
-        self.init(goalID: id, message: NotificationCopy.goalReached(name: goal.name))
+        let completed = state.goals.filter { if case .completed = $0.status { true } else { false } }
+        guard let goal = state.pendingCelebrations.lazy.compactMap({ id in completed.first { $0.id == id } }).first else {
+            return nil
+        }
+        self.init(goalID: goal.id, message: NotificationCopy.goalReached(name: goal.name))
     }
 }

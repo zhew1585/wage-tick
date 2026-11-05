@@ -14,10 +14,10 @@ public struct AppState: Sendable, Equatable, Codable {
 
     /// 下班事件的进度 (见 `OffWorkWatch`)。不是牛马产生的内容，但重启后要记得今天发没发过，所以要存。
     var offWorkWatch: OffWorkWatch?
-    /// 已达成、庆祝动画还没在面板上播放的目标编号 (见 `completeReachedGoal`)；nil 时没有要播放的。
-    var pendingCelebration: Int?
+    /// 已达成、庆祝动画还没在面板上播放的目标编号，按达成先后 (见 `completeReachedGoal`)。
+    var pendingCelebrations: [Int]
 
-    private enum CodingKeys: String, CodingKey { case profile, settings, dayRecords, goals, offWorkWatch, pendingCelebration }
+    private enum CodingKeys: String, CodingKey { case profile, settings, dayRecords, goals, offWorkWatch, pendingCelebrations }
 
     public init() {
         profile = nil
@@ -25,7 +25,7 @@ public struct AppState: Sendable, Equatable, Codable {
         dayRecords = []
         goals = []
         offWorkWatch = nil
-        pendingCelebration = nil
+        pendingCelebrations = []
     }
 
     /// #2 写出的旧文件没有 `settings`，读入时取默认值，不当作损坏文件。
@@ -45,7 +45,7 @@ public struct AppState: Sendable, Equatable, Codable {
         // #10 之前的旧文件没有下班事件进度，读入时当作今天还没看到过上班。
         offWorkWatch = try container.decodeIfPresent(OffWorkWatch.self, forKey: .offWorkWatch)
         // #13 之前的旧文件没有待播放的动画，已完成的目标不补播。
-        pendingCelebration = try container.decodeIfPresent(Int.self, forKey: .pendingCelebration)
+        pendingCelebrations = try container.decodeIfPresent([Int].self, forKey: .pendingCelebrations) ?? []
     }
 }
 

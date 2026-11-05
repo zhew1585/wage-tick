@@ -10,18 +10,21 @@ struct CelebrationView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var started = false
-    /// 彩纸在视图创建时随机生成一次，播放过程中不变。
-    @State private var pieces = ConfettiPiece.random(count: 36)
+    /// 彩纸在出现时随机生成一次，播放过程中不变。不放在 `@State` 初始值里：面板每 0.1 秒刷新都会重建视图值，初始值会被白算一遍。
+    @State private var pieces: [ConfettiPiece] = []
 
-    /// 整段动画的时长，结束后自动关掉。
-    private static let duration: Duration = .seconds(3)
+    /// 整段动画的时长 (秒)，结束后自动关掉。
+    private static let duration: Double = 3
+    private static let confettiCount = 36
+    /// 播放时盖在面板上的一层暗色。
+    private static let dimOpacity = 0.15
 
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.black.opacity(started ? 0.15 : 0)
-                if !reduceMotion {
-                    ForEach(pieces) { piece in confetti(piece, in: geometry.size) }
+                Color.black.opacity(started ? Self.dimOpacity : 0)
+                if !reduceMotion && !pieces.isEmpty {
+                    ConfettiLayer(pieces: pieces, size: geometry.size)
                 }
                 Text(celebration.message)
                     .font(.title3.weight(.semibold))
@@ -38,24 +41,39 @@ struct CelebrationView: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: finish)
         .onAppear {
+            pieces = ConfettiPiece.random(count: Self.confettiCount, within: Self.duration)
+            // 文字弹出：带一点回弹。
             withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) { started = true }
         }
         .task {
-            try? await Task.sleep(for: Self.duration)
+            try? await Task.sleep(for: .seconds(Self.duration))
             // 被提前点掉或面板关了时任务已取消，不再重复结束。
             guard !Task.isCancelled else { return }
             finish()
         }
     }
+}
 
-    /// 一片彩纸：从顶部上方落到底部以下，边落边转。
-    private func confetti(_ piece: ConfettiPiece, in size: CGSize) -> some View {
-        RoundedRectangle(cornerRadius: 1.5)
-            .fill(piece.color)
-            .frame(width: piece.width, height: piece.width * 0.45)
-            .rotationEffect(.degrees(started ? piece.spin : 0))
-            .position(x: size.width * piece.x, y: started ? size.height + 20 : -20)
-            .animation(.easeIn(duration: piece.fall).delay(piece.delay), value: started)
+/// 一层彩纸：出现后每片从顶部上方落到底部以下，边落边转。
+/// 单独成一个视图，让彩纸先以起点插入、在自己的 onAppear 里再开始下落，否则插入时就已在终点。
+private struct ConfettiLayer: View {
+    let pieces: [ConfettiPiece]
+    let size: CGSize
+
+    @State private var fallen = false
+    /// 彩纸起点在顶部上方、终点在底部下方的距离，进出都不露边。
+    private static let margin: CGFloat = 20
+
+    var body: some View {
+        ForEach(pieces) { piece in
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(piece.color)
+                .frame(width: piece.width, height: piece.width * 0.45)
+                .rotationEffect(.degrees(fallen ? piece.spin : 0))
+                .position(x: size.width * piece.x, y: fallen ? size.height + Self.margin : -Self.margin)
+                .animation(.easeIn(duration: piece.fall).delay(piece.delay), value: fallen)
+        }
+        .onAppear { fallen = true }
     }
 }
 
@@ -74,15 +92,18 @@ private struct ConfettiPiece: Identifiable {
 
     private static let palette: [Color] = [.red, .orange, .yellow, .green, .blue, .pink, .purple]
 
-    static func random(count: Int) -> [ConfettiPiece] {
-        (0..<count).map { id in
+    /// `count` 片彩纸，都在 `duration` 秒内落完：延迟至多占 1/5，下落用时占剩下的一半到全部。
+    static func random(count: Int, within duration: Double) -> [ConfettiPiece] {
+        let maxDelay = duration / 5
+        let maxFall = duration - maxDelay
+        return (0..<count).map { id in
             ConfettiPiece(
                 id: id,
                 x: .random(in: 0.04...0.96),
                 width: .random(in: 7...11),
                 color: palette.randomElement() ?? .orange,
-                fall: .random(in: 1.4...2.2),
-                delay: .random(in: 0...0.6),
+                fall: .random(in: maxFall / 2...maxFall),
+                delay: .random(in: 0...maxDelay),
                 spin: .random(in: -540...540)
             )
         }

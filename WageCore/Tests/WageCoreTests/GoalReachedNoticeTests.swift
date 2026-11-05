@@ -156,6 +156,20 @@ struct GoalCelebrationTests {
             == GoalCelebration(goalID: 2, message: "🎉 目标「耳机」达成"))
     }
 
+    @Test("上一个目标的动画还没播放、下一个又达成：按达成先后各播放一次")
+    func queuedCelebrations() throws {
+        let first = try apply(.advance, to: try goalOf500(), at: standardDay(15, 0)).state
+        let second = try creatingGoal("耳机", 300, in: first, at: standardDay(15, 0))
+        let both = try apply(.advance, to: second, at: moment(2026, 2, 12, 15, 0)).state
+        let earphones = GoalCelebration(goalID: 2, message: "🎉 目标「耳机」达成")
+
+        #expect(snapshot(of: both, at: moment(2026, 2, 12, 15, 0)).celebration == celebration)
+        let firstPlayed = try applied(.acknowledgeCelebration(goalID: 1), to: both, at: moment(2026, 2, 12, 15, 1))
+        #expect(snapshot(of: firstPlayed, at: moment(2026, 2, 12, 15, 1)).celebration == earphones)
+        let bothPlayed = try applied(.acknowledgeCelebration(goalID: 2), to: firstPlayed, at: moment(2026, 2, 12, 15, 1))
+        #expect(snapshot(of: bothPlayed, at: moment(2026, 2, 12, 15, 1)).celebration == nil)
+    }
+
     @Test("PRD 4.3.5 #14 没播放的动画重启后仍在，播放过的重启后不再出现")
     func survivesRestart() throws {
         let done = try apply(.advance, to: try goalOf500(), at: standardDay(15, 0)).state
@@ -170,7 +184,7 @@ struct GoalCelebrationTests {
     func oldFileDoesNotCelebrate() throws {
         let done = try apply(.advance, to: try goalOf500(), at: standardDay(15, 0)).state
         var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(done)) as? [String: Any])
-        json["pendingCelebration"] = nil
+        json["pendingCelebrations"] = nil
         let restored = try JSONDecoder().decode(AppState.self, from: JSONSerialization.data(withJSONObject: json))
 
         #expect(restored.goals == done.goals)

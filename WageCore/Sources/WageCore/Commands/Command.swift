@@ -42,7 +42,7 @@ public enum Command: Sendable, Equatable {
     case setOffWorkNotification(Bool)
     /// 开关目标达成通知 (PRD 4.7.2)。
     case setGoalReachedNotification(Bool)
-    /// 面板播放完目标达成庆祝动画后确认，同一目标不再播放 (AC-GPRG-04)。
+    /// 面板开始播放目标达成庆祝动画时确认，同一目标不再播放 (AC-GPRG-04)。
     case acknowledgeCelebration(goalID: Int)
 }
 

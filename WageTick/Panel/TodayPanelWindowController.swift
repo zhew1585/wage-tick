@@ -4,7 +4,7 @@ import OSLog
 import SwiftUI
 import WageCore
 
-/// 面板当前要展示的内容，由窗口控制器按快照刷新，视图只读。
+/// 面板当前要展示的内容，由窗口控制器按快照刷新；视图只在庆祝动画结束时清空 `celebration`，其余只读。
 @MainActor
 @Observable
 final class TodayPanelContent {
@@ -57,14 +57,15 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         let snap = model.currentSnapshot()
         content.panel = snap.panel
         content.leaveForm = snap.leaveForm
-        if let celebration = snap.celebration {
+        // 面板被挡住或最小化时先不播，免得牛马没看到就被确认掉；露出来后下一次刷新再播。
+        if let celebration = snap.celebration, window.occlusionState.contains(.visible) {
             play(celebration)
         }
         scheduleNextRefresh(rolling: snap.today?.isRolling == true)
     }
 
     /// 庆祝动画只播放一次 (AC-GPRG-04)：开始播放就向核心确认，之后的快照里不再有它。
-    /// 正在播放上一个时先不接新的；新的没确认，播完后下一次刷新再播。
+    /// 正在播放上一个时先不接新的；新的没确认，播完后下一次刷新再播。刚打开面板的那次刷新窗口还没露出来，下一次刷新 (至多 1 秒) 开始播。
     private func play(_ celebration: GoalCelebration) {
         guard content.celebration == nil else { return }
         content.celebration = celebration

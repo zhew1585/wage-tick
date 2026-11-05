@@ -23,8 +23,7 @@ final class SystemNotifier: NSObject {
     func post(_ events: [DomainEvent]) {
         for event in events {
             switch event {
-            case .offWork(let message): post(message: message)
-            case .goalReached(let message): post(message: message)
+            case .offWork(let message), .goalReached(let message): post(message: message)
             }
         }
     }
