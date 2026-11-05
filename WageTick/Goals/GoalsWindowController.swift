@@ -3,14 +3,34 @@ import Observation
 import SwiftUI
 import WageCore
 
-/// 目标管理当前要展示的列表，由窗口控制器按快照刷新，视图只读。
+/// 目标管理当前要展示的内容，由窗口控制器按快照刷新，视图只读。
 @MainActor
 @Observable
 final class GoalsContent {
     var rows: [GoalRow] = []
+    /// 累计中目标的卡片 (进度条、预计完成)，与面板目标区同一份；没有累计中目标时为 nil。
+    var active: ActiveGoalCard?
+    /// 队列为空时的提示，如「给自己定个目标吧」。
+    var emptyText: String?
+
+    /// 按快照填好各项。
+    func update(from snap: Snapshot) {
+        rows = snap.goals ?? []
+        switch snap.panel?.goal {
+        case .active(let card):
+            active = card
+            emptyText = nil
+        case .empty(let text):
+            active = nil
+            emptyText = text
+        case nil:
+            active = nil
+            emptyText = nil
+        }
+    }
 }
 
-/// 目标管理窗口 (PRD F8，页面 P3)，从左键菜单「目标 ⌘2」或面板空目标区打开。
+/// 目标管理窗口 (PRD F8，页面 P3)，从左键菜单「目标 ⌘2」或面板空目标区打开。外观见 `PageWindow`。
 /// 只在窗口可见时每秒刷新一次，让累计中目标的累计额跟着走。
 @MainActor
 final class GoalsWindowController: NSObject, NSWindowDelegate {
@@ -44,7 +64,7 @@ final class GoalsWindowController: NSObject, NSWindowDelegate {
     }
 
     private func refresh() {
-        content.rows = model.currentSnapshot().goals ?? []
+        content.update(from: model.currentSnapshot())
         timer?.invalidate()
         let timer = Timer(timeInterval: Self.refreshInterval, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
@@ -54,14 +74,11 @@ final class GoalsWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow() -> NSWindow {
-        let view = GoalsView(content: content) { [weak self] (command: Command) throws(CommandError) in
-            try self?.send(command)
-        }
-        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
-        window.title = "目标"
-        window.styleMask = [.titled, .closable]
-        window.isReleasedWhenClosed = false
-        window.delegate = self
-        return window
+        let view = GoalsView(
+            content: content,
+            send: { [weak self] (command: Command) throws(CommandError) in try self?.send(command) },
+            close: { [weak self] in self?.window.close() }
+        )
+        return PageWindow.make(title: "目标", rootView: view, delegate: self)
     }
 }

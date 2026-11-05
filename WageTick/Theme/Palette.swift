@@ -22,8 +22,12 @@ enum Palette {
     /// 亏钱：扣钱、白干、错误提示。
     static let loss = Color(hex: 0xD9480F)
     static let lossSoft = Color(hex: 0xFBE4DA)
+    /// 被扣钱的小圆点与图例色块 (设计稿 P5 月日历直接写的 #FF8A5B)：落在 lossSoft 底和 ink 底 (今天) 上都看得清。
+    static let lossDot = Color(hex: 0xFF8A5B)
     /// 纯白：输入框、日历格子、开关圆钮 (设计稿里直接写的 #FFFFFF)。
     static let card = Color(hex: 0xFFFFFF)
+    /// 分段控件选中块的投影 (设计稿 #1F1B161A，即 ink 10%)。
+    static let shadow = ink.opacity(0.1)
 }
 
 private extension Color {

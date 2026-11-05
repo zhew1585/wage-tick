@@ -2,9 +2,13 @@ import CoreGraphics
 
 /// 圆角 token。名字里的数字就是设计稿里的 pt 值，另有几个按用途起名的别名。
 enum Radius {
+    static let r2: CGFloat = 2
     static let r4: CGFloat = 4
+    static let r5: CGFloat = 5
     static let r6: CGFloat = 6
+    static let r7: CGFloat = 7
     static let r8: CGFloat = 8
+    static let r9: CGFloat = 9
     static let r10: CGFloat = 10
     static let r12: CGFloat = 12
     static let r14: CGFloat = 14
@@ -18,7 +22,9 @@ enum Radius {
 
 /// 间距 token (gap、padding)。名字里的数字就是设计稿里的 pt 值。
 enum Spacing {
+    static let s1: CGFloat = 1
     static let s2: CGFloat = 2
+    static let s3: CGFloat = 3
     static let s4: CGFloat = 4
     static let s6: CGFloat = 6
     static let s8: CGFloat = 8
@@ -26,9 +32,12 @@ enum Spacing {
     static let s12: CGFloat = 12
     static let s14: CGFloat = 14
     static let s16: CGFloat = 16
+    static let s18: CGFloat = 18
     static let s20: CGFloat = 20
     static let s24: CGFloat = 24
 
     /// 面板、表单页左右内边距。
     static let screen = s20
+    /// 子页面 (目标、历史、设置) 的宽度，设计稿 P3 至 P6 都是 360。
+    static let pageWidth: CGFloat = 360
 }

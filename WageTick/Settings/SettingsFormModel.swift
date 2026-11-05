@@ -12,11 +12,17 @@ enum FormMessage: Equatable {
 
 /// 设置页的表单状态与动作 (PRD F12)。
 /// 每一项都发命令给核心，校验与提示文案来自核心的 `CommandError`，与引导一致 (PRD 4.3.5 #1 至 #3)。
-/// 月薪、作息点「保存」才生效；显示模式、快捷键、开机自启、两类通知开关改了立即生效。
+/// 月薪、作息在弹出的表单里改，点「保存」才生效；显示模式、快捷键、开机自启、两类通知开关改了立即生效。
 @MainActor
 @Observable
 final class SettingsFormModel {
+    /// 已保存的当月月薪，截掉末尾 0，如「20000」；设置页列表里展示。
+    private(set) var savedSalaryText = ""
+    /// 已保存的作息 (今天生效的)；设置页列表里展示。
+    private(set) var schedule = WorkSchedule.default
+    /// 月薪表单里的输入，打开表单时按已保存的填好。
     var salaryText = ""
+    /// 作息表单里的草稿，打开表单时按已保存的填好。
     var scheduleDraft = ScheduleDraft(.default)
     private(set) var menuBarMode = MenuBarMode.amount
     private(set) var hotkeyText = ""
@@ -49,8 +55,8 @@ final class SettingsFormModel {
     func reload() {
         let snap = model.currentSnapshot()
         if let form = snap.settingsForm {
-            salaryText = form.monthlySalaryText
-            scheduleDraft = ScheduleDraft(form.schedule)
+            savedSalaryText = form.monthlySalaryText
+            schedule = form.schedule
             launchAtLogin = form.launchAtLogin
         }
         menuBarMode = snap.settings.menuBarMode
@@ -64,17 +70,36 @@ final class SettingsFormModel {
         launchMessage = nil
     }
 
-    /// 改月薪，对当月整月生效。输入不是数字时按 0 交给核心，得到「月薪得是个正数」。
-    func saveSalary() {
-        salaryMessage = send(.changeMonthlySalary(SalaryText.parse(salaryText) ?? 0))
-        if salaryMessage == .saved, let form = model.currentSnapshot().settingsForm {
-            salaryText = form.monthlySalaryText
-        }
+    /// 打开月薪表单：按已保存的填好，清掉上次的提示。
+    func beginEditingSalary() {
+        salaryText = savedSalaryText
+        salaryMessage = nil
     }
 
-    /// 改作息，从今天起生效。
-    func saveSchedule() {
+    /// 打开作息表单：按已保存的填好，清掉上次的提示。
+    func beginEditingSchedule() {
+        scheduleDraft = ScheduleDraft(schedule)
+        scheduleMessage = nil
+    }
+
+    /// 改月薪，对当月整月生效。输入不是数字时按 0 交给核心，得到「月薪得是个正数」。返回是否保存成功。
+    func saveSalary() -> Bool {
+        salaryMessage = send(.changeMonthlySalary(SalaryText.parse(salaryText) ?? 0))
+        guard salaryMessage == .saved else { return false }
+        if let form = model.currentSnapshot().settingsForm {
+            savedSalaryText = form.monthlySalaryText
+        }
+        return true
+    }
+
+    /// 改作息，从今天起生效。返回是否保存成功。
+    func saveSchedule() -> Bool {
         scheduleMessage = send(.changeSchedule(scheduleDraft.schedule))
+        guard scheduleMessage == .saved else { return false }
+        if let form = model.currentSnapshot().settingsForm {
+            schedule = form.schedule
+        }
+        return true
     }
 
     func setMenuBarMode(_ mode: MenuBarMode) {

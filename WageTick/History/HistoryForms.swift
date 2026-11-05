@@ -41,14 +41,14 @@ struct UnpaidWorkFormView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(isEditing ? "改一段白干" : "补记白干").font(.title3.bold())
+        VStack(alignment: .leading, spacing: Spacing.s14) {
+            Text(isEditing ? "改一段白干" : "补记白干").font(AppFont.sheetTitle).foregroundStyle(Palette.ink)
             HStack(spacing: Spacing.s12) {
                 Field("开始") { TimeInput(selection: $start) }
                 Field("结束") { TimeInput(selection: $end) }
             }
             if let errorMessage {
-                Text(errorMessage).foregroundStyle(Palette.loss)
+                Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
             }
             HStack(spacing: Spacing.s8) {
                 Button("取消", action: dismiss)
@@ -59,8 +59,9 @@ struct UnpaidWorkFormView: View {
                     .buttonStyle(.primary(fullWidth: true))
             }
         }
-        .padding(20)
+        .padding(Spacing.screen)
         .frame(width: 280)
+        .background(Palette.bg)
         .onChange(of: start) { errorMessage = nil }
         .onChange(of: end) { errorMessage = nil }
     }
@@ -110,13 +111,13 @@ struct SalaryFormView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("\(title)的月薪").font(.title3.bold())
-            Text(hint).font(.callout).foregroundStyle(Palette.muted)
+        VStack(alignment: .leading, spacing: Spacing.s14) {
+            Text("\(title)的月薪").font(AppFont.sheetTitle).foregroundStyle(Palette.ink)
+            Text(hint).font(AppFont.caption).foregroundStyle(Palette.muted)
             Field("月薪", text: $text, suffix: "元")
                 .onSubmit(save)
             if let errorMessage {
-                Text(errorMessage).foregroundStyle(Palette.loss)
+                Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
             }
             HStack(spacing: Spacing.s8) {
                 Button("取消", action: dismiss)
@@ -127,8 +128,9 @@ struct SalaryFormView: View {
                     .buttonStyle(.primary(fullWidth: true))
             }
         }
-        .padding(20)
+        .padding(Spacing.screen)
         .frame(width: 280)
+        .background(Palette.bg)
         .onChange(of: text) { errorMessage = nil }
     }
 
