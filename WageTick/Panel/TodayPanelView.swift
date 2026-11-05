@@ -3,12 +3,14 @@ import SwiftUI
 import WageCore
 
 /// 今日概览面板 (PRD F4)。所有文字和数字原样取自快照的 `TodayPanel`，这里只管排版。
-/// 目标区、请假与被迫营业按钮、「我还没走」按钮只占位，功能留给后续票。
+/// 目标区、被迫营业按钮、「我还没走」按钮只占位，功能留给后续票。
 struct TodayPanelView: View {
     let content: TodayPanelContent
     let actions: PanelActions
 
     @State private var deductionForm: DeductionFormRequest?
+    /// 正在弹出的请假表单；nil 时没有表单。
+    @State private var leaveForm: LeaveFormView.Mode?
 
     /// 进度区高度：已下班时换成「我还没走」按钮，高度保持一致 (AC-HOME-11)。
     private static let progressAreaHeight: CGFloat = 44
@@ -26,6 +28,7 @@ struct TodayPanelView: View {
                 }
                 goalPlaceholder
                 Divider()
+                currentLeaveRow
                 moodButtons(panel)
             }
         }
@@ -170,8 +173,21 @@ struct TodayPanelView: View {
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
     }
 
+    /// 今天已请假时显示一句描述和「修改」入口，撤销在修改表单里 (F6)。
+    @ViewBuilder
+    private var currentLeaveRow: some View {
+        if let form = content.leaveForm, let current = form.current, let text = form.currentText {
+            HStack {
+                Text(text).font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                Button("修改") { leaveForm = .edit(current) }
+            }
+        }
+    }
+
     /// 情绪按钮：应出勤日为扣钱、请假，休息日为被迫营业 (F4)。
-    /// 「今天扣钱了」只在快照给出入口时出现 (AC-FINE-07)；请假 (F6)、被迫营业 (F7) 留给后续票，先占位。
+    /// 「今天扣钱了」只在快照给出入口时出现 (AC-FINE-07)；请假入口与能否新请由核心决定 (PRD 4.3.5 #8)；
+    /// 被迫营业 (F7) 留给后续票，先占位。
     private func moodButtons(_ panel: TodayPanel) -> some View {
         HStack {
             if panel.body.isRest {
@@ -180,8 +196,14 @@ struct TodayPanelView: View {
                 if panel.deductionEntry != nil {
                     Button("今天扣钱了") { deductionForm = .add }
                 }
-                Button("请假") {}.disabled(true)
             }
+            if content.leaveForm?.canRequest == true {
+                Button("请假") { leaveForm = .request }
+            }
+        }
+        // 与扣钱表单分开挂，避免同一视图上挂两个 sheet。
+        .sheet(item: $leaveForm) { mode in
+            LeaveFormView(mode: mode, actions: actions, dismiss: { leaveForm = nil })
         }
     }
 }

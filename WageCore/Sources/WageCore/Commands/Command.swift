@@ -22,6 +22,12 @@ public enum Command: Sendable, Equatable {
     case editDeduction(id: Int, DeductionInput)
     /// 删除今天的一笔扣钱记录。
     case deleteDeduction(id: Int)
+    /// 今天请假 (PRD 4.4.2、F6)：与今天已有的另一半天假合并为全天 (4.3.5 #21)，其余情况替换。
+    case requestLeave(Leave)
+    /// 修改今天的请假：整条替换，不合并 (4.4.2 #5)。
+    case editLeave(Leave)
+    /// 撤销今天的请假，当天恢复为普通应出勤日 (4.4.2 #5)；没有请假时什么都不变。
+    case cancelLeave
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -54,6 +60,7 @@ public enum CommandError: Error, Sendable, Equatable {
     case deductionNoteTooLong
     case notAttendanceDay
     case deductionNotFound
+    case leavePercentOutOfRange
 
     public var message: String {
         switch self {
@@ -68,13 +75,14 @@ public enum CommandError: Error, Sendable, Equatable {
         case .deductionNoteTooLong: "备注最多 \(Validation.deductionNoteLimit) 个字"
         case .notAttendanceDay: "今天本来就不上班"
         case .deductionNotFound: "这笔扣钱已经不在了"
+        case .leavePercentOutOfRange: "扣薪比例要在 0% 到 100% 之间"
         }
     }
 }
 
 /// 核心入口一：在 `now` 时刻对 `state` 执行 `command`，返回新状态与领域事件。
 /// 校验失败时抛出 `CommandError`，原状态不受影响。
-/// `holidays` 用于需要判定应出勤日的命令 (如记扣钱)；不传时为空表，只按双休。
+/// `holidays` 用于需要判定应出勤日的命令 (如记扣钱、请假)；不传时为空表，只按双休。
 public func apply(
     _ command: Command,
     to state: AppState,
@@ -104,6 +112,12 @@ public func apply(
         return (try editDeduction(id: id, input, state: state, now: now), [])
     case .deleteDeduction(let id):
         return (try deleteDeduction(id: id, state: state, now: now), [])
+    case .requestLeave(let leave):
+        return (try setLeave(leave, mergingWithExisting: true, state: state, now: now, holidays: holidays), [])
+    case .editLeave(let leave):
+        return (try setLeave(leave, mergingWithExisting: false, state: state, now: now, holidays: holidays), [])
+    case .cancelLeave:
+        return (cancelLeave(state: state, now: now), [])
     }
 }
 

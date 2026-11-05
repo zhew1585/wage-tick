@@ -15,7 +15,7 @@ public struct Today: Sendable, Equatable {
     public let status: DayStatus
     /// 当月日薪 = 当月月薪 ÷ 当月应出勤日数，保留完整精度 (PRD 4.2.4)。
     public let dailyWage: Decimal
-    /// 应出勤日的收入数字；休息日为 nil。
+    /// 应出勤日的收入数字；不应出勤的休息日为 nil。全天请假也有 (按休息日呈现，但收入为今日上限)。
     public let earnings: Earnings?
     /// 本月累计 = 本月今天之前各应出勤日的结算之和 + 今日已赚 (PRD 4.3.4)。
     /// 安装日之前已过的应出勤日没有日记录，天然按满勤结算 (PRD 4.1.1)。
@@ -24,10 +24,12 @@ public struct Today: Sendable, Equatable {
     public let attendedDays: Int
     /// 明天起第一个应出勤日。
     public let nextAttendanceDay: LocalDate?
-    /// 当日计划；休息日为 nil。面板据此推导进度与倒计时。
+    /// 当日计划；休息日 (含全天请假) 为 nil。面板据此推导进度与倒计时。
     let plan: DayPlan?
-    /// 今天的结算推导 (当日扣款明细、今日上限)；休息日为 nil。
+    /// 今天的结算推导 (当日扣款明细、今日上限)；不应出勤的休息日为 nil。
     let settlement: DaySettlement?
+    /// 今天的请假 (PRD 4.4.2)；没请假或今天不是应出勤日时为 nil。
+    public let leave: Leave?
 
     /// 今日已赚是否正在增长：只在上班中增长 (PRD 4.3.3 不变量 3)。外壳据此决定刷新频率。
     public var isEarning: Bool { status == .working }
@@ -43,7 +45,7 @@ public struct Earnings: Sendable, Equatable {
     public let earned: Decimal
     /// 上班中今日已赚每秒的增量 = 今日上限 ÷ 应有有效工时 (秒)。
     public let perSecond: Decimal
-    /// 当日扣款 = 扣钱记录合计 (PRD 4.3.1)。
+    /// 当日扣款 = 扣钱记录合计 + 请假扣薪 (PRD 4.3.1)。
     public let deductionTotal: Decimal
 }
 
@@ -69,16 +71,21 @@ extension Today {
             earnings = nil
             plan = nil
             settlement = nil
+            leave = nil
             monthToDate = settledSum
             return
         }
         let todaySettlement = settle(day)
-        let todayPlan = DayPlan(schedule: profile.schedule(on: day), on: day, now: now)
-        let todayEarnings = Earnings(settlement: todaySettlement, plan: todayPlan, now: now.date)
-        status = todayPlan.status(at: now.date)
+        let todayLeave = dayRecords.first { $0.date == day }?.leave
+        let todayPlan = DayPlan(schedule: profile.schedule(on: day), leave: todayLeave?.period, on: day, now: now)
+        let todayEarnings = todayPlan.map { Earnings(settlement: todaySettlement, plan: $0, now: now.date) }
+            ?? Earnings(fullDayLeave: todaySettlement)
+        // 全天请假按休息日呈现【D2】。
+        status = todayPlan?.status(at: now.date) ?? .restDay
         earnings = todayEarnings
         plan = todayPlan
         settlement = todaySettlement
+        leave = todayLeave
         monthToDate = settledSum + todayEarnings.earned
     }
 }
@@ -90,17 +97,33 @@ extension Earnings {
         let total = Decimal(plan.effectiveMilliseconds)
         let elapsed = Decimal(plan.elapsedMilliseconds(at: now))
         self.cap = cap
+        deductionTotal = settlement.deductionTotal
+        guard total > 0 else {
+            // 半天假后那半天没有工时 (午休紧贴计划上班或下班)：到计划下班即拿满今日上限。
+            progress = now >= plan.end ? 1 : 0
+            earned = cap * progress
+            perSecond = 0
+            return
+        }
         progress = elapsed / total
         // 先乘后除，减少中间舍入。
         earned = cap * elapsed / total
         perSecond = cap * 1000 / total
+    }
+
+    /// 全天请假：不滚动，今日已赚直接为今日上限 (PRD 4.3.2 #3)。
+    init(fullDayLeave settlement: DaySettlement) {
+        cap = settlement.cap
+        progress = 1
+        earned = settlement.cap
+        perSecond = 0
         deductionTotal = settlement.deductionTotal
     }
 }
 
 extension MenuBarDisplay {
     /// 按显示模式 (PRD 4.7.1 第 2 条) 决定数字：金额模式为 4 位小数的今日已赚，进度模式为 2 位小数的工作进度，
-    /// 仅图标模式不显示数字；休息日一律只显示小牛。
+    /// 仅图标模式不显示数字；休息日 (含全天请假，AC-HOME-07) 一律只显示小牛。
     /// 老板路过模式下 (第 3 条) 只隐藏数字，小牛姿势照常随日状态变化。
     init(today: Today, settings: InterfaceSettings) {
         let pose: CowPose = switch today.status {
@@ -110,7 +133,7 @@ extension MenuBarDisplay {
         case .lunchBreak: .sleeping
         case .offWork: .lyingFlat
         }
-        let text: String? = if settings.bossMode {
+        let text: String? = if settings.bossMode || today.status == .restDay {
             nil
         } else {
             switch settings.menuBarMode {

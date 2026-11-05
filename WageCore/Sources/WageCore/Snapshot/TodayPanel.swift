@@ -124,7 +124,9 @@ extension RestPanel {
         let next = today.nextAttendanceDay.map {
             StatItem(title: "下一个应出勤日", value: Format.date($0, relativeTo: today.date))
         }
-        self.init(headline: "今天休息", stats: [
+        // 全天请假按休息日呈现，但标题为「今天请假」(AC-HOME-07)。
+        let headline = today.leave?.period == .fullDay ? "今天请假" : "今天休息"
+        self.init(headline: headline, stats: [
             StatItem(title: "本月已上班", value: "\(today.attendedDays) 天"),
             StatItem(title: "本月累计", value: Format.money(today.monthToDate)),
         ] + [next].compactMap { $0 })
@@ -137,6 +139,7 @@ extension WorkProgress {
         let total = Format.trimmed(Format.hours(milliseconds: plan.effectiveMilliseconds))
         label = "已工作 \(elapsed) / \(total) 小时"
         percent = Format.percent(progress)
+        // 半天假后那半天没有工时时没有任何一段，`barLength` 不会被用作除数。
         let barLength = plan.workPeriods.map(\.length).reduce(0, +)
         segments = plan.workPeriods.map { period in
             let walked = min(max(now.timeIntervalSince(period.start), 0), period.length)

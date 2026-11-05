@@ -176,4 +176,18 @@ struct HolidayCommandTests {
             try apply(.addDeduction(fifty), to: state, at: moment(2026, 10, 10, 11, 0), holidays: holidays2026)
         }
     }
+
+    @Test("PRD 4.3.5 #8 国庆放假当天不能请假，调休上班的周六可以")
+    func leaveFollowsHolidayTable() throws {
+        let state = try onboarded()
+        let leave = Command.requestLeave(Leave(period: .fullDay, deductionPercent: 100))
+
+        #expect(throws: CommandError.notAttendanceDay) {
+            try apply(leave, to: state, at: moment(2026, 10, 5, 11, 0), holidays: holidays2026)
+        }
+        let makeupDay = moment(2026, 10, 10, 11, 0)
+        let onLeave = try apply(leave, to: state, at: makeupDay, holidays: holidays2026).state
+        #expect(snapshot(of: onLeave, at: makeupDay, holidays: holidays2026).today?.leave?.period == .fullDay)
+        #expect(snapshot(of: state, at: moment(2026, 10, 5, 11, 0), holidays: holidays2026).leaveForm == nil)
+    }
 }

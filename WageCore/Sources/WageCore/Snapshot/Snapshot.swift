@@ -12,6 +12,8 @@ public struct Snapshot: Sendable, Equatable {
     public let panel: TodayPanel?
     /// 设置页的初始值；未完成引导时为 nil。
     public let settingsForm: SettingsForm?
+    /// 请假表单 (F6) 的内容；未完成引导或今天不应出勤时为 nil，此时没有请假入口 (PRD 4.3.5 #8)。
+    public let leaveForm: LeaveForm?
 }
 
 /// 菜单栏内容：小牛姿势 + 可选数字 (PRD 4.7.1 第 1、2 条)。
@@ -42,7 +44,7 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
     guard let profile = state.profile else {
         return Snapshot(
             menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil,
-            settingsForm: nil
+            settingsForm: nil, leaveForm: nil
         )
     }
     let today = Today(profile: profile, dayRecords: state.dayRecords, now: now, holidays: holidays)
@@ -51,6 +53,7 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
         today: today,
         settings: state.settings,
         panel: TodayPanel(today: today, now: now, holidays: holidays),
-        settingsForm: SettingsForm(profile: profile, today: today.date)
+        settingsForm: SettingsForm(profile: profile, today: today.date),
+        leaveForm: LeaveForm(today: today, now: now)
     )
 }

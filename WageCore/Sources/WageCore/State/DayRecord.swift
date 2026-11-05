@@ -1,18 +1,21 @@
 import Foundation
 
 /// 日记录 (PRD 4.3.1)：某一天牛马手动产生的内容。
-/// 字段按 PRD 命名：单日覆盖、请假、扣钱记录、白干段；本票只有扣钱记录，其余由各自的票追加。
+/// 字段按 PRD 命名：单日覆盖、请假、扣钱记录、白干段；目前有扣钱记录 (#7) 与请假 (#8)，其余由各自的票追加。
 /// 日薪、今日上限、结算等推导内容一律不存，见 `DaySettlement`。
 public struct DayRecord: Sendable, Equatable, Codable {
     public let date: LocalDate
     /// 扣钱记录 (PRD 4.4.1)，1:N，按记录先后排列。
     public internal(set) var deductions: [Deduction]
+    /// 请假 (PRD 4.4.2)；nil 表示这天没请假。同一天只有一条 (4.4.2 #4)。
+    public internal(set) var leave: Leave?
 
-    private enum CodingKeys: String, CodingKey { case date, deductions }
+    private enum CodingKeys: String, CodingKey { case date, deductions, leave }
 
-    init(date: LocalDate, deductions: [Deduction] = []) {
+    init(date: LocalDate, deductions: [Deduction] = [], leave: Leave? = nil) {
         self.date = date
         self.deductions = deductions
+        self.leave = leave
     }
 
     /// 其他票追加的字段可能让一条日记录没有扣钱记录，缺省视为空。
@@ -20,10 +23,11 @@ public struct DayRecord: Sendable, Equatable, Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         date = try container.decode(LocalDate.self, forKey: .date)
         deductions = try container.decodeIfPresent([Deduction].self, forKey: .deductions) ?? []
+        leave = try container.decodeIfPresent(Leave.self, forKey: .leave)
     }
 
     /// 没有任何牛马录入的内容时，这条日记录可以删掉。
-    var isEmpty: Bool { deductions.isEmpty }
+    var isEmpty: Bool { deductions.isEmpty && leave == nil }
 }
 
 /// 扣钱记录 (PRD 4.4.1)：牛马自己记下的一笔某天被扣的钱。
