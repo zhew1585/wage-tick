@@ -56,7 +56,17 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow() -> NSWindow {
-        let window = NSWindow(contentViewController: NSHostingController(rootView: TodayPanelView(content: content)))
+        let actions = PanelActions(
+            dryRun: { [model] command in model.dryRun(command) },
+            send: { [weak self] command throws(CommandError) in
+                guard let self else { return }
+                try model.send(command)
+                // 立即刷新，让今日已赚当场往下掉一截 (F5)，不等下一次定时刷新。
+                refresh()
+            }
+        )
+        let view = TodayPanelView(content: content, actions: actions)
+        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
         window.title = "今日概览"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false

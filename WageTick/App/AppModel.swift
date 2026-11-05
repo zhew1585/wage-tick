@@ -22,6 +22,16 @@ final class AppModel {
         store.save(state)
     }
 
+    /// 试算：在当前状态上执行命令但不保存，返回执行后的快照。表单实时预览用它，校验失败时返回错误。
+    func dryRun(_ command: Command) -> Result<Snapshot, CommandError> {
+        let now = Self.now()
+        do {
+            return .success(snapshot(of: try apply(command, to: state, at: now).state, at: now))
+        } catch {
+            return .failure(error)
+        }
+    }
+
     /// 按系统当前时间与时区取快照。
     func currentSnapshot() -> Snapshot {
         snapshot(of: state, at: Self.now())

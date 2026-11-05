@@ -38,7 +38,7 @@ public func snapshot(of state: AppState, at now: Moment) -> Snapshot {
     guard let profile = state.profile else {
         return Snapshot(menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil)
     }
-    let today = Today(profile: profile, now: now)
+    let today = Today(profile: profile, dayRecords: state.dayRecords, now: now)
     return Snapshot(
         menuBar: MenuBarDisplay(today: today, settings: state.settings),
         today: today,

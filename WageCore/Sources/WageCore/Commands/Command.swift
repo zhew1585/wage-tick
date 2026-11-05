@@ -6,6 +6,12 @@ public enum Command: Sendable, Equatable {
     case completeOnboarding(OnboardingInput)
     /// 开启或关闭老板路过模式 (PRD 4.7.1 第 3 条)，由全局快捷键或左键菜单发出。
     case toggleBossMode
+    /// 给今天记一笔扣钱 (PRD 4.4.1、F5)。
+    case addDeduction(DeductionInput)
+    /// 修改一笔扣钱记录。
+    case editDeduction(id: Int, DeductionInput)
+    /// 删除一笔扣钱记录。
+    case deleteDeduction(id: Int)
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -31,6 +37,11 @@ public enum CommandError: Error, Sendable, Equatable {
     case endNotAfterStart
     case lunchOutsideWorkHours
     case alreadyOnboarded
+    case deductionNotPositive
+    case deductionNoteTooLong
+    case notAttendanceDay
+    case deductionNotFound
+    case notOnboarded
 
     public var message: String {
         switch self {
@@ -38,6 +49,11 @@ public enum CommandError: Error, Sendable, Equatable {
         case .endNotAfterStart: "下班时间要晚于上班时间"
         case .lunchOutsideWorkHours: "午休要在上下班时间之内"
         case .alreadyOnboarded: "已经完成过引导了"
+        case .deductionNotPositive: "扣钱金额得大于 0"
+        case .deductionNoteTooLong: "备注最多 \(Validation.deductionNoteLimit) 个字"
+        case .notAttendanceDay: "今天本来就不上班"
+        case .deductionNotFound: "这笔扣钱已经不在了"
+        case .notOnboarded: "还没完成引导"
         }
     }
 }
@@ -56,6 +72,12 @@ public func apply(
         var next = state
         next.settings.bossMode.toggle()
         return (next, [])
+    case .addDeduction(let input):
+        return (try addDeduction(input, state: state, now: now), [])
+    case .editDeduction(let id, let input):
+        return (try editDeduction(id: id, input, state: state), [])
+    case .deleteDeduction(let id):
+        return (try deleteDeduction(id: id, state: state), [])
     }
 }
 
