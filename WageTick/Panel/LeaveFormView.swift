@@ -1,7 +1,7 @@
 import SwiftUI
 import WageCore
 
-/// 请假表单 (PRD F6)，从今日概览面板 (今天) 或历史单日详情 (那一天，#15) 弹出：
+/// 请假表单 (PRD F6，设计稿 F6)，从今日概览面板 (今天) 或历史单日详情 (那一天，#15) 打开：
 /// 时段、扣日薪的百分比，下方汇总当日计划、请假扣薪、收入项 (今天为今日上限，历史为结算或预计结算)。
 /// 汇总与校验提示都来自核心：每次改动都把待保存的命令交给 `PanelActions.dryRun` 试算。
 struct LeaveFormView: View {
@@ -17,15 +17,22 @@ struct LeaveFormView: View {
     let dismiss: () -> Void
     /// 作用的日子：今天或历史里的某一天。
     let target: FormTarget
+    /// 表头右侧的日期，如「11月5日 周四」；nil 时不显示。
+    let subtitle: String?
 
     @State private var period: LeavePeriod
     @State private var percentText: String
     @State private var errorMessage: String?
+    @FocusState private var percentFocused: Bool
 
-    init(mode: Mode, actions: PanelActions, target: FormTarget = .today, dismiss: @escaping () -> Void) {
+    /// 汇总下方的说明 (设计稿 F6)。
+    private static let hint = "病假打折、年假不扣，可按需调整。请假日仍算应出勤日。"
+
+    init(mode: Mode, actions: PanelActions, target: FormTarget = .today, subtitle: String? = nil, dismiss: @escaping () -> Void) {
         self.mode = mode
         self.actions = actions
         self.target = target
+        self.subtitle = subtitle
         self.dismiss = dismiss
         let initial = switch mode {
         case .request: Leave(period: .fullDay, deductionPercent: LeavePeriod.fullDay.defaultDeductionPercent)
@@ -36,65 +43,101 @@ struct LeaveFormView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(mode == .request ? "请假" : "修改请假").font(.title3.bold())
-            Picker("时段", selection: $period) {
-                ForEach(LeavePeriod.allCases, id: \.self) { Text($0.label).tag($0) }
+        FormSheet(title: mode == .request ? "请假" : "修改请假", subtitle: subtitle, back: dismiss) {
+            VStack(alignment: .leading, spacing: Spacing.s8) {
+                FormLabel("时段")
+                ThemeSegmented(
+                    selection: $period,
+                    options: LeavePeriod.allCases.map { ($0, $0.label) },
+                    fontSize: 13
+                )
+                // 切换时段时带出默认比例【D4】，牛马可再修改。
+                .onChange(of: period) { _, newValue in
+                    percentText = Self.text(newValue.defaultDeductionPercent)
+                }
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            // 切换时段时带出默认比例【D4】，牛马可再修改。
-            .onChange(of: period) { _, newValue in
-                percentText = Self.text(newValue.defaultDeductionPercent)
+            VStack(alignment: .leading, spacing: Spacing.s8) {
+                FormLabel("扣日薪的")
+                percentInput
             }
-            Field("扣日薪", text: $percentText, suffix: "%")
-                .onSubmit(save)
             summary
-            if let errorMessage {
-                Text(errorMessage).foregroundStyle(Palette.loss)
-            }
+        } actions: {
             buttons
         }
-        .padding(20)
-        .frame(width: 320)
+        .onAppear { percentFocused = true }
+        .onChange(of: percentText) { errorMessage = nil }
+    }
+
+    /// 比例输入：数字 24/700，紧跟着「%」；获得焦点时描边换成墨色。
+    private var percentInput: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.r10)
+        let font = AppFont.num(24, .bold)
+        return HStack(spacing: Spacing.s6) {
+            // 用一段隐藏的同字号文字撑出输入框宽度，让「%」贴在数字后面。
+            Text(percentText.isEmpty ? "0" : percentText)
+                .font(font)
+                .hidden()
+                .padding(.trailing, Spacing.s4)
+                .overlay(alignment: .leading) {
+                    TextField("扣日薪的百分比", text: $percentText, prompt: Text("0").foregroundStyle(Palette.line))
+                        .textFieldStyle(.plain)
+                        .font(font)
+                        .foregroundStyle(Palette.ink)
+                        .focused($percentFocused)
+                        .onSubmit(save)
+                }
+            Text("%").font(AppFont.ui(15)).foregroundStyle(Palette.muted)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, Spacing.s14)
+        .padding(.vertical, Spacing.s10)
+        .background(Palette.card, in: shape)
+        .overlay(shape.strokeBorder(percentFocused ? Palette.ink : Palette.line, lineWidth: 1.5))
+        .contentShape(shape)
+        .onTapGesture { percentFocused = true }
+    }
+
+    /// 汇总框：每行标题 + 数值，下方一条分隔线与说明；比例填错时这里换成核心的校验提示。
+    private var summary: some View {
+        VStack(alignment: .leading, spacing: Spacing.s8) {
+            switch previewResult {
+            case .success(let form):
+                ForEach(form?.summary ?? [], id: \.title) { item in
+                    HStack {
+                        Text(item.title).font(AppFont.caption).foregroundStyle(Palette.muted)
+                        Spacer()
+                        Text(item.value).font(AppFont.numBody).foregroundStyle(Palette.ink)
+                    }
+                }
+            case .failure(let error):
+                Text(error.message).font(AppFont.caption).foregroundStyle(Palette.loss)
+            }
+            if let errorMessage {
+                Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
+            }
+            Rectangle().fill(Palette.line).frame(height: 1)
+            Text(Self.hint)
+                .font(AppFont.small)
+                .foregroundStyle(Palette.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(Spacing.s14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r10))
     }
 
     @ViewBuilder
-    private var summary: some View {
-        switch previewResult {
-        case .success(nil):
-            EmptyView()
-        case .success(let form?):
-            VStack(spacing: 6) {
-                ForEach(form.summary, id: \.title) { item in
-                    HStack {
-                        Text(item.title).foregroundStyle(Palette.muted)
-                        Spacer()
-                        Text(item.value).monospacedDigit()
-                    }
-                }
-            }
-            .font(.callout)
-            .padding(10)
-            .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.control))
-        case .failure(let error):
-            Text(error.message).foregroundStyle(Palette.loss)
-        }
-    }
-
     private var buttons: some View {
-        HStack(spacing: Spacing.s8) {
-            if case .edit = mode {
-                Button("撤销请假", role: .destructive) { send(cancelCommand) }
-                    .buttonStyle(.secondary)
-            }
-            Button("取消", action: dismiss)
-                .keyboardShortcut(.cancelAction)
-                .buttonStyle(.secondary(fullWidth: true))
-            Button { save() } label: { Label("保存", systemImage: "checkmark") }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.primary(fullWidth: true))
+        if case .edit = mode {
+            Button("撤销请假", role: .destructive) { send(cancelCommand) }
+                .buttonStyle(.secondary)
         }
+        Button("算了", action: dismiss)
+            .keyboardShortcut(.cancelAction)
+            .buttonStyle(.secondary(fullWidth: true))
+        Button(action: save) { Label { Text(mode == .request ? "就这么请" : "保存") } icon: { PhosphorIcon(.check) } }
+            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.primary(fullWidth: true))
     }
 
     private func save() {

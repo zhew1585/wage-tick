@@ -10,7 +10,7 @@ struct PanelActions {
 }
 
 /// 打开扣钱表单的请求：新记一笔，或编辑已有的一笔。
-enum DeductionFormRequest: Identifiable {
+enum DeductionFormRequest: Identifiable, Equatable {
     case add
     case edit(DeductionItem)
 
@@ -22,7 +22,7 @@ enum DeductionFormRequest: Identifiable {
     }
 }
 
-/// 扣钱表单 (PRD F5)：按金额 / 按日薪百分比、原因标签、备注，实时预览「今日上限 ¥x → ¥y」。
+/// 扣钱表单 (PRD F5，设计稿 F5)：按金额 / 按日薪百分比、大号金额输入、原因标签、备注，实时预览「今日上限 ¥x → ¥y」。
 /// 预览与校验都来自核心：草稿交给 `dryRun` 试算，拿试算后快照里的扣钱入口与当前的对比。
 /// 今日概览面板记今天的，历史单日详情补记那一天的 (#15)。
 struct DeductionFormView: View {
@@ -33,25 +33,33 @@ struct DeductionFormView: View {
     let dismiss: () -> Void
     /// 作用的日子：今天或历史里的某一天。
     let target: FormTarget
+    /// 表头右侧的日期，如「11月5日 周四」；nil 时不显示。
+    let subtitle: String?
 
     @State private var method: Method
     @State private var valueText: String
     @State private var reason: DeductionReason?
     @State private var note: String
     @State private var errorMessage: String?
+    @FocusState private var focus: Focus?
 
     private enum Method: Hashable {
         case fixed, percent
     }
 
+    private enum Focus: Hashable {
+        case value, note
+    }
+
     init(
         request: DeductionFormRequest, entry: DeductionEntry?, actions: PanelActions, target: FormTarget = .today,
-        dismiss: @escaping () -> Void
+        subtitle: String? = nil, dismiss: @escaping () -> Void
     ) {
         self.request = request
         self.entry = entry
         self.actions = actions
         self.target = target
+        self.subtitle = subtitle
         self.dismiss = dismiss
         let input: DeductionInput? = if case .edit(let item) = request { item.input } else { nil }
         _method = State(initialValue: input.map { if case .percentOfDailyWage = $0.amount { .percent } else { .fixed } } ?? .fixed)
@@ -61,75 +69,116 @@ struct DeductionFormView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(title).font(.title3.bold())
-            Picker("记账方式", selection: $method) {
-                Text("按金额").tag(Method.fixed)
-                Text("按日薪百分比").tag(Method.percent)
+        FormSheet(title: title, subtitle: subtitle, back: dismiss) {
+            ThemeSegmented(selection: $method, options: [(.fixed, "按金额"), (.percent, "按日薪百分比")])
+            VStack(alignment: .leading, spacing: Spacing.s6) {
+                valueInput
+                previewLine
+                messages
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            Field(method == .fixed ? "扣了多少" : "日薪的百分之几", text: $valueText, suffix: method == .fixed ? "元" : "%")
-                .onSubmit(save)
             reasonPicker
             noteField
-            previewSection
-            if let errorMessage {
-                Text(errorMessage).foregroundStyle(Palette.loss)
-            }
-            HStack(spacing: Spacing.s8) {
-                Button("取消", action: dismiss)
-                    .keyboardShortcut(.cancelAction)
-                    .buttonStyle(.secondary(fullWidth: true))
-                Button(action: save) { Label("继续搬砖", systemImage: "checkmark") }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.primary(fullWidth: true))
-            }
+        } actions: {
+            Button("算了", action: dismiss)
+                .keyboardShortcut(.cancelAction)
+                .buttonStyle(.secondary(fullWidth: true))
+            Button(action: save) { Label { Text("继续搬砖") } icon: { PhosphorIcon(.check) } }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.primary(fullWidth: true))
         }
-        .padding(20)
-        .frame(width: 320)
+        .onAppear { focus = .value }
         .onChange(of: method) { errorMessage = nil }
         .onChange(of: valueText) { errorMessage = nil }
     }
 
+    /// 大号金额输入：左边 loss 色的负号，右边单位 (元 / %)；获得焦点时描边换成 loss。
+    private var valueInput: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.r10)
+        return HStack(spacing: Spacing.s6) {
+            Text("−").font(AppFont.num(28, .semibold)).foregroundStyle(Palette.loss)
+            TextField(method == .fixed ? "扣了多少" : "日薪的百分之几", text: $valueText, prompt: Text("0").foregroundStyle(Palette.line))
+                .textFieldStyle(.plain)
+                .font(AppFont.num(34, .bold))
+                .foregroundStyle(Palette.ink)
+                .focused($focus, equals: .value)
+                .onSubmit(save)
+            Text(method == .fixed ? "元" : "%").font(AppFont.ui(16)).foregroundStyle(Palette.muted)
+        }
+        .padding(.horizontal, Spacing.s14)
+        .padding(.vertical, Spacing.s12)
+        .background(Palette.card, in: shape)
+        .overlay(shape.strokeBorder(focus == .value ? Palette.loss : Palette.line, lineWidth: 1.5))
+    }
+
+    /// 「今日上限 ¥1000 → ¥950」：起点取当前快照，终点取草稿试算后的快照；还没填好时只显示起点。
+    @ViewBuilder
+    private var previewLine: some View {
+        if let entry {
+            HStack(spacing: Spacing.s6) {
+                Text(entry.capTitle).font(AppFont.caption)
+                Text(entry.capText).font(AppFont.numCaption)
+                if let draft = draftEntry {
+                    PhosphorIcon(.arrowRight, size: 12)
+                    Text(draft.capText).font(AppFont.numBody).foregroundStyle(Palette.loss)
+                }
+            }
+            .foregroundStyle(Palette.muted)
+        }
+    }
+
+    /// 超过日薪的提醒 (PRD 4.3.5 #6) 与保存失败的校验提示。
+    @ViewBuilder
+    private var messages: some View {
+        if let warning = draftEntry?.warning {
+            Text(warning).font(AppFont.caption).foregroundStyle(Palette.accent)
+        }
+        if let errorMessage {
+            Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
+        }
+    }
+
     /// 原因标签可不选：再点一次已选中的标签即取消。
     private var reasonPicker: some View {
-        HStack {
-            Text("原因").foregroundStyle(Palette.muted)
-            ForEach(DeductionReason.allCases, id: \.self) { option in
-                Toggle(option.label, isOn: Binding(
-                    get: { reason == option },
-                    set: { reason = $0 ? option : nil }
-                ))
-                .toggleStyle(.button)
+        VStack(alignment: .leading, spacing: Spacing.s8) {
+            FormLabel("为啥被扣 (可不选)")
+            HStack(spacing: Spacing.s6) {
+                ForEach(DeductionReason.allCases, id: \.self) { option in
+                    ReasonPill(title: option.label, selected: reason == option) {
+                        reason = reason == option ? nil : option
+                    }
+                }
             }
         }
     }
 
+    /// 备注框：白底、高 56，右下角字数 (超出上限的部分直接截掉)。
     private var noteField: some View {
-        VStack(alignment: .trailing, spacing: 2) {
-            Field("备注", text: $note, prompt: "可不填", value: .text)
-                .onChange(of: note) {
-                    if note.count > Validation.deductionNoteLimit {
-                        note = String(note.prefix(Validation.deductionNoteLimit))
-                    }
+        let shape = RoundedRectangle(cornerRadius: Radius.control)
+        return VStack(alignment: .leading, spacing: Spacing.s8) {
+            FormLabel("备注")
+            VStack(alignment: .leading, spacing: 0) {
+                TextField("备注", text: $note, prompt: Text("可不填").foregroundStyle(Palette.muted), axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(AppFont.body)
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1...2)
+                    .focused($focus, equals: .note)
+                Spacer(minLength: 0)
+                Text("\(note.count)/\(Validation.deductionNoteLimit)")
+                    .font(AppFont.num(10))
+                    .foregroundStyle(Palette.muted)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .padding(.horizontal, Spacing.s12)
+            .padding(.vertical, Spacing.s10)
+            .frame(minHeight: 56)
+            .background(Palette.card, in: shape)
+            .overlay(shape.strokeBorder(focus == .note ? Palette.accent : Palette.line, lineWidth: 1))
+            .onChange(of: note) {
+                if note.count > Validation.deductionNoteLimit {
+                    note = String(note.prefix(Validation.deductionNoteLimit))
                 }
-            Text("\(note.count)/\(Validation.deductionNoteLimit)")
-                .font(.caption2)
-                .foregroundStyle(Palette.muted)
-        }
-    }
-
-    @ViewBuilder
-    private var previewSection: some View {
-        let draft = draftEntry
-        if let entry {
-            Text(entry.previewLine(to: draft))
-                .font(.callout.weight(.medium))
-                .monospacedDigit()
-        }
-        if let warning = draft?.warning {
-            Text(warning).font(.callout).foregroundStyle(Palette.accent)
+            }
         }
     }
 
@@ -171,5 +220,28 @@ struct DeductionFormView: View {
         } catch {
             errorMessage = error.message
         }
+    }
+}
+
+/// 原因标签：圆角 16 的胶囊，选中墨色底浅色字，未选中透明底 line 描边。
+private struct ReasonPill: View {
+    let title: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.r16)
+        return Button(action: action) {
+            Text(title)
+                .font(AppFont.label)
+                .foregroundStyle(selected ? Palette.bg : Palette.ink)
+                .padding(.horizontal, Spacing.s12)
+                .padding(.vertical, Spacing.s6)
+                .background(selected ? Palette.ink : Color.clear, in: shape)
+                .overlay(shape.strokeBorder(selected ? Palette.ink : Palette.line, lineWidth: 1))
+                .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
