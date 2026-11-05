@@ -52,11 +52,10 @@ final class SystemNotifier: NSObject {
         }
     }
 
-    /// 只取出权限状态：`UNNotificationSettings` 不是 Sendable，不能整个跨出回调。
-    private func authorizationStatus() async -> UNAuthorizationStatus {
-        await withCheckedContinuation { continuation in
-            UNUserNotificationCenter.current().getNotificationSettings { continuation.resume(returning: $0.authorizationStatus) }
-        }
+    /// 只取出权限状态：`UNNotificationSettings` 不是 Sendable，不能整个跨出来。
+    /// 必须 `nonisolated`：系统在后台队列给出结果，若这段代码继承了 MainActor，运行时会断言崩溃 (打开设置页即闪退)。
+    private nonisolated func authorizationStatus() async -> UNAuthorizationStatus {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
     }
 
     /// 已授权直接放行；还没问过就在这时请求 (首次需要时)；被拒不再打扰。
