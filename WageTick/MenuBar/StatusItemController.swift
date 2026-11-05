@@ -21,7 +21,6 @@ final class StatusItemController: NSObject {
     private var shown: MenuBarDisplay?
     /// 注册失败时为 nil，只能从左键菜单切换 (PRD 6.4)。
     private var bossModeHotkey: GlobalHotkey?
-    private var isMenuOpen = false
 
     init(model: AppModel, openOnboarding: @escaping () -> Void) {
         self.model = model
@@ -65,10 +64,12 @@ final class StatusItemController: NSObject {
     }
 
     /// 老板路过菜单项：开启时打勾，右侧显示当前快捷键 (F2)。
-    private func renderBossModeItem(_ settings: Settings) {
+    /// 全局快捷键注册失败时不显示快捷键，免得牛马以为按了有用。
+    private func renderBossModeItem(_ settings: InterfaceSettings) {
         bossModeItem.state = settings.bossMode ? .on : .off
-        bossModeItem.keyEquivalent = settings.bossModeHotkey.menuKeyEquivalent
-        bossModeItem.keyEquivalentModifierMask = settings.bossModeHotkey.menuModifierMask
+        let hotkey = bossModeHotkey == nil ? nil : settings.bossModeHotkey
+        bossModeItem.keyEquivalent = hotkey?.menuKeyEquivalent ?? ""
+        bossModeItem.keyEquivalentModifierMask = hotkey?.menuModifierMask ?? []
     }
 
     /// 切换老板路过并立即重绘，不等下一次定时刷新 (F3：必须一键生效)。
@@ -84,8 +85,8 @@ final class StatusItemController: NSObject {
     private func registerBossModeHotkey() {
         let hotkey = model.currentSnapshot().settings.bossModeHotkey
         bossModeHotkey = GlobalHotkey(hotkey) { [weak self] in
-            // 菜单展开时同一组按键会由菜单项的快捷键处理，这里跳过，避免切换两次。
-            guard let self, !self.isMenuOpen else { return }
+            // 引导前菜单栏本就只有小牛，切换了也看不到，忽略，免得引导完数字莫名被藏。
+            guard let self, self.model.isOnboarded else { return }
             self.toggleBossMode()
         }
     }
@@ -123,12 +124,14 @@ final class StatusItemController: NSObject {
     }
 }
 
+/// 菜单展开期间注销全局快捷键，让这组按键作为普通按键交给菜单项的快捷键处理；
+/// 合上后再注册。这样任何时候按一次只走一条路，只切换一次。
 extension StatusItemController: NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
-        isMenuOpen = true
+        bossModeHotkey?.suspend()
     }
 
     func menuDidClose(_ menu: NSMenu) {
-        isMenuOpen = false
+        bossModeHotkey?.resume()
     }
 }

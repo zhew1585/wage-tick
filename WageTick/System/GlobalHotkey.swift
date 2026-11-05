@@ -1,11 +1,10 @@
-import AppKit
 import Carbon.HIToolbox
 import OSLog
 import WageCore
 
 /// 全局快捷键：App 不在前台时也能响应 (老板路过，PRD 4.7.1 第 3 条)。
 /// 用 Carbon 的 `RegisterEventHotKey`，不需要辅助功能权限。
-/// 注册失败时 `init` 返回 nil，牛马仍可从左键菜单切换 (PRD 6.4)。
+/// 首次注册失败时 `init` 返回 nil，牛马仍可从左键菜单切换 (PRD 6.4)。
 /// 实例需在 App 整个生命周期内持有：回调通过裸指针找回它，释放后不再注销。
 @MainActor
 final class GlobalHotkey {
@@ -13,21 +12,47 @@ final class GlobalHotkey {
     /// 本 App 快捷键的签名 ("WGTK")，Carbon 用它区分不同 App 注册的快捷键。
     private static let signature: OSType = 0x5747_544B
 
+    private let keyCode: UInt32
+    private let modifiers: UInt32
     private let action: @MainActor () -> Void
     private var hotKeyRef: EventHotKeyRef?
     private var handlerRef: EventHandlerRef?
 
     init?(_ hotkey: Hotkey, action: @escaping @MainActor () -> Void) {
-        self.action = action
         guard let keyCode = Self.keyCodes[hotkey.key] else {
             Self.logger.error("快捷键主键无法映射：\(hotkey.key, privacy: .public)")
             return nil
         }
-        guard installHandler(), register(keyCode: keyCode, modifiers: Self.carbonModifiers(hotkey.modifiers)) else {
+        self.keyCode = UInt32(keyCode)
+        modifiers = Self.carbonModifiers(hotkey.modifiers)
+        self.action = action
+        guard installHandler() else { return nil }
+        resume()
+        guard hotKeyRef != nil else {
+            if let handlerRef { RemoveEventHandler(handlerRef) }
             return nil
         }
     }
 
+    /// 暂时注销，让这组按键交给前台 (如展开的菜单) 处理。
+    func suspend() {
+        guard let hotKeyRef else { return }
+        UnregisterEventHotKey(hotKeyRef)
+        self.hotKeyRef = nil
+    }
+
+    /// 重新注册；失败只记日志，此后只能从左键菜单切换。
+    func resume() {
+        guard hotKeyRef == nil else { return }
+        let id = EventHotKeyID(signature: Self.signature, id: 1)
+        let status = RegisterEventHotKey(keyCode, modifiers, id, GetApplicationEventTarget(), 0, &hotKeyRef)
+        if status != noErr {
+            hotKeyRef = nil
+            Self.logger.error("全局快捷键注册失败：\(status)")
+        }
+    }
+
+    /// 安装一次即可：只有本 App 注册的快捷键才会把事件发到这里，注销期间不会触发。
     private func installHandler() -> Bool {
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         let status = InstallEventHandler(
@@ -46,17 +71,6 @@ final class GlobalHotkey {
         )
         guard status == noErr else {
             Self.logger.error("快捷键事件处理器安装失败：\(status)")
-            return false
-        }
-        return true
-    }
-
-    private func register(keyCode: Int, modifiers: UInt32) -> Bool {
-        let id = EventHotKeyID(signature: Self.signature, id: 1)
-        let status = RegisterEventHotKey(UInt32(keyCode), modifiers, id, GetApplicationEventTarget(), 0, &hotKeyRef)
-        guard status == noErr else {
-            Self.logger.error("全局快捷键注册失败：\(status)")
-            if let handlerRef { RemoveEventHandler(handlerRef) }
             return false
         }
         return true
@@ -85,20 +99,4 @@ final class GlobalHotkey {
         "0": kVK_ANSI_0, "1": kVK_ANSI_1, "2": kVK_ANSI_2, "3": kVK_ANSI_3, "4": kVK_ANSI_4,
         "5": kVK_ANSI_5, "6": kVK_ANSI_6, "7": kVK_ANSI_7, "8": kVK_ANSI_8, "9": kVK_ANSI_9,
     ]
-}
-
-extension Hotkey {
-    /// 菜单项上显示用的按键与修饰键，由系统渲染成 ⌃⌥B 这样的符号。
-    var menuKeyEquivalent: String { key.lowercased() }
-
-    var menuModifierMask: NSEvent.ModifierFlags {
-        modifiers.reduce(into: []) { mask, modifier in
-            switch modifier {
-            case .control: mask.insert(.control)
-            case .option: mask.insert(.option)
-            case .shift: mask.insert(.shift)
-            case .command: mask.insert(.command)
-            }
-        }
-    }
 }

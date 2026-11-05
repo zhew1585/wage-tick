@@ -69,7 +69,7 @@ extension Earnings {
 extension MenuBarDisplay {
     /// 金额模式 (PRD 4.7.1 第 2 条)：休息日只显示小牛，其余显示 4 位小数的今日已赚。
     /// 老板路过模式下 (第 3 条) 只隐藏数字，小牛姿势照常随日状态变化。
-    init(today: Today, settings: Settings) {
+    init(today: Today, settings: InterfaceSettings) {
         let pose: CowPose = switch today.status {
         case .restDay: .sunbathing
         case .notStarted: .yawning

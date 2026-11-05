@@ -6,7 +6,8 @@ import WageCore
 /// 位置：~/Library/Application Support/<bundle id>/state.json。
 @MainActor
 final class StateStore {
-    /// 当前文件格式版本。改动 `AppState` 的编码结构时 +1 并补迁移。
+    /// 当前文件格式版本。改动 `AppState` 的编码结构、旧文件因此读不回时 +1 并补迁移；
+    /// 只新增读入时可缺省的字段 (如 #5 的界面设置) 不用升。
     private static let currentVersion = 1
     private let fileURL: URL
     private let logger = Logger(subsystem: AppIdentity.bundleID, category: "StateStore")

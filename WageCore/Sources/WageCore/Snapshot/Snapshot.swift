@@ -7,7 +7,7 @@ public struct Snapshot: Sendable, Equatable {
     /// 今天的推导结果；未完成引导时为 nil。
     public let today: Today?
     /// 界面设置原样带出，供外壳展示菜单勾选与快捷键。
-    public let settings: Settings
+    public let settings: InterfaceSettings
 }
 
 /// 菜单栏内容：小牛姿势 + 可选数字 (PRD 4.7.1 第 1、2 条)。

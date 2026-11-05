@@ -5,20 +5,21 @@ import Foundation
 public struct AppState: Sendable, Equatable, Codable {
     /// 引导完成后才有；nil 即"未完成引导"。
     public internal(set) var profile: Profile?
-    public internal(set) var settings: Settings
+    /// 界面设置 (老板路过等)，引导前也有默认值。
+    public internal(set) var settings: InterfaceSettings
 
     private enum CodingKeys: String, CodingKey { case profile, settings }
 
     public init() {
         profile = nil
-        settings = Settings()
+        settings = InterfaceSettings()
     }
 
     /// #2 写出的旧文件没有 `settings`，读入时取默认值，不当作损坏文件。
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         profile = try container.decodeIfPresent(Profile.self, forKey: .profile)
-        settings = try container.decodeIfPresent(Settings.self, forKey: .settings) ?? Settings()
+        settings = try container.decodeIfPresent(InterfaceSettings.self, forKey: .settings) ?? InterfaceSettings()
     }
 }
 
