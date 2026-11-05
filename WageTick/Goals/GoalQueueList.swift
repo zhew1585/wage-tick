@@ -171,12 +171,12 @@ private struct QueueGoalRowView: View {
                     .font(AppFont.chip)
                     .foregroundStyle(Palette.accent)
                     .padding(.horizontal, Spacing.s6)
-                    .padding(.vertical, 1)
+                    .padding(.vertical, Spacing.s1)
                     .background(Palette.card, in: Capsule())
                     .fixedSize()
                 Spacer(minLength: Spacing.s4)
                 buttons
-                amount(card.amountText)
+                amount(card)
             }
             track(card.progress)
             Text(card.estimate).font(AppFont.small).foregroundStyle(Palette.muted).lineLimit(1)
@@ -196,14 +196,11 @@ private struct QueueGoalRowView: View {
         }
     }
 
-    /// 「¥3000 / ¥10000」拆成 accent 累计额与小号目标金额，拆不开时整串原样展示。
-    private func amount(_ text: String) -> some View {
-        let parts = text.split(separator: " / ", maxSplits: 1).map(String.init)
-        return HStack(alignment: .firstTextBaseline, spacing: Spacing.s4) {
-            Text(parts[0]).font(AppFont.num(15, .bold)).foregroundStyle(Palette.accent)
-            if parts.count == 2 {
-                Text("/ \(parts[1])").font(AppFont.numSmall).foregroundStyle(Palette.muted)
-            }
+    /// accent 大号累计额，后跟小号「/ 目标金额」。
+    private func amount(_ card: ActiveGoalCard) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.s4) {
+            Text(card.accumulatedText).font(AppFont.num(15, .bold)).foregroundStyle(Palette.accent)
+            Text("/ \(card.targetText)").font(AppFont.numSmall).foregroundStyle(Palette.muted)
         }
         .lineLimit(1)
         .fixedSize()

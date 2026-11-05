@@ -252,7 +252,7 @@ struct GoalListTests {
 
     @Test("F8 没有目标时列表为空；引导前没有列表")
     func emptyList() throws {
-        #expect(snapshot(of: try onboarded(), at: standardDay(11, 0)).goals == GoalList(queue: [], completed: []))
+        #expect(snapshot(of: try onboarded(), at: standardDay(11, 0)).goals == GoalList.empty)
         #expect(snapshot(of: AppState(), at: standardDay(11, 0)).goals == nil)
     }
 }

@@ -152,7 +152,7 @@ struct GoalQueueDeletionTests {
         let deleted = try sending(.deleteGoal(id: try goalID("A", in: state)), to: state, at: standardDay(11, 0))
 
         #expect(try goalCard(deleted, at: standardDay(11, 0)) == .empty("给自己定个目标吧"))
-        #expect(try goalList(deleted, at: standardDay(11, 0)) == GoalList(queue: [], completed: []))
+        #expect(try goalList(deleted, at: standardDay(11, 0)) == GoalList.empty)
     }
 
     @Test("F8 删除已完成目标：从列表移除，当前目标不受影响")
@@ -492,7 +492,7 @@ struct GoalQueueListTests {
 
         #expect(previews.map { [$0.name, $0.amountText, $0.estimate] } == [
             ["B", "¥300 / ¥3000", "还需搬砖 2 天 · 2月13日"],
-            ["C", "¥300 / ¥200", "今天就能达成"],
+            ["C", "¥300 / ¥200", "已经攒够，排到第一个就达成"],
         ])
         #expect(abs(previews[0].progress - 0.1) < 1e-9)
         #expect(previews[1].progress == 1)

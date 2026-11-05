@@ -12,6 +12,9 @@ public struct GoalList: Sendable, Equatable {
         self.completed = completed
     }
 
+    /// 没有任何目标。
+    public static let empty = GoalList(queue: [], completed: [])
+
     public var isEmpty: Bool { queue.isEmpty && completed.isEmpty }
 }
 

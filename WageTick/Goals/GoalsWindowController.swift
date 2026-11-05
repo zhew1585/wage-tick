@@ -7,13 +7,13 @@ import WageCore
 @MainActor
 @Observable
 final class GoalsContent {
-    var list = GoalList(queue: [], completed: [])
+    var list = GoalList.empty
     /// 队列为空时的提示，如「给自己定个目标吧」。
     var emptyText: String?
 
     /// 按快照填好各项。
     func update(from snap: Snapshot) {
-        list = snap.goals ?? GoalList(queue: [], completed: [])
+        list = snap.goals ?? .empty
         if case .empty(let text) = snap.panel?.goal {
             emptyText = text
         } else {
