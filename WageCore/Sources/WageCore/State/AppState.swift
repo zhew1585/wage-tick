@@ -9,13 +9,16 @@ public struct AppState: Sendable, Equatable, Codable {
     public internal(set) var settings: InterfaceSettings
     /// 日记录 (PRD 4.3.1)：一天最多一条，只存牛马手动产生的内容，按日期升序。
     public internal(set) var dayRecords: [DayRecord]
+    /// 目标，按新建顺序 (PRD 4.5)。
+    public internal(set) var goals: [Goal]
 
-    private enum CodingKeys: String, CodingKey { case profile, settings, dayRecords }
+    private enum CodingKeys: String, CodingKey { case profile, settings, dayRecords, goals }
 
     public init() {
         profile = nil
         settings = InterfaceSettings()
         dayRecords = []
+        goals = []
     }
 
     /// #2 写出的旧文件没有 `settings`，读入时取默认值，不当作损坏文件。
@@ -30,6 +33,8 @@ public struct AppState: Sendable, Equatable, Codable {
             throw DecodingError.dataCorruptedError(forKey: .dayRecords, in: container, debugDescription: "同一天有多条日记录，或扣钱记录标识重复")
         }
         dayRecords = records.sorted { $0.date < $1.date }
+        // #11 之前的旧文件没有目标，读入时为空队列。
+        goals = try container.decodeIfPresent([Goal].self, forKey: .goals) ?? []
     }
 }
 

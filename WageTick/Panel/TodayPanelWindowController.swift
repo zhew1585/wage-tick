@@ -24,12 +24,15 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     private let model: AppModel
     /// 命令改了状态后通知外壳其余部分 (菜单栏小牛) 立即重绘，如白干计时开始后马上冒汗。
     private let onStateChange: () -> Void
+    /// 点击空的目标区时打开目标管理 (F9)。
+    private let openGoals: () -> Void
     private let content = TodayPanelContent()
     private lazy var window: NSWindow = makeWindow()
     private var timer: Timer?
 
-    init(model: AppModel, onStateChange: @escaping () -> Void) {
+    init(model: AppModel, openGoals: @escaping () -> Void, onStateChange: @escaping () -> Void) {
         self.model = model
+        self.openGoals = openGoals
         self.onStateChange = onStateChange
     }
 
@@ -72,7 +75,7 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
                 onStateChange()
             }
         )
-        let view = TodayPanelView(content: content, actions: actions)
+        let view = TodayPanelView(content: content, actions: actions, openGoals: openGoals)
         let window = NSWindow(contentViewController: NSHostingController(rootView: view))
         window.title = "今日概览"
         window.styleMask = [.titled, .closable]

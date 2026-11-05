@@ -35,6 +35,13 @@ struct DaySettlement: Sendable, Equatable {
     }
 }
 
+extension DaySettlement {
+    /// 当月日薪 = 当月月薪 ÷ 当月应出勤日数，保留完整精度 (PRD 4.2.4)。今天与目标的累计收入共用这一个公式。
+    static func dailyWage(profile: Profile, month: YearMonth, rule: AttendanceRule) -> Decimal {
+        profile.salary(for: month) / Decimal(rule.attendanceDayCount(in: month))
+    }
+}
+
 /// 一笔扣钱记录，连同按当月日薪折算出的金额。
 struct ChargedDeduction: Sendable, Equatable {
     let deduction: Deduction

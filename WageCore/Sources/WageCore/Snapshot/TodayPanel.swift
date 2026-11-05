@@ -15,6 +15,8 @@ public struct TodayPanel: Sendable, Equatable {
     public let deductionEntry: DeductionEntry?
     /// 白干计时按钮 (F7)：已下班为「我还没走」、休息日为「被迫营业」、计时中为「终于下班了」；不可用时为 nil。
     public let unpaidWorkButton: UnpaidWorkButton?
+    /// 目标区 (PRD F9)。
+    public let goal: GoalCard
 
     public enum Body: Sendable, Equatable {
         /// 应出勤日：未上班、上班中、午休中、已下班。
@@ -88,13 +90,14 @@ public struct ProgressSegment: Sendable, Equatable {
 }
 
 extension TodayPanel {
-    init(today: Today, now: Moment, holidays: HolidayTable) {
+    init(today: Today, now: Moment, holidays: HolidayTable, goal: GoalCard) {
         dateText = Format.date(today.date, relativeTo: today.date)
         timeText = Format.time(now)
         statusLabel = today.unpaidWork.isRunning ? "白干中" : today.status.label
         notices = [holidays.missingNotice(on: today.date)].compactMap { $0 }
         deductionEntry = today.settlement.map(DeductionEntry.init(settlement:))
         unpaidWorkButton = UnpaidWorkButton(today: today)
+        self.goal = goal
         if today.unpaidWork.isRunning {
             body = .unpaidWork(UnpaidWorkPanel(today: today, now: now))
             return

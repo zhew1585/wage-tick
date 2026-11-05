@@ -32,9 +32,11 @@ public enum Command: Sendable, Equatable {
     case startUnpaidWork
     /// 停止白干计时："终于下班了"。
     case stopUnpaidWork
-    /// 推进到此刻：处理随时间发生的状态变化 (白干到 23:59:59 自动停止)。
+    /// 推进到此刻：处理随时间发生的状态变化，依次为白干到 23:59:59 自动停止、累计中目标达成。
     /// 外壳每次刷新时先发它，再取快照。
     case advance
+    /// 新建目标 (PRD 4.5.2)，名称与金额未经校验。
+    case createGoal(name: String, amount: Decimal)
 }
 
 /// 引导里牛马填写的内容，未经校验。
@@ -71,6 +73,8 @@ public enum CommandError: Error, Sendable, Equatable {
     case unpaidWorkUnavailable
     case unpaidWorkAlreadyRunning
     case unpaidWorkNotRunning
+    case invalidGoal
+    case goalAlreadyAccumulating
 
     public var message: String {
         switch self {
@@ -90,13 +94,16 @@ public enum CommandError: Error, Sendable, Equatable {
         case .unpaidWorkUnavailable: "下班后或休息日才能白干计时"
         case .unpaidWorkAlreadyRunning: "已经在白干计时了"
         case .unpaidWorkNotRunning: "没有在白干计时"
+        case .invalidGoal: "给目标起个名字，金额得大于 0"
+        // PRD 没给文案：排队属于目标队列 (#12)，本期外壳在已有累计中目标时也提供新建入口，由这条提示拦下。
+        case .goalAlreadyAccumulating: "先攒完当前这个目标吧"
         }
     }
 }
 
 /// 核心入口一：在 `now` 时刻对 `state` 执行 `command`，返回新状态与领域事件。
 /// 校验失败时抛出 `CommandError`，原状态不受影响。
-/// `holidays` 用于需要判定应出勤日的命令 (如记扣钱、请假、白干计时)；不传时为空表，只按双休。
+/// `holidays` 用于需要判定应出勤日的命令 (如记扣钱、请假、白干计时、新建目标、推进到此刻)；不传时为空表，只按双休。
 public func apply(
     _ command: Command,
     to state: AppState,
@@ -137,7 +144,9 @@ public func apply(
     case .stopUnpaidWork:
         return (try stopUnpaidWork(state: state, now: now), [])
     case .advance:
-        return (advanceUnpaidWork(state: state, now: now), [])
+        return advance(state, now: now, holidays: holidays)
+    case .createGoal(let name, let amount):
+        return (try createGoal(name: name, amount: amount, state: state, now: now, holidays: holidays), [])
     }
 }
 

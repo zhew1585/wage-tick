@@ -3,10 +3,12 @@ import SwiftUI
 import WageCore
 
 /// 今日概览面板 (PRD F4)。所有文字和数字原样取自快照的 `TodayPanel`，这里只管排版。
-/// 白干计时按钮 (我还没走、被迫营业、终于下班了) 原样发出快照给的命令；目标区只占位，功能留给后续票。
+/// 白干计时按钮 (我还没走、被迫营业、终于下班了) 原样发出快照给的命令。
 struct TodayPanelView: View {
     let content: TodayPanelContent
     let actions: PanelActions
+    /// 点击空的目标区时打开目标管理 (F9)。
+    let openGoals: () -> Void
 
     @State private var deductionForm: DeductionFormRequest?
     /// 正在弹出的请假表单；nil 时没有表单。
@@ -30,7 +32,7 @@ struct TodayPanelView: View {
                 case .unpaidWork(let unpaidWork):
                     unpaidWorkSection(unpaidWork, button: panel.unpaidWorkButton)
                 }
-                goalPlaceholder
+                GoalCardView(card: panel.goal, openGoals: openGoals)
                 Divider()
                 currentLeaveRow
                 moodButtons(panel)
@@ -198,16 +200,6 @@ struct TodayPanelView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-    }
-
-    /// 目标区占位 (F9，后续票)。
-    private var goalPlaceholder: some View {
-        Text("目标")
-            .font(.callout)
-            .foregroundStyle(.tertiary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
     }
 
     /// 今天已请假时显示一句描述和「修改」入口，撤销在修改表单里 (F6)。
