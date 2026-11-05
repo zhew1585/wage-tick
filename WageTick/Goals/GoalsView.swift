@@ -162,6 +162,9 @@ private struct ActiveGoalView: View {
 /// 排队中一组：line 描边的卡片，每行左边拖动把手、名称，右边金额。
 /// 按住一行上下拖动排序【D6】：被拖的行实时跟着鼠标，其余行带动画让位，松手才把新顺序交给核心。
 /// 用列表内的拖动手势而不是系统拖放 (`onDrag`)：系统拖放要生成拖拽图、走跨 App 的拖放流程，起拖慢、跟手差。
+/// - 拖动距离在列表自己的坐标系 (`coordinateSpace`) 里量：在被拖的行里量的话，行一动坐标跟着动，会一抖一抖。
+/// - 被拖的行不参与换位动画 (它的位移由偏移量直接抵掉)，只有让位的行做动画。
+/// - 卡片不用 `clipShape` 裁圆角：行带 `zIndex` 时裁切会套到每一行上，悬停底色变成一块块圆角；改为首末行自己画外侧圆角。
 /// 行高固定 (`QueuedGoalRow.height`)，按拖动距离算落点，不用逐行量尺寸。
 private struct GoalQueueList: View {
     let rows: [GoalRow]
@@ -175,26 +178,38 @@ private struct GoalQueueList: View {
 
     /// 相邻两行的间距：行高加 1pt 分隔线。
     private static let slot = QueuedGoalRow.height + 1
+    private static let space = "goalQueue"
 
     var body: some View {
         let order = currentOrder
-        CardBox(radius: Radius.card) {
+        let shape = RoundedRectangle(cornerRadius: Radius.card)
+        VStack(spacing: 0) {
             ForEach(Array(order.enumerated()), id: \.element.id) { index, row in
                 if index > 0 { CardDivider() }
-                QueuedGoalRow(row: row, isDragging: drag?.id == row.id, edit: { edit(row) }, delete: { delete(row) })
-                    .offset(y: draggedOffset(for: row.id, at: index))
-                    .zIndex(drag?.id == row.id ? 1 : 0)
-                    .gesture(dragGesture(for: row))
+                let isDragged = drag?.id == row.id
+                QueuedGoalRow(
+                    row: row,
+                    edges: QueuedGoalRow.Edges(isFirst: index == 0, isLast: index == order.count - 1),
+                    state: isDragged ? .dragging : (drag == nil ? .idle : .othersDragging),
+                    edit: { edit(row) },
+                    delete: { delete(row) }
+                )
+                .offset(y: isDragged ? draggedOffset(at: index) : 0)
+                .zIndex(isDragged ? 1 : 0)
+                .transaction { if isDragged { $0.animation = nil } }
+                .gesture(dragGesture(for: row))
             }
         }
         .animation(.easeOut(duration: 0.15), value: order.map(\.id))
+        .coordinateSpace(name: Self.space)
+        .background(Palette.card, in: shape)
+        .overlay(shape.strokeBorder(Palette.line, lineWidth: 1))
     }
 
     /// 拖动中按落点临时换过位置的顺序；没在拖时就是核心给的顺序。
     private var currentOrder: [GoalRow] {
-        guard let drag else { return rows }
+        guard let drag, let from = rows.firstIndex(where: { $0.id == drag.id }) else { return rows }
         var order = rows
-        guard let from = order.firstIndex(where: { $0.id == drag.id }) else { return rows }
         let moved = order.remove(at: from)
         order.insert(moved, at: target(for: drag))
         return order
@@ -206,14 +221,14 @@ private struct GoalQueueList: View {
         return min(max(drag.from + steps, 0), rows.count - 1)
     }
 
-    /// 被拖的行：抵掉它在临时顺序里已经挪动的格数，保持贴着鼠标；其余行不偏移。
-    private func draggedOffset(for id: Int, at index: Int) -> CGFloat {
-        guard let drag, drag.id == id else { return 0 }
+    /// 被拖的行：抵掉它在临时顺序里已经挪动的格数，保持贴着鼠标。
+    private func draggedOffset(at index: Int) -> CGFloat {
+        guard let drag else { return 0 }
         return drag.offset - CGFloat(index - drag.from) * Self.slot
     }
 
     private func dragGesture(for row: GoalRow) -> some Gesture {
-        DragGesture(minimumDistance: 3)
+        DragGesture(minimumDistance: 3, coordinateSpace: .named(Self.space))
             .onChanged { value in
                 if drag == nil, let from = rows.firstIndex(where: { $0.id == row.id }) {
                     drag = (row.id, from, 0)
@@ -221,19 +236,34 @@ private struct GoalQueueList: View {
                 drag?.offset = value.translation.height
             }
             .onEnded { _ in
-                guard let drag else { return }
+                guard drag != nil else { return }
                 let ids = currentOrder.map(\.id)
-                self.drag = nil
+                drag = nil
                 if ids != rows.map(\.id) { reorder(ids) }
             }
     }
 }
 
-/// 排队中的一行：悬停叠一层底并显示编辑、删除按钮，光标是张开的手 (可拖动排序)，拖动时浮起。
+/// 排队中的一行：悬停叠一层 surface 底并显示编辑、删除按钮，光标是张开的手 (可拖动排序)；拖动时浮起成一张带投影的小卡。
 /// 点整行不做任何事，编辑走铅笔按钮或右键菜单。
 private struct QueuedGoalRow: View {
+    enum DragState {
+        case idle
+        /// 这一行正被拖动。
+        case dragging
+        /// 别的行正被拖动：鼠标划过也不亮悬停底色。
+        case othersDragging
+    }
+
+    /// 首行画上侧圆角、末行画下侧圆角，和卡片外框贴合。
+    struct Edges {
+        let isFirst: Bool
+        let isLast: Bool
+    }
+
     let row: GoalRow
-    let isDragging: Bool
+    let edges: Edges
+    let state: DragState
     let edit: () -> Void
     let delete: () -> Void
 
@@ -251,7 +281,7 @@ private struct QueuedGoalRow: View {
                 .help("拖动调整顺序")
             Text(row.name).font(AppFont.bodySemibold).foregroundStyle(Palette.ink).lineLimit(1)
             Spacer(minLength: Spacing.s8)
-            if hovering && !isDragging {
+            if hovering && state == .idle {
                 IconButton(systemName: "pencil", help: "编辑", action: edit)
                 IconButton(systemName: "trash", help: "删除", action: delete)
             }
@@ -259,14 +289,35 @@ private struct QueuedGoalRow: View {
         }
         .padding(.horizontal, Spacing.s14)
         .frame(height: Self.height)
-        .background(hovering || isDragging ? Palette.surface : Palette.card)
-        .shadow(color: isDragging ? Palette.shadow : .clear, radius: 4, y: 2)
+        .background { background }
         .contentShape(Rectangle())
-        .cursor(isDragging ? .closedHand : .openHand)
+        .cursor(state == .dragging ? .closedHand : .openHand)
         .onHover { hovering = $0 }
         .contextMenu {
             Button("编辑", action: edit)
             Button("删除", role: .destructive, action: delete)
+        }
+    }
+
+    @ViewBuilder
+    private var background: some View {
+        switch state {
+        case .dragging:
+            RoundedRectangle(cornerRadius: Radius.r8)
+                .fill(Palette.card)
+                .overlay(RoundedRectangle(cornerRadius: Radius.r8).strokeBorder(Palette.line, lineWidth: 1))
+                .shadow(color: Palette.shadow, radius: 6, y: 2)
+        case .idle where hovering:
+            let radius = Radius.card
+            UnevenRoundedRectangle(
+                topLeadingRadius: edges.isFirst ? radius : 0,
+                bottomLeadingRadius: edges.isLast ? radius : 0,
+                bottomTrailingRadius: edges.isLast ? radius : 0,
+                topTrailingRadius: edges.isFirst ? radius : 0
+            )
+            .fill(Palette.surface)
+        default:
+            Color.clear
         }
     }
 }

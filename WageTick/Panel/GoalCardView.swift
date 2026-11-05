@@ -31,8 +31,8 @@ struct GoalCardView: View {
         switch card {
         case .empty(let prompt):
             Button(action: openGoals) {
-                HStack(spacing: Spacing.s6) {
-                    PhosphorIcon(.flagBanner, size: 13)
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
+                    PhosphorIcon(.flagBanner, size: 13).iconOnTextBaseline()
                     Text(prompt).font(AppFont.captionSemibold)
                     Spacer()
                     PhosphorIcon(.caretRight, size: 11)
@@ -79,8 +79,8 @@ private struct GoalRowView: View {
 
     var body: some View {
         VStack(spacing: 7) {
-            HStack(spacing: Spacing.s6) {
-                PhosphorIcon(icon, size: 13).foregroundStyle(muted ? Palette.muted : Palette.accent)
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
+                PhosphorIcon(icon, size: 13).iconOnTextBaseline().foregroundStyle(muted ? Palette.muted : Palette.accent)
                 Text(name)
                     .font(AppFont.captionSemibold)
                     .foregroundStyle(muted ? Palette.muted : Palette.ink)

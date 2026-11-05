@@ -58,3 +58,11 @@ struct PhosphorIcon: View {
             .accessibilityHidden(true)
     }
 }
+
+extension View {
+    /// 图标和旁边的文字放进 `HStack(alignment: .firstTextBaseline)` 时用：图标底边落在文字基线下 1pt，
+    /// 两者视觉上在同一水平线 (按中心对齐时 Noto Sans SC 的行框偏高，文字看起来比图标低)。
+    func iconOnTextBaseline() -> some View {
+        alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
+    }
+}
