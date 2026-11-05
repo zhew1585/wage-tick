@@ -9,6 +9,8 @@ import WageCore
 final class SystemNotifier: NSObject {
     private let openPanel: () -> Void
     private let logger = Logger(subsystem: AppIdentity.bundleID, category: "Notifier")
+    /// 系统设置里的通知页。
+    private static let notificationSettingsURL = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!
 
     /// 需在 App 启动完成前创建，系统才能把"点了通知启动 App"交给代理。
     init(openPanel: @escaping () -> Void) {
@@ -29,6 +31,11 @@ final class SystemNotifier: NSObject {
     /// 系统是否拒绝了通知权限，设置页据此显示提示。还没问过时不算拒绝。
     func isDenied() async -> Bool {
         await authorizationStatus() == .denied
+    }
+
+    /// 打开系统设置的通知页，让牛马自己把权限打开。
+    func openSystemSettings() {
+        NSWorkspace.shared.open(Self.notificationSettingsURL)
     }
 
     private func post(message: String) {
@@ -87,6 +94,7 @@ extension SystemNotifier: UNUserNotificationCenterDelegate {
         await openPanelFromNotification()
     }
 
+    /// 代理回调不在主线程，经这个 MainActor 方法跳回主线程再开面板。
     private func openPanelFromNotification() {
         openPanel()
     }

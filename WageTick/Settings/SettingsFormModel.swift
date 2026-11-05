@@ -95,6 +95,10 @@ final class SettingsFormModel {
         offWorkNotification = enabled
     }
 
+    func openNotificationSettings() {
+        notifier.openSystemSettings()
+    }
+
     /// 重新读一次系统通知权限：打开设置页、从系统设置切回来时调用。
     func refreshNotificationPermission() {
         Task { notificationDenied = await notifier.isDenied() }

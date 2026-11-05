@@ -198,8 +198,8 @@ struct OffWorkNoticeSettingTests {
         let restored = try JSONDecoder().decode(AppState.self, from: JSONEncoder().encode(off))
         #expect(restored.settings.offWorkNotification == false)
 
-        let legacy = try JSONDecoder().decode(InterfaceSettings.self, from: Data(#"{"bossMode":true}"#.utf8))
-        #expect(legacy.offWorkNotification)
+        let legacy = try JSONDecoder().decode(AppState.self, from: Data(#"{"settings":{"bossMode":true}}"#.utf8))
+        #expect(snapshot(of: legacy, at: standardDay(9, 0)).settings.offWorkNotification)
     }
 
     @Test("AC-SET-05 系统拒绝通知权限时设置页的提示文案")

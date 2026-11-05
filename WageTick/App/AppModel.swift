@@ -26,6 +26,7 @@ final class AppModel {
         let result = try apply(command, to: state, at: Self.now(), holidays: holidays)
         state = result.state
         store.save(state)
+        deliver(result.events)
     }
 
     /// 先发「推进到此刻」处理随时间发生的变化 (如跨过计划下班)，再按同一此刻、当前节假日表取快照。
@@ -44,11 +45,16 @@ final class AppModel {
                 state = result.state
                 store.save(state)
             }
-            if !result.events.isEmpty { onEvents?(result.events) }
+            deliver(result.events)
         } catch {
             // 推进到此刻没有校验，正常不会被拒绝；万一被拒，状态不变，下次刷新再推进。
             logger.error("推进到此刻失败：\(error.message, privacy: .public)")
         }
+    }
+
+    /// 领域事件只从这里交出去，任何命令产生的都一样处理。
+    private func deliver(_ events: [DomainEvent]) {
+        if !events.isEmpty { onEvents?(events) }
     }
 
     /// 时钟：系统当前时间与当前时区 (PRD 4.3.5 #11)。

@@ -37,17 +37,12 @@ struct SettingsView: View {
                 HStack {
                     Text(NotificationCopy.permissionDenied).font(.callout).foregroundStyle(.red)
                     Spacer()
-                    Button("打开系统设置") { openNotificationSettings() }
+                    Button("打开系统设置") { form.openNotificationSettings() }
                 }
             }
         }
     }
 
-    /// 系统设置的通知页。
-    private func openNotificationSettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") else { return }
-        NSWorkspace.shared.open(url)
-    }
 
     private var salarySection: some View {
         Section {
