@@ -10,6 +10,8 @@ public struct Snapshot: Sendable, Equatable {
     public let settings: InterfaceSettings
     /// 今日概览面板的展示内容；未完成引导时为 nil。
     public let panel: TodayPanel?
+    /// 设置页的初始值；未完成引导时为 nil。
+    public let settingsForm: SettingsForm?
 }
 
 /// 菜单栏内容：小牛姿势 + 可选数字 (PRD 4.7.1 第 1、2 条)。
@@ -38,13 +40,17 @@ public enum CowPose: Sendable, Equatable {
 /// 换上新的节假日表重新取快照，当月日薪与结算随之重算 (PRD 4.3.5 #16)。
 public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable = .empty) -> Snapshot {
     guard let profile = state.profile else {
-        return Snapshot(menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil)
+        return Snapshot(
+            menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil,
+            settingsForm: nil
+        )
     }
     let today = Today(profile: profile, now: now, holidays: holidays)
     return Snapshot(
         menuBar: MenuBarDisplay(today: today, settings: state.settings),
         today: today,
         settings: state.settings,
-        panel: TodayPanel(today: today, now: now, holidays: holidays)
+        panel: TodayPanel(today: today, now: now, holidays: holidays),
+        settingsForm: SettingsForm(profile: profile, today: today.date)
     )
 }
