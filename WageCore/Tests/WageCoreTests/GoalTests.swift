@@ -207,15 +207,6 @@ struct GoalProgressTests {
 
 @Suite("目标：本期边界")
 struct GoalScopeTests {
-    @Test("PRD 4.5.2 不变量 1 已有累计中目标时暂不能再新建 (排队属于目标队列 #12)")
-    func secondGoalIsRejected() throws {
-        let state = try creatingGoal("键盘", 1000, in: try onboarded(), at: standardDay(9, 0))
-
-        #expect(throws: CommandError.goalAlreadyAccumulating) {
-            try creatingGoal("Switch 2", 3000, in: state, at: standardDay(11, 0))
-        }
-    }
-
     @Test("PRD 4.5.2 完成时队列为空：零头不保留，之后新建的目标从新建时刻起算")
     func newGoalAfterCompletion() throws {
         let state = try creatingGoal("键盘", 500, in: try onboarded(), at: standardDay(9, 0))
@@ -294,7 +285,7 @@ struct GoalPersistenceTests {
         arguments: [
             #"{"id":1,"name":"","amount":"500","status":"accumulating","baseline":"0"}"#,
             #"{"id":1,"name":"键盘","amount":"0","status":"accumulating","baseline":"0"}"#,
-            #"{"id":1,"name":"键盘","amount":"500","status":"queued"}"#,
+            #"{"id":1,"name":"键盘","amount":"500","status":"paused"}"#,
             #"{"id":1,"name":"键盘","amount":"500","status":"accumulating","baseline":"abc"}"#,
         ]
     )

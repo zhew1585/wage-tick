@@ -11,13 +11,8 @@ func advance(_ state: AppState, now: Moment, holidays: HolidayTable) -> (state: 
     return (offWork.state, goals.events + offWork.events)
 }
 
-/// 累计额达到目标金额时记录完成时间并冻结 (PRD 4.5.2)。
-/// 完成时间取推进时的此刻；激活下一个目标、结转零头留给目标队列 (#12)，达成事件留给 #13。
+/// 累计额达到目标金额时完成并冻结，激活下一个排队目标、结转零头 (PRD 4.5.2)，完成时间取推进时的此刻。
+/// 与编辑、删除共用同一入口 `completingReachedGoals`，达成事件 (#13) 也从那里来。
 private func advanceGoals(_ state: AppState, now: Moment, holidays: HolidayTable) -> (state: AppState, events: [DomainEvent]) {
-    guard let profile = state.profile, let current = state.accumulatingGoal else { return (state, []) }
-    let income = Ledger.cumulativeIncome(state: state, profile: profile, now: now, holidays: holidays)
-    guard income - current.baseline >= current.goal.amount else { return (state, []) }
-    var next = state
-    next.goals[current.index].status = .completed(at: now.date)
-    return (next, [])
+    completingReachedGoals(state, now: now, holidays: holidays)
 }
