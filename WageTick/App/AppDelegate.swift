@@ -25,7 +25,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         holidayUpdater = HolidayUpdater(model: model)
         holidayUpdater.start()
         goals = GoalsWindowController(model: model)
-        todayPanel = TodayPanelWindowController(model: model, openGoals: { [weak self] in self?.goals.show() }) { [weak self] in
+        todayPanel = TodayPanelWindowController(
+            model: model,
+            navigation: PanelNavigation(
+                openHistory: { [weak self] in self?.history.show() },
+                openGoals: { [weak self] in self?.goals.show() },
+                openSettings: { [weak self] in self?.settings.show() }
+            ),
+            anchor: { [weak self] in self?.statusItem.buttonScreenFrame }
+        ) { [weak self] in
             self?.statusItem.refresh()
         }
         onboarding = OnboardingWindowController(model: model) { [weak self] in
