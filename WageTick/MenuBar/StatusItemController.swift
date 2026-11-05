@@ -70,7 +70,8 @@ final class StatusItemController: NSObject {
     private func configureButton() {
         guard let button = item.button else { return }
         button.imagePosition = .imageLeading
-        button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        // 设计稿 F2：数字用 JetBrains Mono 13/500，等宽不抖。
+        button.font = AppFont.nsFont(.num, size: 13, weight: .medium)
         button.target = self
         button.action = #selector(buttonClicked)
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])

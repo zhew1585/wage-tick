@@ -1,68 +1,42 @@
 import AppKit
 import WageCore
 
-/// 菜单栏小牛图标：程序绘制的牛头 + 右上角表示日状态的 SF Symbol 角标。
-/// 模板图，自动适配浅色、深色菜单栏。正式美术与动画待设计稿。
+/// 菜单栏小牛图标 (设计稿 F2 菜单栏状态)：16pt 牛头 `CowGlyph` + 右上角 8pt 日状态角标 `CowBadge/*`。
+/// 两者都是模板图 (牛脸白色部分已挖空)，合成后仍是模板图，自动适配浅色、深色菜单栏。
+/// 角标位置照设计稿：牛头 18×16 框内 x=11、y=-2，向上探出 2pt，所以画布 19×18。
 @MainActor
 enum CowIcon {
-    private static let size = NSSize(width: 24, height: 18)
+    private static let size = NSSize(width: 19, height: 18)
+    private static let glyphRect = NSRect(x: 0, y: 2, width: 16, height: 16)
+    private static let badgeRect = NSRect(x: 11, y: 0, width: 8, height: 8)
     private static var cache: [CowPose: NSImage] = [:]
 
     static func image(for pose: CowPose) -> NSImage {
         if let cached = cache[pose] { return cached }
-        let badge = badgeSymbol(for: pose)
-        let image = NSImage(size: size, flipped: false) { _ in
-            drawHead()
-            drawBadge(badge)
+        let glyph = NSImage(resource: .cowGlyph)
+        let badge = NSImage(named: "CowBadge/\(badgeName(for: pose))")
+        // flipped：坐标与设计稿一致，左上角为原点。
+        let image = NSImage(size: size, flipped: true) { _ in
+            glyph.draw(in: glyphRect)
+            badge?.draw(in: badgeRect)
             return true
         }
         image.isTemplate = true
+        image.accessibilityDescription = "牛马鼓励器"
         cache[pose] = image
         return image
     }
 
-    /// 每个日状态对应的角标 (PRD 4.3.3 主状态概览)。
-    private static func badgeSymbol(for pose: CowPose) -> String {
+    /// 每个日状态对应的角标 (设计稿 F2，Phosphor Bold 图标)。
+    /// 设计稿里老板路过还有 `eyeSlash` 角标，但核心的老板路过只隐藏数字、姿势照常 (PRD 4.7.1 第 3 条)，暂不使用。
+    private static func badgeName(for pose: CowPose) -> String {
         switch pose {
-        case .sunbathing: "sun.max.fill"   // 晒太阳
-        case .yawning: "sunrise.fill"      // 打哈欠
-        case .grinding: "gearshape.fill"   // 埋头拉磨
-        case .sleeping: "zzz"              // 趴着睡
-        case .lyingFlat: "bed.double.fill" // 躺平
-        case .sweating: "drop.fill"        // 边拉磨边冒汗：白干计时中
+        case .sunbathing: "sun"        // 晒太阳：休息日
+        case .yawning: "moon"          // 打哈欠：未上班
+        case .grinding: "lightning"    // 埋头拉磨：上班中
+        case .sleeping: "bed"          // 趴着睡：午休中
+        case .lyingFlat: "armchair"    // 躺平：已下班
+        case .sweating: "drop"         // 边拉磨边冒汗：白干计时中
         }
-    }
-
-    /// 牛头：脸、两只角、两只耳朵，眼睛和鼻孔挖空。
-    private static func drawHead() {
-        NSColor.black.setFill()
-        NSColor.black.setStroke()
-        NSBezierPath(ovalIn: NSRect(x: 4, y: 1, width: 11, height: 11)).fill()
-        NSBezierPath(ovalIn: NSRect(x: 0.5, y: 8, width: 4.5, height: 2.6)).fill()
-        NSBezierPath(ovalIn: NSRect(x: 14, y: 8, width: 4.5, height: 2.6)).fill()
-        for (from, to) in [(NSPoint(x: 6.5, y: 11), NSPoint(x: 5, y: 15)), (NSPoint(x: 12.5, y: 11), NSPoint(x: 14, y: 15))] {
-            let horn = NSBezierPath()
-            horn.lineWidth = 1.6
-            horn.lineCapStyle = .round
-            horn.move(to: from)
-            horn.line(to: to)
-            horn.stroke()
-        }
-        NSGraphicsContext.current?.compositingOperation = .clear
-        for rect in [
-            NSRect(x: 6.6, y: 7, width: 1.8, height: 1.8), NSRect(x: 10.6, y: 7, width: 1.8, height: 1.8),
-            NSRect(x: 7.2, y: 2.6, width: 1.5, height: 1.5), NSRect(x: 10.3, y: 2.6, width: 1.5, height: 1.5),
-        ] {
-            NSBezierPath(ovalIn: rect).fill()
-        }
-        NSGraphicsContext.current?.compositingOperation = .sourceOver
-    }
-
-    private static func drawBadge(_ name: String) {
-        let config = NSImage.SymbolConfiguration(pointSize: 7, weight: .bold)
-        guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-            .withSymbolConfiguration(config) else { return }
-        let origin = NSPoint(x: size.width - symbol.size.width, y: size.height - symbol.size.height)
-        symbol.draw(in: NSRect(origin: origin, size: symbol.size))
     }
 }

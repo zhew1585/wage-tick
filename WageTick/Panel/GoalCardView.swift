@@ -30,10 +30,10 @@ struct GoalCardView: View {
             Button(action: openGoals) {
                 Text(prompt)
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Palette.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)
-                    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                    .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.control))
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -47,16 +47,16 @@ struct GoalCardView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(goal.name).font(.callout.weight(.medium))
                 Spacer()
-                Text(goal.estimate).font(.caption).foregroundStyle(.secondary)
+                Text(goal.estimate).font(.caption).foregroundStyle(Palette.muted)
             }
             ProgressView(value: goal.progress)
             Text(goal.amountText)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Palette.muted)
                 .monospacedDigit()
         }
         .padding(10)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.control))
     }
 
     /// 排队中目标：名称、「排队中 · 预计 M月D日」、目标金额，没有进度条。
@@ -65,14 +65,14 @@ struct GoalCardView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(goal.name).font(.callout.weight(.medium))
                 Spacer()
-                Text(goal.estimate).font(.caption).foregroundStyle(.secondary)
+                Text(goal.estimate).font(.caption).foregroundStyle(Palette.muted)
             }
             Text(goal.amountText)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Palette.muted)
                 .monospacedDigit()
         }
         .padding(10)
-        .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
+        .background(Palette.surface.opacity(0.6), in: RoundedRectangle(cornerRadius: Radius.control))
     }
 }

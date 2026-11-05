@@ -47,17 +47,11 @@ struct LeaveFormView: View {
             .onChange(of: period) { _, newValue in
                 percentText = Self.text(newValue.defaultDeductionPercent)
             }
-            HStack {
-                Text("扣日薪")
-                TextField("", text: $percentText)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 70)
-                    .multilineTextAlignment(.trailing)
-                Text("%")
-            }
+            Field("扣日薪", text: $percentText, suffix: "%")
+                .onSubmit(save)
             summary
             if let errorMessage {
-                Text(errorMessage).foregroundStyle(.red)
+                Text(errorMessage).foregroundStyle(Palette.loss)
             }
             buttons
         }
@@ -74,7 +68,7 @@ struct LeaveFormView: View {
             VStack(spacing: 6) {
                 ForEach(form.summary, id: \.title) { item in
                     HStack {
-                        Text(item.title).foregroundStyle(.secondary)
+                        Text(item.title).foregroundStyle(Palette.muted)
                         Spacer()
                         Text(item.value).monospacedDigit()
                     }
@@ -82,20 +76,24 @@ struct LeaveFormView: View {
             }
             .font(.callout)
             .padding(10)
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.control))
         case .failure(let error):
-            Text(error.message).foregroundStyle(.red)
+            Text(error.message).foregroundStyle(Palette.loss)
         }
     }
 
     private var buttons: some View {
-        HStack {
+        HStack(spacing: Spacing.s8) {
             if case .edit = mode {
                 Button("撤销请假", role: .destructive) { send(cancelCommand) }
+                    .buttonStyle(.secondary)
             }
-            Spacer()
-            Button("取消", action: dismiss).keyboardShortcut(.cancelAction)
-            Button("保存") { save() }.keyboardShortcut(.defaultAction)
+            Button("取消", action: dismiss)
+                .keyboardShortcut(.cancelAction)
+                .buttonStyle(.secondary(fullWidth: true))
+            Button { save() } label: { Label("保存", systemImage: "checkmark") }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.primary(fullWidth: true))
         }
     }
 

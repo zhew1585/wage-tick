@@ -69,22 +69,21 @@ struct DeductionFormView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            HStack {
-                TextField(method == .fixed ? "扣了多少" : "日薪的百分之几", text: $valueText)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit(save)
-                Text(method == .fixed ? "元" : "%").foregroundStyle(.secondary)
-            }
+            Field(method == .fixed ? "扣了多少" : "日薪的百分之几", text: $valueText, suffix: method == .fixed ? "元" : "%")
+                .onSubmit(save)
             reasonPicker
             noteField
             previewSection
             if let errorMessage {
-                Text(errorMessage).foregroundStyle(.red)
+                Text(errorMessage).foregroundStyle(Palette.loss)
             }
-            HStack {
-                Button("取消", action: dismiss).keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("继续搬砖", action: save).keyboardShortcut(.defaultAction)
+            HStack(spacing: Spacing.s8) {
+                Button("取消", action: dismiss)
+                    .keyboardShortcut(.cancelAction)
+                    .buttonStyle(.secondary(fullWidth: true))
+                Button(action: save) { Label("继续搬砖", systemImage: "checkmark") }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.primary(fullWidth: true))
             }
         }
         .padding(20)
@@ -96,7 +95,7 @@ struct DeductionFormView: View {
     /// 原因标签可不选：再点一次已选中的标签即取消。
     private var reasonPicker: some View {
         HStack {
-            Text("原因").foregroundStyle(.secondary)
+            Text("原因").foregroundStyle(Palette.muted)
             ForEach(DeductionReason.allCases, id: \.self) { option in
                 Toggle(option.label, isOn: Binding(
                     get: { reason == option },
@@ -109,8 +108,7 @@ struct DeductionFormView: View {
 
     private var noteField: some View {
         VStack(alignment: .trailing, spacing: 2) {
-            TextField("备注 (可不填)", text: $note)
-                .textFieldStyle(.roundedBorder)
+            Field("备注", text: $note, prompt: "可不填", value: .text)
                 .onChange(of: note) {
                     if note.count > Validation.deductionNoteLimit {
                         note = String(note.prefix(Validation.deductionNoteLimit))
@@ -118,7 +116,7 @@ struct DeductionFormView: View {
                 }
             Text("\(note.count)/\(Validation.deductionNoteLimit)")
                 .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Palette.muted)
         }
     }
 
@@ -131,7 +129,7 @@ struct DeductionFormView: View {
                 .monospacedDigit()
         }
         if let warning = draft?.warning {
-            Text(warning).font(.callout).foregroundStyle(.orange)
+            Text(warning).font(.callout).foregroundStyle(Palette.accent)
         }
     }
 

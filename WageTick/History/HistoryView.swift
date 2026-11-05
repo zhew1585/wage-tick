@@ -50,19 +50,15 @@ private struct MonthListView: View {
             HStack {
                 Text(summary.title).font(.headline)
                 if let badge = summary.badge {
-                    Text(badge)
-                        .font(.caption.weight(.medium))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.tint.opacity(0.15), in: Capsule())
+                    Chip(badge, tone: .accent)
                 }
                 Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                Image(systemName: "chevron.right").foregroundStyle(Palette.muted)
             }
             HistoryStatsGrid(stats: summary.stats)
         }
         .padding(12)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r10))
         .contentShape(Rectangle())
     }
 }
@@ -75,7 +71,7 @@ struct HistoryStatsGrid: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading), count: 3), alignment: .leading, spacing: 8) {
             ForEach(stats, id: \.title) { item in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title).font(.caption).foregroundStyle(.secondary)
+                    Text(item.title).font(.caption).foregroundStyle(Palette.muted)
                     Text(item.value).font(.callout.weight(.medium)).monospacedDigit()
                 }
             }

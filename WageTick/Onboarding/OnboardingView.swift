@@ -19,16 +19,16 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("第 \(step.rawValue) 步，共 3 步").font(.caption).foregroundStyle(.secondary)
+            Text("第 \(step.rawValue) 步，共 3 步").font(.caption).foregroundStyle(Palette.muted)
             content
             if let errorMessage {
-                Text(errorMessage).foregroundStyle(.red)
+                Text(errorMessage).foregroundStyle(Palette.loss)
             }
             Spacer(minLength: 0)
             buttons
         }
         .padding(24)
-        .frame(width: 360, height: 300)
+        .frame(width: 360, height: 420)
     }
 
     @ViewBuilder
@@ -36,28 +36,26 @@ struct OnboardingView: View {
         switch step {
         case .salary:
             Text("你的月薪是多少？").font(.title2.bold())
-            TextField("月薪 (元)", text: $salaryText)
-                .textFieldStyle(.roundedBorder)
+            Field("月薪", text: $salaryText, suffix: "元", size: .large)
                 .onSubmit(next)
         case .schedule:
             Text("几点上下班？").font(.title2.bold())
-            Form {
-                ScheduleFields(draft: $scheduleDraft)
-            }
+            ScheduleFields(draft: $scheduleDraft)
         case .launch:
             Text("最后一步").font(.title2.bold())
-            Toggle("开机自动启动", isOn: $launchAtLogin)
+            ToggleRow("开机自动启动", isOn: $launchAtLogin)
         }
     }
 
     private var buttons: some View {
-        HStack {
+        HStack(spacing: Spacing.s8) {
             if step != .salary {
-                Button("上一步") { move(to: Step(rawValue: step.rawValue - 1)!) }
+                Button { move(to: Step(rawValue: step.rawValue - 1)!) } label: { Label("上一步", systemImage: "arrow.left") }
+                    .buttonStyle(.secondary)
             }
-            Spacer()
             Button(step == .launch ? "开始搬砖" : "下一步", action: next)
                 .keyboardShortcut(.defaultAction)
+                .buttonStyle(.primary(fullWidth: true))
         }
     }
 

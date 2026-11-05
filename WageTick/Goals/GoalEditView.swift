@@ -25,20 +25,19 @@ struct GoalEditView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("编辑目标").font(.headline)
-            TextField("名称", text: $name)
-                .textFieldStyle(.roundedBorder)
-            TextField("金额 (元)", text: $amountText)
-                .textFieldStyle(.roundedBorder)
+            Field("名称", text: $name, value: .text)
+            Field("金额", text: $amountText, suffix: "元")
                 .onSubmit(submit)
             if let errorMessage {
-                Text(errorMessage).foregroundStyle(.red).font(.callout)
+                Text(errorMessage).foregroundStyle(Palette.loss).font(.callout)
             }
-            HStack {
-                Spacer()
+            HStack(spacing: Spacing.s8) {
                 Button("取消", action: dismiss)
                     .keyboardShortcut(.cancelAction)
-                Button("保存", action: submit)
+                    .buttonStyle(.secondary(fullWidth: true))
+                Button(action: submit) { Label("保存", systemImage: "checkmark") }
                     .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.primary(fullWidth: true))
             }
         }
         .padding(20)

@@ -24,7 +24,7 @@ struct GoalsView: View {
                 Divider()
                 list
                 if let listError {
-                    Text(listError).foregroundStyle(.red).font(.callout)
+                    Text(listError).foregroundStyle(Palette.loss).font(.callout)
                 }
             }
         }
@@ -45,17 +45,16 @@ struct GoalsView: View {
     private var form: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("新目标").font(.headline)
-            TextField("名称，如 Switch 2", text: $name)
-                .textFieldStyle(.roundedBorder)
-            HStack {
-                TextField("金额 (元)", text: $amountText)
-                    .textFieldStyle(.roundedBorder)
+            Field("名称", text: $name, prompt: "如 Switch 2", value: .text)
+            HStack(alignment: .bottom, spacing: Spacing.s8) {
+                Field("金额", text: $amountText, suffix: "元")
                     .onSubmit(submit)
-                Button("新建", action: submit)
+                Button(action: submit) { Label("新建", systemImage: "plus") }
                     .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.primary)
             }
             if let errorMessage {
-                Text(errorMessage).foregroundStyle(.red).font(.callout)
+                Text(errorMessage).foregroundStyle(Palette.loss).font(.callout)
             }
         }
     }
@@ -87,10 +86,10 @@ struct GoalsView: View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.name).font(.body.weight(.medium))
-                Text(row.detail).font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                Text(row.detail).font(.caption).foregroundStyle(Palette.muted).monospacedDigit()
             }
             Spacer()
-            Text(row.statusLabel).font(.caption).foregroundStyle(.secondary)
+            Text(row.statusLabel).font(.caption).foregroundStyle(Palette.muted)
             if row.canEdit {
                 Button { editing = row } label: { Image(systemName: "pencil") }
                     .help("编辑")

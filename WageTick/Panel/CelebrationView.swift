@@ -22,7 +22,7 @@ struct CelebrationView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.black.opacity(started ? Self.dimOpacity : 0)
+                Palette.ink.opacity(started ? Self.dimOpacity : 0)
                 if !reduceMotion && !pieces.isEmpty {
                     ConfettiLayer(pieces: pieces, size: geometry.size)
                 }
@@ -90,7 +90,7 @@ private struct ConfettiPiece: Identifiable {
     /// 落下过程中转过的角度。
     let spin: Double
 
-    private static let palette: [Color] = [.red, .orange, .yellow, .green, .blue, .pink, .purple]
+    private static let palette: [Color] = [Palette.accent, Palette.money, Palette.loss, Palette.ink, Palette.line]
 
     /// `count` 片彩纸，都在 `duration` 秒内落完：延迟至多占 1/5，下落用时占剩下的一半到全部。
     static func random(count: Int, within duration: Double) -> [ConfettiPiece] {
@@ -101,7 +101,7 @@ private struct ConfettiPiece: Identifiable {
                 id: id,
                 x: .random(in: 0.04...0.96),
                 width: .random(in: 7...11),
-                color: palette.randomElement() ?? .orange,
+                color: palette.randomElement() ?? Palette.accent,
                 fall: .random(in: maxFall / 2...maxFall),
                 delay: .random(in: 0...maxDelay),
                 spin: .random(in: -540...540)

@@ -18,7 +18,7 @@ struct SettingsView: View {
             }
             hotkeySection
             Section {
-                Toggle("开机自动启动", isOn: Binding(get: { form.launchAtLogin }, set: { form.setLaunchAtLogin($0) }))
+                ToggleRow("开机自动启动", isOn: Binding(get: { form.launchAtLogin }, set: { form.setLaunchAtLogin($0) }))
                 messageRow(form.launchMessage)
             }
             notificationSection
@@ -29,19 +29,20 @@ struct SettingsView: View {
 
     private var notificationSection: some View {
         Section("通知") {
-            Toggle(
+            ToggleRow(
                 "下班通知",
                 isOn: Binding(get: { form.offWorkNotification }, set: { form.setOffWorkNotification($0) })
             )
-            Toggle(
+            ToggleRow(
                 "目标达成通知",
                 isOn: Binding(get: { form.goalReachedNotification }, set: { form.setGoalReachedNotification($0) })
             )
             if form.notificationDenied {
                 HStack {
-                    Text(NotificationCopy.permissionDenied).font(.callout).foregroundStyle(.red)
+                    Text(NotificationCopy.permissionDenied).font(.callout).foregroundStyle(Palette.loss)
                     Spacer()
                     Button("打开系统设置") { form.openNotificationSettings() }
+                        .buttonStyle(.secondary)
                 }
             }
         }
@@ -50,10 +51,11 @@ struct SettingsView: View {
 
     private var salarySection: some View {
         Section {
-            HStack {
-                TextField("月薪 (元)", text: $form.salaryText)
+            HStack(spacing: Spacing.s8) {
+                Field(nil, text: $form.salaryText, suffix: "元")
                     .onSubmit { form.saveSalary() }
                 Button("保存") { form.saveSalary() }
+                    .buttonStyle(.secondary)
             }
             messageRow(form.salaryMessage)
         } header: {
@@ -70,6 +72,7 @@ struct SettingsView: View {
                 messageRow(form.scheduleMessage)
                 Spacer()
                 Button("保存") { form.saveSchedule() }
+                    .buttonStyle(.secondary)
             }
         } header: {
             Text("作息")
@@ -98,14 +101,14 @@ struct SettingsView: View {
 
     /// 分组页脚默认靠右，说明文字改成靠左。
     private func footnote(_ text: String) -> some View {
-        Text(text).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
+        Text(text).foregroundStyle(Palette.muted).frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
     private func messageRow(_ message: FormMessage?) -> some View {
         switch message {
-        case .saved: Text("已保存").font(.callout).foregroundStyle(.secondary)
-        case .error(let text): Text(text).font(.callout).foregroundStyle(.red)
+        case .saved: Text("已保存").font(.callout).foregroundStyle(Palette.muted)
+        case .error(let text): Text(text).font(.callout).foregroundStyle(Palette.loss)
         case nil: EmptyView()
         }
     }

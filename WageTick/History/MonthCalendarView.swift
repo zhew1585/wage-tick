@@ -27,7 +27,7 @@ struct MonthCalendarView: View {
                     // 换一天时丢掉上一天的表单与提示。
                     .id(day.date)
             } else {
-                Text("点某天看详情").font(.callout).foregroundStyle(.secondary)
+                Text("点某天看详情").font(.callout).foregroundStyle(Palette.muted)
             }
         }
     }
@@ -45,10 +45,11 @@ struct MonthCalendarView: View {
     /// 该月月薪与「改月薪」入口 (PRD 4.2.1 #2)。
     private var salaryRow: some View {
         HStack {
-            Text(month.salaryItem.title).font(.callout).foregroundStyle(.secondary)
+            Text(month.salaryItem.title).font(.callout).foregroundStyle(Palette.muted)
             Text(month.salaryItem.value).font(.callout.weight(.medium)).monospacedDigit()
             Spacer()
             Button("改月薪") { editingSalary = true }
+                .buttonStyle(.secondary)
         }
         .sheet(isPresented: $editingSalary) {
             SalaryFormView(
@@ -62,7 +63,7 @@ struct MonthCalendarView: View {
     private var calendarGrid: some View {
         LazyVGrid(columns: Self.columns, spacing: 6) {
             ForEach(HistoryMonth.weekdayHeaders, id: \.self) { header in
-                Text(header).font(.caption).foregroundStyle(.secondary)
+                Text(header).font(.caption).foregroundStyle(Palette.muted)
             }
             ForEach(0..<month.leadingBlanks, id: \.self) { _ in
                 Color.clear.frame(height: 34)
@@ -84,7 +85,7 @@ struct MonthCalendarView: View {
                 // 今天描边，不遮住当天的颜色类型；选中的那天描得更粗。
                 RoundedRectangle(cornerRadius: 6)
                     .strokeBorder(
-                        day.isToday ? Color.accentColor : Color.primary.opacity(0.5),
+                        day.isToday ? Palette.accent : Palette.ink.opacity(0.5),
                         lineWidth: day.date == selectedDay ? 2.5 : (day.isToday ? 1.5 : 0)
                     )
             }
@@ -100,7 +101,7 @@ struct MonthCalendarView: View {
                 }
             }
             legendItem(CalendarDayKind.todayLabel) {
-                RoundedRectangle(cornerRadius: 3).strokeBorder(Color.accentColor, lineWidth: 1.5)
+                RoundedRectangle(cornerRadius: 3).strokeBorder(Palette.accent, lineWidth: 1.5)
             }
         }
     }
@@ -108,21 +109,22 @@ struct MonthCalendarView: View {
     private func legendItem(_ label: String, @ViewBuilder swatch: () -> some View) -> some View {
         HStack(spacing: 4) {
             swatch().frame(width: 12, height: 12)
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(label).font(.caption).foregroundStyle(Palette.muted)
         }
     }
 }
 
 extension CalendarDayKind {
-    /// 日历格子的底色。
+    /// 日历格子的底色 (设计稿 P5 月日历)：满勤 money-soft，被扣钱 loss-soft，请假 accent-soft，将来的日子白底。
+    /// 设计稿里休息日无底色、改成不上班只描边；图例还要靠底色区分，暂用 surface、line，换样式留给日历页。
     var color: Color {
         switch self {
-        case .fullAttendance: .green.opacity(0.3)
-        case .deducted: .red.opacity(0.3)
-        case .leave: .blue.opacity(0.3)
-        case .rest: .gray.opacity(0.15)
-        case .override: .purple.opacity(0.3)
-        case .upcoming: .gray.opacity(0.05)
+        case .fullAttendance: Palette.moneySoft
+        case .deducted: Palette.lossSoft
+        case .leave: Palette.accentSoft
+        case .rest: Palette.surface
+        case .override: Palette.line
+        case .upcoming: Palette.card
         }
     }
 }

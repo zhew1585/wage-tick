@@ -17,7 +17,7 @@ struct TodayPanelView: View {
     /// 进度区高度：已下班时换成「我还没走」按钮、白干中换成「终于下班了」按钮，高度保持一致 (AC-HOME-11)。
     private static let progressAreaHeight: CGFloat = 44
     /// 情绪按钮行高度：白干中这一行可能没有按钮，固定高度让面板总高度不变 (AC-HOME-11)。
-    private static let moodRowHeight: CGFloat = 24
+    private static let moodRowHeight = ThemeButtonStyle.height
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -65,10 +65,10 @@ struct TodayPanelView: View {
     private func noticeBanner(_ text: String) -> some View {
         Label(text, systemImage: "exclamationmark.triangle.fill")
             .font(.callout)
-            .foregroundStyle(.orange)
+            .foregroundStyle(Palette.accent)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
-            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+            .background(Palette.accentSoft, in: RoundedRectangle(cornerRadius: Radius.control))
     }
 
     private func header(_ panel: TodayPanel) -> some View {
@@ -76,13 +76,18 @@ struct TodayPanelView: View {
             Text(panel.dateText)
             Text(panel.timeText).monospacedDigit()
             Spacer()
-            Text(panel.statusLabel)
-                .font(.caption.weight(.medium))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(.quaternary, in: Capsule())
+            Chip(panel.statusLabel, tone: statusTone(panel.body))
         }
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Palette.muted)
+    }
+
+    /// 状态 Chip 的色调 (设计稿 P2)：应出勤日 money，休息日 accent，白干计时中 loss。
+    private func statusTone(_ body: TodayPanel.Body) -> Chip.Tone {
+        switch body {
+        case .attendance: .money
+        case .rest: .accent
+        case .unpaidWork: .loss
+        }
     }
 
     @ViewBuilder
@@ -90,7 +95,7 @@ struct TodayPanelView: View {
         VStack(alignment: .leading, spacing: 4) {
             headline(attendance.headline, caption: attendance.caption)
             if let notice = attendance.notice {
-                Text(notice).font(.callout).foregroundStyle(.orange)
+                Text(notice).font(.callout).foregroundStyle(Palette.accent)
             }
         }
         Group {
@@ -125,7 +130,7 @@ struct TodayPanelView: View {
             .font(.system(size: 34, weight: .semibold, design: .rounded).monospacedDigit())
         Text(caption)
             .font(.callout)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Palette.muted)
             .monospacedDigit()
             // 固定单行，上班中与白干中的面板总高度一致 (AC-HOME-11)。
             .lineLimit(1)
@@ -136,12 +141,8 @@ struct TodayPanelView: View {
     @ViewBuilder
     private func unpaidWorkArea(_ button: UnpaidWorkButton?) -> some View {
         if let button {
-            Button {
-                send(button.command)
-            } label: {
-                Text(button.title).frame(maxWidth: .infinity)
-            }
-            .controlSize(.large)
+            Button(button.title) { send(button.command) }
+                .buttonStyle(.primary(fullWidth: true))
         } else {
             Color.clear
         }
@@ -155,7 +156,7 @@ struct TodayPanelView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(item.title)
                         if let detail = item.detail {
-                            Text(detail).font(.caption).foregroundStyle(.secondary)
+                            Text(detail).font(.caption).foregroundStyle(Palette.muted)
                         }
                     }
                     Spacer()
@@ -205,7 +206,7 @@ struct TodayPanelView: View {
         HStack(alignment: .top) {
             ForEach(stats, id: \.title) { item in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.title).font(.caption).foregroundStyle(.secondary)
+                    Text(item.title).font(.caption).foregroundStyle(Palette.muted)
                     Text(item.value).font(.body.weight(.medium)).monospacedDigit()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -218,9 +219,10 @@ struct TodayPanelView: View {
     private var currentLeaveRow: some View {
         if let form = content.leaveForm, let current = form.current, let text = form.currentText {
             HStack {
-                Text(text).font(.callout).foregroundStyle(.secondary)
+                Text(text).font(.callout).foregroundStyle(Palette.muted)
                 Spacer()
                 Button("修改") { leaveForm = .edit(current) }
+                    .buttonStyle(.secondary)
             }
         }
     }
@@ -233,19 +235,26 @@ struct TodayPanelView: View {
             switch panel.body {
             case .rest:
                 if let button = panel.unpaidWorkButton {
-                    Button(button.title) { send(button.command) }
+                    Button { send(button.command) } label: { Label(button.title, systemImage: "briefcase") }
                 }
             case .unpaidWork(let unpaidWork) where unpaidWork.isRestDay:
                 EmptyView()
             case .attendance, .unpaidWork:
                 if panel.deductionEntry != nil {
-                    Button("今天扣钱了") { deductionForm = .add }
+                    Button { deductionForm = .add } label: {
+                        Label {
+                            Text("今天扣钱了")
+                        } icon: {
+                            Image(systemName: "chart.line.downtrend.xyaxis").foregroundStyle(Palette.loss)
+                        }
+                    }
                 }
             }
             if content.leaveForm?.canRequest == true {
-                Button("请假") { leaveForm = .request }
+                Button { leaveForm = .request } label: { Label("请假", systemImage: "umbrella") }
             }
         }
+        .buttonStyle(.secondary(fullWidth: true))
         .frame(height: Self.moodRowHeight)
         // 与扣钱表单分开挂，避免同一视图上挂两个 sheet。
         .sheet(item: $leaveForm) { mode in
@@ -266,9 +275,9 @@ private struct SegmentedProgressBar: View {
                 ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
                     let width = usable * segment.share
                     Capsule()
-                        .fill(.quaternary)
+                        .fill(Palette.surface)
                         .overlay(alignment: .leading) {
-                            Capsule().fill(.tint).frame(width: width * segment.filled)
+                            Capsule().fill(Palette.money).frame(width: width * segment.filled)
                         }
                         .frame(width: width)
                 }
