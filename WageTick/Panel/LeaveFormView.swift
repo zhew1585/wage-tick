@@ -95,7 +95,7 @@ struct LeaveFormView: View {
             Text("%").font(AppFont.ui(18)).foregroundStyle(Palette.muted)
             Spacer(minLength: 0)
             if let deduction = previewForm?.deductionText {
-                Text("= \(deduction)").font(AppFont.num(16, .semibold)).foregroundStyle(Palette.loss)
+                Text(deduction).font(AppFont.num(16, .semibold)).foregroundStyle(Palette.loss)
             }
         }
         .padding(Spacing.s16)

@@ -12,9 +12,11 @@ public struct DeductionEntry: Sendable, Equatable {
     /// 当月日薪，按日薪百分比折算扣款用。
     let dailyWage: Decimal
 
-    /// 一笔扣款按当月日薪折算后的金额，如按日薪 10% 时「扣 ¥100」(设计稿 F5 按日薪百分比的预览)。
-    public func chargeText(_ amount: DeductionAmount) -> String {
-        "扣 \(Format.money(amount.money(dailyWage: dailyWage)))"
+    /// 预览行起点前的标题：按日薪百分比时先写折算后扣多少，如「扣 ¥100 · 今日上限」(设计稿 F5 · 760)；按金额时只有 `capTitle`。
+    /// 草稿还没填好时外壳只显示 `capTitle`。
+    public func previewTitle(_ amount: DeductionAmount) -> String {
+        guard case .percentOfDailyWage = amount else { return capTitle }
+        return "扣 \(Format.money(amount.money(dailyWage: dailyWage))) · \(capTitle)"
     }
 
     /// 预览文案「今日上限 ¥x → ¥y」；草稿试算失败 (如金额还没填) 时只显示起点「今日上限 ¥x」。

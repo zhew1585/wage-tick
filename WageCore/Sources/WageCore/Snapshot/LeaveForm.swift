@@ -11,7 +11,7 @@ public struct LeaveForm: Sendable, Equatable {
     /// 汇总：当日计划 (今天为「今天改为 10:00–12:00 上班」)、请假扣薪 (有时如「−¥500」)、
     /// 收入项 (今天为今日上限，历史里的过去日子为结算，未来为预计结算)。
     public let summary: [StatItem]
-    /// 请假扣薪，不带负号，如「¥500」：比例输入框右侧的「= ¥500」。
+    /// 比例输入框右侧的请假扣薪，如「= ¥500」。
     public let deductionText: String
     /// 各时段请掉的工时，如全天「10:00–18:00」、上午「10:00–12:00」，显示在时段选项下方。
     public let periodHours: [LeavePeriod: String]
@@ -52,19 +52,19 @@ extension LeaveForm {
         planTitle: String, capTitle: String, now: Moment
     ) {
         let plan = DayPlan(schedule: schedule, leave: leave?.period, on: day, now: now)
+        // 只显示到分：关闭午休时的中点可能带秒。
         let clock = { (date: Date) in Format.time(Moment(date: date, timeZone: now.timeZone)) }
         let span = { (start: Date, end: Date) in "\(clock(start))–\(clock(end))" }
         current = leave
         canRequest = leave?.period != .fullDay
         currentText = leave.map { "已请\($0.period.label)假 · 扣薪 \(Format.percent($0.deductionPercent / 100))" }
-        // 关闭午休时的中点可能带秒，只显示到分。
         let planText = plan.map { "\(span($0.start, $0.end)) 上班" } ?? "全天请假"
         summary = [
             StatItem(title: planTitle, value: planText),
             StatItem(title: "请假扣薪", value: Format.deductionOrZero(settlement.leaveDeduction)),
             StatItem(title: capTitle, value: Format.money(settlement.cap)),
         ]
-        deductionText = Format.money(settlement.leaveDeduction)
+        deductionText = "= \(Format.money(settlement.leaveDeduction))"
         periodHours = Dictionary(uniqueKeysWithValues: LeavePeriod.allCases.map { period in
             let hours = DayPlan.leaveSpan(period, schedule: schedule, on: day, now: now)
             return (period, span(hours.start, hours.end))

@@ -9,7 +9,7 @@ struct GoalCardView: View {
     let card: GoalCard
     /// 排队部分；没有排队中目标时为 nil。只用 `upcoming`，旧的展开收起 (`queued`、`toggleTitle`) 不再用。
     let queue: GoalQueueSection?
-    /// 标题右侧的目标总数，如「3 个目标」；队列为空时为 nil。
+    /// 标题右侧的目标总数，如「3 个目标」；没有未完成目标时为 nil。
     let countText: String?
     let openGoals: () -> Void
 

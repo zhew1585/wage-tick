@@ -17,9 +17,9 @@ public struct TodayPanel: Sendable, Equatable {
     public let unpaidWorkButton: UnpaidWorkButton?
     /// 目标区 (PRD F9)。
     public let goal: GoalCard
-    /// 目标区里累计中目标下方的排队部分 (PRD F9)：「显示更多 (N)」或展开后的排队中目标与「收起」；没有排队中目标时为 nil。
+    /// 目标区里累计中目标下方的排队部分 (PRD F9)；没有排队中目标时为 nil。面板只用其中的 `upcoming`，展开收起的字段保留未用。
     public let goalQueue: GoalQueueSection?
-    /// 目标区标题右侧的目标总数 (累计中 + 排队中)，如「3 个目标」；队列为空时为 nil。
+    /// 目标区标题右侧的目标总数 (累计中 + 全部排队中，可能多于列出的 3 个)，如「3 个目标」；没有未完成目标时为 nil。
     public let goalCountText: String?
 
     public enum Body: Sendable, Equatable {

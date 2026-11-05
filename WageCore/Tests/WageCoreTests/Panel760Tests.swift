@@ -146,14 +146,14 @@ struct Panel760GoalTests {
 
 @Suite("扣钱表单 760：按日薪百分比的折算")
 struct Panel760DeductionTests {
-    @Test("按日薪 10%：扣 ¥100；日薪 20000 ÷ 21 时按完整精度折算后截掉末尾 0")
-    func percentCharge() throws {
+    @Test("预览标题：按日薪 10% 时前面加「扣 ¥100 ·」，日薪 20000 ÷ 21 时按完整精度折算后截掉末尾 0；按金额时只有收入项标题")
+    func previewTitle() throws {
         let feb = try #require(try panel(try onboarded(), at: standardDay(15, 0)).deductionEntry)
         let may = try #require(try panel(try onboarded(), at: moment(2026, 5, 6, 15, 0)).deductionEntry)
 
-        #expect(feb.chargeText(.percentOfDailyWage(10)) == "扣 ¥100")
-        #expect(may.chargeText(.percentOfDailyWage(10)) == "扣 ¥95.2381")
-        #expect(feb.chargeText(.fixed(50)) == "扣 ¥50")
+        #expect(feb.previewTitle(.percentOfDailyWage(10)) == "扣 ¥100 · 今日上限")
+        #expect(may.previewTitle(.percentOfDailyWage(10)) == "扣 ¥95.2381 · 今日上限")
+        #expect(feb.previewTitle(.fixed(50)) == "今日上限")
     }
 }
 
@@ -174,7 +174,7 @@ struct Panel760LeaveTests {
         #expect(form.periodHours == [.fullDay: "10:00–18:00", .morning: "10:00–14:00", .afternoon: "14:00–18:00"])
     }
 
-    @Test("请下午假 50%：汇总为今天改为 10:00–12:00 上班、请假扣薪 −¥500、今日上限 ¥500，输入框旁为 ¥500")
+    @Test("请下午假 50%：汇总为今天改为 10:00–12:00 上班、请假扣薪 −¥500、今日上限 ¥500，输入框旁为 = ¥500")
     func summaryWithAfternoonLeave() throws {
         let state = try sending([.requestLeave(Leave(period: .afternoon, deductionPercent: 50))], to: try onboarded(), at: standardDay(9, 0))
         let form = try #require(snapshot(of: state, at: standardDay(9, 0)).leaveForm)
@@ -184,7 +184,7 @@ struct Panel760LeaveTests {
             StatItem(title: "请假扣薪", value: "−¥500"),
             StatItem(title: "今日上限", value: "¥500"),
         ])
-        #expect(form.deductionText == "¥500")
+        #expect(form.deductionText == "= ¥500")
     }
 
     @Test("还没请假：今天改为作息原样，请假扣薪 ¥0")
@@ -196,7 +196,7 @@ struct Panel760LeaveTests {
             StatItem(title: "请假扣薪", value: "¥0"),
             StatItem(title: "今日上限", value: "¥1000"),
         ])
-        #expect(form.deductionText == "¥0")
+        #expect(form.deductionText == "= ¥0")
     }
 
     @Test("全天请假：今天改为全天请假")

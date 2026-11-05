@@ -112,13 +112,13 @@ struct DeductionFormView: View {
     }
 
     /// 「今日上限 ¥1000 → ¥950」(13 号)：起点取当前快照，终点取草稿试算后的快照；还没填好时只显示起点。
-    /// 按日薪百分比且填好时前面加核心折算的「扣 ¥100 ·」。
+    /// 填好时标题取核心的 `previewTitle` (按日薪百分比时前面加「扣 ¥100 ·」)。
     @ViewBuilder
     private var previewLine: some View {
         if let entry {
             let draft = draftEntry
             HStack(spacing: Spacing.s6) {
-                Text(draft != nil && method == .percent ? "\(entry.chargeText(amount)) · \(entry.capTitle)" : entry.capTitle)
+                Text(draft == nil ? entry.capTitle : entry.previewTitle(amount))
                     .font(AppFont.body)
                 Text(entry.capText).font(AppFont.num(13))
                 if let draft {
