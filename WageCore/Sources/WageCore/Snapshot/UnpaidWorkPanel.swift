@@ -1,17 +1,22 @@
 import Foundation
 
 /// 白干计时中的面板内容 (PRD F4)，我还没走与被迫营业相同。
+/// 跨过零点还在计时时，主数字与小字说的是开始那天，统计行、目标、情绪按钮照旧是今天的。
 public struct UnpaidWorkPanel: Sendable, Equatable {
-    /// 主数字，带 ¥，4 位小数：今日已倒贴，持续滚动。
+    /// 主数字上方的标签：当天开始为「今日已倒贴」，跨过零点后为「昨天已倒贴」(更早为「11月6日已倒贴」)。
+    public let label: String
+    /// 主数字，带 ¥，4 位小数：开始那天已倒贴，持续滚动。
     public let headline: String
-    /// 如「18:00 起 · 已白干 1:05:12」。
+    /// 如「18:00 起 · 已白干 1:05:12」，跨过零点后如「昨天 18:00 起 · 已白干 6:30:00」。时长是开始那天各段之和。
     public let caption: String
-    /// 统计行：今日结算、今日扣款、本月累计，与已下班相同；休息日被迫营业没有今日扣款。
+    /// 统计行：当天开始时为今日结算、今日扣款、本月累计，与已下班相同，休息日被迫营业没有今日扣款；
+    /// 跨过零点后为今天平常的统计行 (如未上班的距离下班、今日扣款、本月累计，休息日的本月已上班、本月累计)。
     public let stats: [StatItem]
-    /// 是否休息日的被迫营业：外壳据此决定情绪按钮行 (应出勤日仍有扣钱、请假)。
+    /// 今天是否休息日 (含全天请假)：外壳据此决定情绪按钮行 (应出勤日仍有扣钱、请假)。
     public let isRestDay: Bool
 
-    public init(headline: String, caption: String, stats: [StatItem], isRestDay: Bool) {
+    public init(label: String, headline: String, caption: String, stats: [StatItem], isRestDay: Bool) {
+        self.label = label
         self.headline = headline
         self.caption = caption
         self.stats = stats
@@ -31,12 +36,21 @@ public struct UnpaidWorkButton: Sendable, Equatable {
 }
 
 extension UnpaidWorkPanel {
-    init(today: Today, now: Moment) {
-        let unpaidWork = today.unpaidWork
-        let start = Format.time(Moment(date: unpaidWork.runningSince ?? now.date, timeZone: now.timeZone))
-        headline = Format.rollingMoney(unpaidWork.owed)
-        caption = "\(start) 起 · 已白干 \(Format.elapsed(milliseconds: unpaidWork.milliseconds))"
+    /// `todayStats` 是今天不在计时时面板的统计行，跨过零点后用它。
+    init(today: Today, running: RunningUnpaidWork, now: Moment, todayStats: [StatItem]) {
+        let start = Format.time(Moment(date: running.since, timeZone: now.timeZone))
+        let elapsed = "已白干 \(Format.elapsed(milliseconds: running.milliseconds))"
         isRestDay = today.status == .restDay
+        headline = Format.rollingMoney(running.owed)
+        guard running.date == today.date else {
+            let day = Format.shortDay(running.date, relativeTo: today.date)
+            label = "\(day)已倒贴"
+            caption = "\(day) \(start) 起 · \(elapsed)"
+            stats = todayStats
+            return
+        }
+        label = "今日已倒贴"
+        caption = "\(start) 起 · \(elapsed)"
         if let earnings = today.earnings, let settlement = today.settlement {
             // 应出勤日，含按休息日呈现的全天请假日：统计行与已下班相同，带今日结算与扣款。
             stats = AttendancePanel.offWorkStats(today: today, earnings: earnings, settlement: settlement)
@@ -72,6 +86,16 @@ extension UnpaidWorkToday {
 }
 
 extension Format {
+    /// 相对今天的短日期：前一天为「昨天」，更早为「11月6日」。
+    static func shortDay(_ date: LocalDate, relativeTo today: LocalDate) -> String {
+        date == today.adding(days: -1) ? "昨天" : monthDay(date)
+    }
+
+    /// 月日，如「11月6日」。
+    static func monthDay(_ date: LocalDate) -> String {
+        "\(date.month)月\(date.day)日"
+    }
+
     /// 已过时长 h:mm:ss，不足一秒的部分舍去，如 `1:05:12`。
     static func elapsed(milliseconds: Int) -> String {
         let seconds = max(0, milliseconds) / 1000

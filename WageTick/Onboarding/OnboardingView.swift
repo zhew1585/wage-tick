@@ -1,7 +1,7 @@
 import SwiftUI
 import WageCore
 
-/// 2 步引导：月薪 → 作息 (含午休) (PRD 4.1.1、F1；设计稿 P1 引导 · 1 月薪 · 760、P1 引导 · 2 作息 · 760)。
+/// 2 步引导：月薪 (含休息模式) → 作息 (含饭点) (PRD 4.1.1、F1；设计稿 P1 引导 · 1 月薪 · 760、P1 引导 · 2 作息 · 760)。
 /// 开机自启不再询问，按 PRD 4.7.2 的默认值 (开) 保存并注册登录项，之后在设置里改。
 /// 标题栏下是步骤条，中间是当前步，底部「上一步」与「下一步 / 开始搬砖」。
 /// 每一步点"下一步"时用核心的 `Validation` 校验，失败停留当前步并展示提示。
@@ -11,15 +11,20 @@ struct OnboardingView: View {
 
     @State private var step: OnboardingStep
     @State private var salaryText: String
+    @State private var restMode: RestModeChoice
     @State private var scheduleDraft = ScheduleDraft(.default)
     @State private var errorMessage: String?
 
-    /// `step`、`salaryText` 只在离屏截图时指定，App 里从第 1 步、空月薪开始。
-    init(model: AppModel, step: OnboardingStep = .salary, salaryText: String = "", onFinish: @escaping () -> Void) {
+    /// `step`、`salaryText`、`restMode` 只在离屏截图时指定，App 里从第 1 步、空月薪、双休开始。
+    init(
+        model: AppModel, step: OnboardingStep = .salary, salaryText: String = "", restMode: RestModeChoice = .twoDaysOff,
+        onFinish: @escaping () -> Void
+    ) {
         self.model = model
         self.onFinish = onFinish
         _step = State(initialValue: step)
         _salaryText = State(initialValue: salaryText)
+        _restMode = State(initialValue: restMode)
     }
 
     var body: some View {
@@ -39,14 +44,14 @@ struct OnboardingView: View {
     private var content: some View {
         switch step {
         case .salary:
-            OnboardingSalaryStep(salaryText: $salaryText, errorMessage: errorMessage, onSubmit: next)
+            OnboardingSalaryStep(salaryText: $salaryText, restMode: $restMode, errorMessage: errorMessage, onSubmit: next)
         case .schedule:
             OnboardingScheduleStep(draft: $scheduleDraft, rates: rates, errorMessage: errorMessage)
         }
     }
 
     /// 「按这个作息算」：把已填内容当作完成引导试算一遍 (不保存)，取快照里的工资换算，不自己算钱。
-    /// 每次重绘都重新试算，跟着作息走；作息不合法 (试算被校验拦下) 时为 nil，整块不显示。
+    /// 每次重绘都重新试算，跟着作息与第 1 步选的休息模式走；作息不合法 (试算被校验拦下) 时为 nil，整块不显示。
     private var rates: WageRates? {
         guard case .success(let snapshot) = model.dryRun(.completeOnboarding(input)) else { return nil }
         return snapshot.wageRates
@@ -107,7 +112,7 @@ struct OnboardingView: View {
 
     /// 开机自启不传，取核心的默认值 (PRD 4.7.2：开)。
     private var input: OnboardingInput {
-        OnboardingInput(monthlySalary: parsedSalary ?? 0, schedule: scheduleDraft.schedule)
+        OnboardingInput(monthlySalary: parsedSalary ?? 0, schedule: scheduleDraft.schedule, restMode: restMode)
     }
 }
 

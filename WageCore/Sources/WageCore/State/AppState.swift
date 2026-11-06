@@ -5,7 +5,7 @@ import Foundation
 public struct AppState: Sendable, Equatable, Codable {
     /// 引导完成后才有；nil 即"未完成引导"。
     public internal(set) var profile: Profile?
-    /// 界面设置 (老板路过等)，引导前也有默认值。
+    /// 界面设置 (显示模式、通知开关等)，引导前也有默认值。
     public internal(set) var settings: InterfaceSettings
     /// 日记录 (PRD 4.3.1)：一天最多一条，只存牛马手动产生的内容，按日期升序。
     public internal(set) var dayRecords: [DayRecord]
@@ -33,8 +33,8 @@ public struct AppState: Sendable, Equatable, Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         profile = try container.decodeIfPresent(Profile.self, forKey: .profile)
         settings = try container.decodeIfPresent(InterfaceSettings.self, forKey: .settings) ?? InterfaceSettings()
-        // #7 之前的旧文件没有日记录。
-        let records = try container.decodeIfPresent([DayRecord].self, forKey: .dayRecords) ?? []
+        // #7 之前的旧文件没有日记录。旧格式的请假按那天生效的作息换算成时段 (PRD V1.8)。
+        let records = try Self.decodeDayRecords(from: container, schedule: profile.map { profile in { profile.schedule(on: $0) } })
         let ids = records.flatMap(\.deductions).map(\.id)
         guard Set(records.map(\.date)).count == records.count, Set(ids).count == ids.count else {
             throw DecodingError.dataCorruptedError(forKey: .dayRecords, in: container, debugDescription: "同一天有多条日记录，或扣钱记录标识重复")
@@ -46,6 +46,19 @@ public struct AppState: Sendable, Equatable, Codable {
         offWorkWatch = try container.decodeIfPresent(OffWorkWatch.self, forKey: .offWorkWatch)
         // #13 之前的旧文件没有待播放的动画，已完成的目标不补播。
         pendingCelebrations = try container.decodeIfPresent([Int].self, forKey: .pendingCelebrations) ?? []
+    }
+
+    /// 逐条读日记录，好把作息交给旧格式请假的换算；没有引导配置 (`schedule` 为 nil) 时旧格式请假拒绝读入。
+    private static func decodeDayRecords(
+        from container: KeyedDecodingContainer<CodingKeys>, schedule: ((LocalDate) -> WorkSchedule)?
+    ) throws -> [DayRecord] {
+        guard container.contains(.dayRecords), try !container.decodeNil(forKey: .dayRecords) else { return [] }
+        var list = try container.nestedUnkeyedContainer(forKey: .dayRecords)
+        var records: [DayRecord] = []
+        while !list.isAtEnd {
+            records.append(try DayRecord(from: list.superDecoder(), legacySchedule: { date in schedule?(date) }))
+        }
+        return records
     }
 }
 
@@ -61,30 +74,39 @@ public struct Profile: Sendable, Equatable, Codable {
     /// 作息版本，按生效日期升序，至少一条 (issue #1 状态清单)。
     /// 修改作息从今天起生效，过去的日子保留当时的作息 (PRD 4.2.3 #2)；最早一条也覆盖它之前的日子。
     public internal(set) var schedules: [ScheduleVersion]
+    /// 按月份记录的休息模式，按月份升序，至少一条 (PRD 4.2.2)。与月薪一样：修改对当月整月生效，
+    /// 未来月份沿用最近一次设置，过去的月份保留当时的模式。某月实际采用的模式用 `restMode(for:)`。
+    public internal(set) var restModes: [MonthlyRestMode]
 
-    private enum CodingKeys: String, CodingKey { case installDate, salaries, launchAtLogin, schedules }
+    private enum CodingKeys: String, CodingKey { case installDate, salaries, launchAtLogin, schedules, restModes }
     /// #2 至 #5 写出的旧文件只有一份作息，没有版本。
     private enum LegacyCodingKeys: String, CodingKey { case schedule }
 
-    /// 引导时的配置：作息只有一个版本，从安装日起生效。
-    init(installDate: LocalDate, salaries: [MonthlySalary], schedule: WorkSchedule, launchAtLogin: Bool) {
+    /// 引导时的配置：作息只有一个版本，从安装日起生效；休息模式只有安装当月一条。
+    init(installDate: LocalDate, salaries: [MonthlySalary], schedule: WorkSchedule, restMode: RestMode, launchAtLogin: Bool) {
         self.init(
             installDate: installDate,
             salaries: salaries,
             schedules: [ScheduleVersion(effectiveFrom: installDate, schedule: schedule)],
+            restModes: [MonthlyRestMode(month: installDate.yearMonth, mode: restMode)],
             launchAtLogin: launchAtLogin
         )
     }
 
-    init(installDate: LocalDate, salaries: [MonthlySalary], schedules: [ScheduleVersion], launchAtLogin: Bool) {
+    init(
+        installDate: LocalDate, salaries: [MonthlySalary], schedules: [ScheduleVersion], restModes: [MonthlyRestMode],
+        launchAtLogin: Bool
+    ) {
         self.installDate = installDate
         self.salaries = salaries
         self.schedules = schedules
+        self.restModes = restModes
         self.launchAtLogin = launchAtLogin
     }
 
-    /// 从文件读入时至少要有一条月薪、一个作息版本，并按月份、生效日期排好序，供 `salary(for:)`、`schedule(on:)` 查找。
-    /// 旧文件没有作息版本时，把那一份作息当作从安装日起生效。
+    /// 从文件读入时至少要有一条月薪、一个作息版本、一条休息模式，并按月份、生效日期排好序，
+    /// 供 `salary(for:)`、`schedule(on:)`、`restMode(for:)` 查找。
+    /// 旧文件没有作息版本时，把那一份作息当作从安装日起生效；没有休息模式时 (V1.9 之前) 当作安装当月起双休。
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let installDate = try container.decode(LocalDate.self, forKey: .installDate)
@@ -101,10 +123,16 @@ public struct Profile: Sendable, Equatable, Codable {
         guard !schedules.isEmpty else {
             throw DecodingError.dataCorruptedError(forKey: .schedules, in: container, debugDescription: "没有任何作息")
         }
+        let restModes = try container.decodeIfPresent([MonthlyRestMode].self, forKey: .restModes)
+            ?? [MonthlyRestMode(month: installDate.yearMonth, mode: .twoDaysOff)]
+        guard !restModes.isEmpty, Set(restModes.map(\.month)).count == restModes.count else {
+            throw DecodingError.dataCorruptedError(forKey: .restModes, in: container, debugDescription: "休息模式为空或同一个月有多条")
+        }
         self.init(
             installDate: installDate,
             salaries: salaries.sorted { $0.month < $1.month },
             schedules: schedules.sorted { $0.effectiveFrom < $1.effectiveFrom },
+            restModes: restModes.sorted { $0.month < $1.month },
             launchAtLogin: try container.decode(Bool.self, forKey: .launchAtLogin)
         )
     }
@@ -119,6 +147,11 @@ public struct Profile: Sendable, Equatable, Codable {
     func salary(for month: YearMonth) -> Decimal {
         let entry = salaries.last { $0.month <= month } ?? salaries[0]
         return entry.amount
+    }
+
+    /// 某月采用的休息模式，查找规则同 `salary(for:)`。
+    func restMode(for month: YearMonth) -> RestMode {
+        (restModes.last { $0.month <= month } ?? restModes[0]).mode
     }
 }
 

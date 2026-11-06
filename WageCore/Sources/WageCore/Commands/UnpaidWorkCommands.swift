@@ -4,8 +4,9 @@ import Foundation
 
 /// 开始一段白干，记在今天的日记录里。
 /// 只在应出勤日的已下班、或休息日 (按节假日表判定，含全天请假) 可用，同一时间只能有一段 (规则 1、2)。
+/// 不限时刻：可以一直计到零点之后，到下一次计划上班自动停止 (规则 3)。
 func startUnpaidWork(state: AppState, now: Moment, holidays: HolidayTable) throws(CommandError) -> AppState {
-    let state = advanceUnpaidWork(state: state, now: now)
+    let state = advanceUnpaidWork(state: state, now: now, holidays: holidays)
     guard let profile = state.profile else { throw .notOnboarded }
     guard state.runningUnpaidWork == nil else { throw .unpaidWorkAlreadyRunning }
     let today = Today(profile: profile, dayRecords: state.dayRecords, now: now, holidays: holidays)
@@ -15,9 +16,9 @@ func startUnpaidWork(state: AppState, now: Moment, holidays: HolidayTable) throw
     return state.replacingDayRecord(record)
 }
 
-/// 停止计时中的那段白干，结束时刻为此刻。
-func stopUnpaidWork(state: AppState, now: Moment) throws(CommandError) -> AppState {
-    let state = advanceUnpaidWork(state: state, now: now)
+/// 停止计时中的那段白干，结束时刻为此刻。跨过零点的段仍留在开始那天的日记录里。
+func stopUnpaidWork(state: AppState, now: Moment, holidays: HolidayTable) throws(CommandError) -> AppState {
+    let state = advanceUnpaidWork(state: state, now: now, holidays: holidays)
     guard let running = state.runningUnpaidWork else { throw .unpaidWorkNotRunning }
     return state.updatingSegment(running) { segment in
         // 系统时间被拨回到开始之前时 (PRD 4.3.5 #11)，按零长度结束，不留下倒着的段。
@@ -25,15 +26,17 @@ func stopUnpaidWork(state: AppState, now: Moment) throws(CommandError) -> AppSta
     }
 }
 
-/// 推进到此刻：计时跨过当天 23:59:59 仍未停止的白干段，在 23:59:59 自动停止并标记疑似通宵 (规则 3，PRD 4.3.5 #12)。
+/// 推进到此刻：计时到自动停止时刻 (开始那天之后下一次计划上班，见 `UnpaidWorkClock.autoStop`) 仍未停止的白干段，
+/// 在那一刻自动停止并标记可能忘了停 (规则 3，PRD 4.3.5 #12)。
 /// 退出或睡眠期间不发命令，恢复后第一次推进时补做 (PRD 4.3.5 #13)。
-func advanceUnpaidWork(state: AppState, now: Moment) -> AppState {
-    guard let running = state.runningUnpaidWork else { return state }
-    let cutoff = now.unpaidWorkCutoff(on: running.record.date)
-    guard now.date >= cutoff else { return state }
+func advanceUnpaidWork(state: AppState, now: Moment, holidays: HolidayTable) -> AppState {
+    guard let profile = state.profile, let running = state.runningUnpaidWork else { return state }
+    let clock = UnpaidWorkClock(profile: profile, holidays: holidays, dayRecords: state.dayRecords, now: now)
+    let stop = clock.autoStop(after: running.record.date)
+    guard now.date >= stop else { return state }
     return state.updatingSegment(running) { segment in
-        segment.end = max(cutoff, segment.start)
-        segment.suspectedAllNighter = true
+        segment.end = max(stop, segment.start)
+        segment.autoStopped = true
     }
 }
 

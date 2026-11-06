@@ -21,8 +21,12 @@ public struct ActiveGoalCard: Sendable, Equatable {
     public let targetText: String
     /// 进度条比例，0 至 1；累计额为负时为 0 (PRD 4.3.5 #17)，达标后为 1。
     public let progress: Double
+    /// 进度百分比，固定 2 位小数，如「30.00%」「28.57%」；与 `progress` 同样夹在 0% 至 100%。
+    public let percentText: String
     /// 预计完成 (PRD 4.5.3)，如「还需搬砖 7 天 · 2月20日」或「今天就能达成」。
     public let estimate: String
+    /// 面板攒钱队列卡片里的短版预计，和金额挤在一行：如「还需 7 天 · 2月20日」「今天就能达成」「暂时没法预计」。
+    public let shortEstimate: String
     /// 预计完成日 (今天就能达成时为今天)，排队中目标从它之后起数 (PRD 4.5.3 #5)。
     /// 本月没有应出勤日 (日薪为 0) 时没法预计，为 nil。
     let finishDate: LocalDate?
@@ -52,25 +56,29 @@ extension ActiveGoalCard {
         accumulatedText = Format.money(max(accumulated, 0))
         targetText = Format.money(goal.amount)
         amountText = "\(accumulatedText) / \(targetText)"
-        progress = NSDecimalNumber(decimal: shown / goal.amount).doubleValue
-        (estimate, finishDate) = Self.estimate(remaining: goal.amount - accumulated, today: today, rule: rule)
+        let ratio = shown / goal.amount
+        progress = NSDecimalNumber(decimal: ratio).doubleValue
+        percentText = Format.percent(ratio)
+        (estimate, shortEstimate, finishDate) = Self.estimate(remaining: goal.amount - accumulated, today: today, rule: rule)
     }
 
     /// 预计完成 (PRD 4.5.3)：
     /// 今天是应出勤日且未下班时，先扣除今日剩余可赚 (今日上限 - 今日已赚)，扣除后不大于 0 即「今天就能达成」；
     /// 否则 N = 剩余金额 ÷ 当月日薪 向上取整，从明天起数第 N 个应出勤日，跨月仍按当月日薪【D7】。
-    private static func estimate(remaining: Decimal, today: Today, rule: AttendanceRule) -> (text: String, finish: LocalDate?) {
+    /// 返回完整文案、面板用的短版文案与预计完成日。
+    private static func estimate(remaining: Decimal, today: Today, rule: AttendanceRule) -> (text: String, short: String, finish: LocalDate?) {
         // 只有目标管理页的预览会走到：真正累计中的目标达标即完成【D6】。
-        guard remaining > 0 else { return (reachedPreview, today.date) }
+        guard remaining > 0 else { return (reachedPreview, reachedPreview, today.date) }
         var rest = remaining
         if let earnings = today.earnings, today.status != .offWork {
             rest -= earnings.cap - earnings.earned
         }
-        guard rest > 0 else { return ("今天就能达成", today.date) }
+        guard rest > 0 else { return (reachedToday, reachedToday, today.date) }
         // 本月全部覆盖为不上班时日薪为 0 (PRD 4.3.5 #19)，没法按当月日薪估算。
-        guard let days = workDays(for: rest, dailyWage: today.dailyWage) else { return (noEstimate, nil) }
+        guard let days = workDays(for: rest, dailyWage: today.dailyWage) else { return (noEstimate, noEstimateShort, nil) }
         let finish = rule.attendanceDay(days, after: today.date)
-        return ("还需搬砖 \(days) 天 · \(Format.monthDay(finish))", finish)
+        let date = Format.monthDay(finish)
+        return ("还需搬砖 \(days) 天 · \(date)", "还需 \(days) 天 · \(date)", finish)
     }
 
     /// 攒够 `amount` 需要的应出勤日数 = `amount` ÷ 日薪 向上取整，如 6.5714 → 7。
@@ -89,8 +97,14 @@ extension ActiveGoalCard {
     /// 排队中目标拖到第一个时已攒够：松手即完成【D6】。
     static let reachedPreview = "已经攒够，排到第一个就达成"
 
+    /// 今天下班前就能攒够时的预计文案。
+    static let reachedToday = "今天就能达成"
+
     /// 日薪为 0 时累计中目标的预计文案。
     static let noEstimate = "本月没有要上班的日子，暂时没法预计"
+
+    /// 日薪为 0 时的短版预计，面板和排队中目标用。
+    static let noEstimateShort = "暂时没法预计"
 
     /// 算天数前保留的小数位，远小于 1 天，又远大于十进制运算的末位误差。
     private static let noiseScale = 10

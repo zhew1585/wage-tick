@@ -14,8 +14,6 @@ final class TodayPanelContent {
     var status: DayStatus?
     /// 请假入口 (F6)；nil 时今天不能请假。
     var leaveForm: LeaveForm?
-    /// 底部入口栏右侧的老板路过快捷键，如「⌃⌥B」。
-    var bossHotkey: String?
     /// 正在播放的目标达成庆祝动画 (F9)；播放结束、点掉或关掉面板时清空。
     var celebration: GoalCelebration?
     /// 概览还是原地打开的表单；每次打开面板回到概览。
@@ -94,7 +92,6 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         content.panel = snap.panel
         content.status = snap.today?.status
         content.leaveForm = snap.leaveForm
-        content.bossHotkey = snap.settings.bossModeHotkey.displayText
         // 面板被挡住或正开着表单时先不播，免得牛马没看到就被确认掉；回到概览、露出来后下一次刷新再播。
         if let celebration = snap.celebration, content.route == .home, panel.occlusionState.contains(.visible) {
             play(celebration)

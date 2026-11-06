@@ -22,11 +22,11 @@ private func editing(_ date: LocalDate, _ edit: DayEdit, in state: AppState, at 
 
 private let lateFifty = Command.addDeduction(DeductionInput(amount: .fixed(50), reason: .late, note: ""))
 
-/// 2 月 2 日 (周一) 安装，4 日迟到扣 50，6 日请下午假 (50%)，9 日 18:00 至 19:30 白干。
+/// 2 月 2 日 (周一) 安装，4 日迟到扣 50，6 日请后半天 13:00 至 18:00 (50%)，9 日 18:00 至 19:30 白干。
 private func februaryWithRecords() throws -> AppState {
     var state = try onboarded(at: moment(2026, 2, 2, 9, 0))
     state = try applied(lateFifty, to: state, at: moment(2026, 2, 4, 15, 0))
-    state = try applied(.requestLeave(Leave(period: .afternoon, deductionPercent: 50)), to: state, at: moment(2026, 2, 6, 9, 0))
+    state = try applied(.setLeave(secondHalfLeave(50)), to: state, at: moment(2026, 2, 6, 9, 0))
     state = try applied(.startUnpaidWork, to: state, at: moment(2026, 2, 9, 18, 0))
     return try applied(.stopUnpaidWork, to: state, at: moment(2026, 2, 9, 19, 30))
 }
@@ -55,7 +55,7 @@ struct HistoryMonthDisplayTests {
         #expect(snap.historyMonths().map(\.badge) == ["本月 · 进行中"])
     }
 
-    @Test("3 月查看 2 月：结算总额 ¥19450 单独放，下面应出勤 20 天、扣款 ¥550 (标亏钱色)、请假 0.5 天、白干 1h30m")
+    @Test("3 月查看 2 月：结算总额 ¥19450 单独放，下面应出勤 20 天、扣款 ¥550 (标亏钱色)、请假 0.71 天、白干 1h30m")
     func figures() throws {
         let summary = try month(snapshot(of: try februaryWithRecords(), at: moment(2026, 3, 10, 15, 0))).summary
 
@@ -63,7 +63,7 @@ struct HistoryMonthDisplayTests {
         #expect(summary.figures == [
             HistoryFigure(title: "应出勤", value: "20 天"),
             HistoryFigure(title: "扣款", value: "¥550", isLoss: true),
-            HistoryFigure(title: "请假", value: "0.5 天"),
+            HistoryFigure(title: "请假", value: "0.71 天"),
             HistoryFigure(title: "白干", value: "1h30m"),
         ])
     }
@@ -98,13 +98,13 @@ struct HistoryCalendarDisplayTests {
         #expect(try month(snap).salaryText == "¥20000 → 日薪 ¥1000")
     }
 
-    @Test("AC-CAL-01 周六改成上班日后应出勤 21 天，日薪 ¥952.381")
+    @Test("AC-CAL-01 周六改成上班日后应出勤 21 天，日薪 ¥952.38")
     func salaryRowAfterOverride() throws {
         let state = try editing(feb(7), .setOverride(.attendanceDay), in: try onboarded(at: moment(2026, 2, 2, 9, 0)))
         let snap = snapshot(of: state, at: standardDay(15, 0))
 
         #expect(try month(snap).salaryCaption == "本月月薪 · 应出勤 21 天")
-        #expect(try month(snap).salaryText == "¥20000 → 日薪 ¥952.381")
+        #expect(try month(snap).salaryText == "¥20000 → 日薪 ¥952.38")
     }
 
     @Test("月小结：已结算 (同结算总额)、扣款、请假、白干")
@@ -112,9 +112,9 @@ struct HistoryCalendarDisplayTests {
         let snap = snapshot(of: try februaryWithRecords(), at: moment(2026, 2, 11, 15, 0))
 
         #expect(try month(snap).footer == [
-            HistoryFigure(title: "已结算", value: "¥7021.4286"),
+            HistoryFigure(title: "已结算", value: "¥7021.43"),
             HistoryFigure(title: "扣款", value: "¥550", isLoss: true),
-            HistoryFigure(title: "请假", value: "0.5 天"),
+            HistoryFigure(title: "请假", value: "0.71 天"),
             HistoryFigure(title: "白干", value: "1h30m"),
         ])
     }
@@ -133,16 +133,16 @@ struct HistoryCalendarDisplayTests {
         #expect(try day(snapshot(of: state, at: standardDay(15, 0)), feb(9)).amountText == "¥952")
     }
 
-    @Test("格子小字：请假写时段，改成不上班写「改休」，改成上班写「改班」，其余没有")
+    @Test("格子小字：请假写「全天」或请掉的时长，改成不上班写「改休」，改成上班写「改班」，其余没有")
     func tags() throws {
         var state = try onboarded(at: moment(2026, 2, 2, 9, 0))
-        state = try editing(feb(12), .requestLeave(Leave(period: .afternoon, deductionPercent: 50)), in: state)
-        state = try editing(feb(13), .requestLeave(Leave(period: .fullDay, deductionPercent: 100)), in: state)
+        state = try editing(feb(12), .setLeave(secondHalfLeave(50)), in: state)
+        state = try editing(feb(13), .setLeave(fullDayLeave(100)), in: state)
         state = try editing(feb(16), .setOverride(.dayOff), in: state)
         state = try editing(feb(14), .setOverride(.attendanceDay), in: state)
         let snap = snapshot(of: state, at: standardDay(15, 0))
 
-        #expect(try [12, 13, 16, 14, 10].map { try day(snap, feb($0)).tag } == ["下午", "全天", "改休", "改班", nil])
+        #expect(try [12, 13, 16, 14, 10].map { try day(snap, feb($0)).tag } == ["5h", "全天", "改休", "改班", nil])
     }
 
     @Test("改成上班的日子按上班日的颜色类型 (满勤、未到……)；只有改成不上班的日子是单日覆盖，图例写「改成不上班」")
@@ -171,7 +171,7 @@ struct HistoryDayDisplayTests {
     func breakdown() throws {
         var state = try onboarded(at: moment(2026, 2, 2, 9, 0))
         state = try editing(feb(4), .addDeduction(DeductionInput(amount: .fixed(50), reason: .late, note: "")), in: state)
-        state = try editing(feb(5), .requestLeave(Leave(period: .afternoon, deductionPercent: 50)), in: state)
+        state = try editing(feb(5), .setLeave(secondHalfLeave(50)), in: state)
         state = try editing(feb(5), .addDeduction(DeductionInput(amount: .fixed(30), reason: .late, note: "")), in: state)
         let snap = snapshot(of: state, at: standardDay(15, 0))
 
@@ -193,6 +193,6 @@ struct HistoryDayDisplayTests {
         let detail = try day(snapshot(of: try februaryWithRecords(), at: standardDay(15, 0)), feb(9)).detail
 
         #expect(detail.unpaidWork == [HistoryLine(title: "18:00 – 19:30", detail: nil, value: "1h30m")])
-        #expect(detail.editing.unpaidWorkItems.map(\.loss) == ["倒贴 ¥214.2857"])
+        #expect(detail.editing.unpaidWorkItems.map(\.loss) == ["倒贴 ¥214.29"])
     }
 }

@@ -84,7 +84,7 @@ struct DailyWageTests {
         #expect(rounded4(earned[3]) == Decimal(string: "143.2540")!)
     }
 
-    @Test("AC-BAR-03 午休暂停：12:30 观察 10 秒，停在 285.7143")
+    @Test("AC-BAR-03 饭点暂停：12:30 观察 10 秒，停在 285.7143")
     func earnedPausesDuringLunch() throws {
         let state = try onboarded()
 
@@ -92,7 +92,7 @@ struct DailyWageTests {
         #expect(snapshot(of: state, at: standardDay(12, 30, 10)).menuBar.text == "285.7143")
     }
 
-    @Test("PRD 4.3.3 状态边界：到达计划上班、午休开始、午休结束、计划下班即切换")
+    @Test("PRD 4.3.3 状态边界：到达计划上班、饭点开始、饭点结束、计划下班即切换")
     func statusSwitchesExactlyAtBoundaries() throws {
         let state = try onboarded()
         let statuses = [(10, 0), (12, 0), (13, 0), (18, 0)].map { hour, minute in
@@ -102,7 +102,7 @@ struct DailyWageTests {
         #expect(statuses == [.working, .lunchBreak, .working, .offWork])
     }
 
-    @Test("PRD 4.2.3 #4 关闭午休：计划上下班之间全部计入有效工时")
+    @Test("PRD 4.2.3 #4 关闭饭点：计划上下班之间全部计入有效工时")
     func noLunchCountsWholeDay() throws {
         let schedule = WorkSchedule(start: TimeOfDay(hour: 10, minute: 0), end: TimeOfDay(hour: 18, minute: 0), lunch: nil)
         let snap = snapshot(of: try onboarded(schedule: schedule), at: standardDay(12, 30))
@@ -143,7 +143,7 @@ struct IsEarningTests {
 struct RollingFormatTests {
     @Test("PRD 4.7.1 #5 滚动区域四舍五入到 4 位：恰好 0.00005 进位为 0.0001")
     func roundsHalfUp() throws {
-        // 月薪 28.8 ÷ 20 天 = 日薪 1.44；10:00 至 18:00 不午休共 28800 秒，第 1 秒正好赚 0.00005。
+        // 月薪 28.8 ÷ 20 天 = 日薪 1.44；10:00 至 18:00 没有饭点共 28800 秒，第 1 秒正好赚 0.00005。
         let schedule = WorkSchedule(start: TimeOfDay(hour: 10, minute: 0), end: TimeOfDay(hour: 18, minute: 0), lunch: nil)
         let state = try onboarded(salary: Decimal(string: "28.8")!, schedule: schedule)
 

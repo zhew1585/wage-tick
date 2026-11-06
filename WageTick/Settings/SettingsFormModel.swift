@@ -1,7 +1,5 @@
-import AppKit
-import Carbon.HIToolbox
+import Foundation
 import Observation
-import OSLog
 import WageCore
 
 /// 设置页某一项操作后的提示。
@@ -12,12 +10,20 @@ enum FormMessage: Equatable {
 
 /// 设置页的表单状态与动作 (PRD F12)。
 /// 每一项都发命令给核心，校验与提示文案来自核心的 `CommandError`，与引导一致 (PRD 4.3.5 #1 至 #3)。
-/// 月薪、作息在弹出的表单里改，点「保存」才生效；显示模式、快捷键、开机自启、两类通知开关改了立即生效。
+/// 月薪、休息模式、作息在弹出的表单里改，点「保存」才生效；显示模式、开机自启、两类通知开关改了立即生效。
 @MainActor
 @Observable
 final class SettingsFormModel {
-    /// 已保存的当月月薪，截掉末尾 0，如「20000」；设置页列表里展示。
+    /// 已保存的当月月薪，截掉末尾 0，如「20000」；打开月薪表单时填进输入框。
     private(set) var savedSalaryText = ""
+    /// 已保存的当月月薪，带 ¥、按金额格式，如「¥20000.50」；设置页列表里展示。
+    private(set) var savedSalaryDisplay = ""
+    /// 已保存的休息模式，如「双休」「大小周 · 这周休两天」；设置页列表里展示。
+    private(set) var savedRestModeText = ""
+    /// 已保存的休息模式对应的选项 (大小周按今天所在的周)；打开休息模式表单时预先选中。
+    private(set) var savedRestMode = RestModeChoice.twoDaysOff
+    /// 休息模式表单里的选择。
+    var restModeDraft = RestModeChoice.twoDaysOff
     /// 已保存的作息 (今天生效的)；设置页列表里展示。
     private(set) var schedule = WorkSchedule.default
     /// 月薪表单里的输入，打开表单时按已保存的填好。
@@ -27,27 +33,23 @@ final class SettingsFormModel {
     private(set) var menuBarMode = MenuBarMode.amount
     /// 显示模式各段下面的预览 (此刻菜单栏会显示的数字，如「571.4286」「57.14%」「—」)，打开设置页期间每秒刷新。
     private(set) var menuBarPreviews: [MenuBarMode: String] = [:]
-    private(set) var hotkeyText = ""
     private(set) var launchAtLogin = true
-    private(set) var isRecordingHotkey = false
     private(set) var offWorkNotification = true
     private(set) var goalReachedNotification = true
     /// 系统拒绝了通知权限：通知区显示提示 (AC-SET-05)。
     private(set) var notificationDenied = false
 
     private(set) var salaryMessage: FormMessage?
+    private(set) var restModeMessage: FormMessage?
     private(set) var scheduleMessage: FormMessage?
-    private(set) var hotkeyMessage: FormMessage?
     private(set) var launchMessage: FormMessage?
 
     @ObservationIgnored private let model: AppModel
-    /// 改完设置立即重绘菜单栏；改快捷键时重新注册全局快捷键。
+    /// 改完设置立即重绘菜单栏。
     @ObservationIgnored private weak var menuBar: StatusItemController?
     @ObservationIgnored private let notifier: SystemNotifier
-    @ObservationIgnored private var keyMonitor: Any?
-    @ObservationIgnored private let logger = Logger(subsystem: AppIdentity.bundleID, category: "Settings")
 
-    /// `menuBar` 为 nil 时 (离屏预览) 改了设置不重绘菜单栏、不重新注册快捷键。
+    /// `menuBar` 为 nil 时 (离屏预览) 改了设置不重绘菜单栏。
     init(model: AppModel, menuBar: StatusItemController?, notifier: SystemNotifier) {
         self.model = model
         self.menuBar = menuBar
@@ -67,18 +69,19 @@ final class SettingsFormModel {
         let snap = model.currentSnapshot()
         if let form = snap.settingsForm {
             savedSalaryText = form.monthlySalaryText
+            savedSalaryDisplay = form.monthlySalaryDisplay
+            updateRestMode(from: form)
             schedule = form.schedule
             launchAtLogin = form.launchAtLogin
         }
         menuBarMode = snap.settings.menuBarMode
         updatePreviews(from: snap)
-        hotkeyText = snap.settings.bossModeHotkey.displayText
         offWorkNotification = snap.settings.offWorkNotification
         goalReachedNotification = snap.settings.goalReachedNotification
         refreshNotificationPermission()
         salaryMessage = nil
+        restModeMessage = nil
         scheduleMessage = nil
-        hotkeyMessage = nil
         launchMessage = nil
     }
 
@@ -98,6 +101,12 @@ final class SettingsFormModel {
         salaryMessage = nil
     }
 
+    /// 打开休息模式表单：预先选中已保存的，清掉上次的提示。
+    func beginEditingRestMode() {
+        restModeDraft = savedRestMode
+        restModeMessage = nil
+    }
+
     /// 打开作息表单：按已保存的填好，清掉上次的提示。
     func beginEditingSchedule() {
         scheduleDraft = ScheduleDraft(schedule)
@@ -110,8 +119,24 @@ final class SettingsFormModel {
         guard salaryMessage == .saved else { return false }
         if let form = model.currentSnapshot().settingsForm {
             savedSalaryText = form.monthlySalaryText
+            savedSalaryDisplay = form.monthlySalaryDisplay
         }
         return true
+    }
+
+    /// 改休息模式，与月薪一样对当月整月生效。返回是否保存成功。
+    func saveRestMode() -> Bool {
+        restModeMessage = send(.changeRestMode(restModeDraft))
+        guard restModeMessage == .saved else { return false }
+        if let form = model.currentSnapshot().settingsForm {
+            updateRestMode(from: form)
+        }
+        return true
+    }
+
+    private func updateRestMode(from form: SettingsForm) {
+        savedRestMode = form.restModeChoice
+        savedRestModeText = form.restModeText
     }
 
     /// 改作息，从今天起生效。返回是否保存成功。
@@ -156,49 +181,6 @@ final class SettingsFormModel {
     /// 重新读一次系统通知权限：打开设置页、从系统设置切回来时调用。
     func refreshNotificationPermission() {
         Task { notificationDenied = await notifier.isDenied() }
-    }
-
-    /// 开始录制快捷键：暂停全局快捷键，接下来按下的一组键作为新快捷键，esc 取消。
-    func beginRecordingHotkey() {
-        guard keyMonitor == nil else { return }
-        hotkeyMessage = nil
-        isRecordingHotkey = true
-        menuBar?.suspendBossModeHotkey()
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            MainActor.assumeIsolated { self?.recorded(event) }
-            return nil
-        }
-    }
-
-    /// 结束录制 (取消、录到了、或关掉设置页)，恢复全局快捷键。
-    func endRecordingHotkey() {
-        guard let keyMonitor else { return }
-        NSEvent.removeMonitor(keyMonitor)
-        self.keyMonitor = nil
-        isRecordingHotkey = false
-        menuBar?.resumeBossModeHotkey()
-    }
-
-    private func recorded(_ event: NSEvent) {
-        endRecordingHotkey()
-        let hotkey = Hotkey(event: event)
-        if Int(event.keyCode) == kVK_Escape, hotkey.modifiers.isEmpty { return }
-        hotkeyMessage = changeHotkey(to: hotkey)
-        hotkeyText = model.currentSnapshot().settings.bossModeHotkey.displayText
-    }
-
-    /// 先校验，再在系统注册新组合，成功后才保存；注册失败时旧快捷键保持有效 (PRD 6.4)。
-    private func changeHotkey(to hotkey: Hotkey) -> FormMessage {
-        if let error = Validation.hotkey(hotkey) { return .error(error.message) }
-        let old = model.currentSnapshot().settings.bossModeHotkey
-        guard menuBar?.rebindBossModeHotkey(hotkey) == true else {
-            return .error("这个快捷键被系统或别的软件占用了，换一个吧")
-        }
-        let result = send(.setBossModeHotkey(hotkey))
-        if result != .saved, menuBar?.rebindBossModeHotkey(old) != true {
-            logger.error("快捷键保存失败后换回旧组合也失败了，老板路过只能从左键菜单切换")
-        }
-        return result
     }
 
     /// 发命令并立即重绘菜单栏，返回要展示的提示。

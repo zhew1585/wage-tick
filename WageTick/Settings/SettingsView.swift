@@ -1,7 +1,7 @@
 import SwiftUI
 import WageCore
 
-/// 设置页 (PRD F12，设计稿 P6 设置 · 760)：钱与作息 (月薪、上下班、午休，点开弹表单改)，菜单栏 (显示模式与各模式预览、老板路过快捷键)，
+/// 设置页 (PRD F12，设计稿 P6 设置 · 休息模式 · 760)：钱与作息 (月薪、休息模式、作息，点开弹表单改；作息一行同时显示上下班与饭点，二者在同一个表单里改)，菜单栏 (显示模式与各模式预览)，
 /// 通知与启动 (下班通知、目标达成通知、开机自启)，系统拒绝通知时的提示条，数据 (清空数据并重启)。一屏放得下，放不下时滚动。
 /// 只管排版，动作与提示都在 `SettingsFormModel`。
 struct SettingsView: View {
@@ -12,7 +12,7 @@ struct SettingsView: View {
     @State private var confirmingReset = false
 
     private enum Sheet: Identifiable {
-        case salary, schedule
+        case salary, restMode, schedule
         var id: Self { self }
     }
 
@@ -36,6 +36,7 @@ struct SettingsView: View {
         .sheet(item: $sheet) { sheet in
             switch sheet {
             case .salary: SalarySettingSheet(form: form, dismiss: { self.sheet = nil })
+            case .restMode: RestModeSettingSheet(form: form, dismiss: { self.sheet = nil })
             case .schedule: ScheduleSettingSheet(form: form, dismiss: { self.sheet = nil })
             }
         }
@@ -46,14 +47,17 @@ struct SettingsView: View {
     private var moneySection: some View {
         SettingsGroup("钱与作息") {
             CardBox {
-                NavigationRow(title: "本月月薪", value: "¥\(form.savedSalaryText)", emphasized: true) {
+                NavigationRow(title: "本月月薪", value: form.savedSalaryDisplay, emphasized: true) {
                     form.beginEditingSalary()
                     sheet = .salary
                 }
                 CardDivider()
-                NavigationRow(title: "上下班", value: form.schedule.workText, action: openSchedule)
+                NavigationRow(title: "休息模式", value: form.savedRestModeText) {
+                    form.beginEditingRestMode()
+                    sheet = .restMode
+                }
                 CardDivider()
-                NavigationRow(title: "午休", value: form.schedule.lunchText, action: openSchedule)
+                NavigationRow(title: "作息", value: form.schedule.summaryText, action: openSchedule)
             }
         }
     }
@@ -78,50 +82,8 @@ struct SettingsView: View {
                 }
                 .padding(.horizontal, Spacing.s14)
                 .padding(.vertical, Spacing.s12 - 1)
-                CardDivider()
-                hotkeyRow
             }
-            message(form.hotkeyMessage)
         }
-    }
-
-    /// 老板路过快捷键：点按键帽开始录制，录制中再点或按 esc 取消。
-    private var hotkeyRow: some View {
-        HStack(spacing: Spacing.s8) {
-            VStack(alignment: .leading, spacing: Spacing.s2) {
-                Text("老板路过").font(AppFont.body).foregroundStyle(Palette.ink)
-                Text(form.isRecordingHotkey ? "至少按住两个修饰键，且包含 ⌃ 或 ⌘；esc 取消" : "一键隐藏数字，只剩小牛")
-                    .font(AppFont.small)
-                    .foregroundStyle(Palette.muted)
-            }
-            Spacer(minLength: Spacing.s8)
-            Button {
-                if form.isRecordingHotkey {
-                    form.endRecordingHotkey()
-                } else {
-                    form.beginRecordingHotkey()
-                }
-            } label: {
-                if form.isRecordingHotkey {
-                    Text("按下新组合…")
-                        .font(AppFont.ui(11, .semibold))
-                        .foregroundStyle(Palette.accent)
-                        .padding(.horizontal, Spacing.s8)
-                        .frame(height: KeyCap.size)
-                        .background(Palette.accentSoft, in: RoundedRectangle(cornerRadius: Radius.r5))
-                } else {
-                    HStack(spacing: Spacing.s4) {
-                        ForEach(Array(KeyCap.split(form.hotkeyText).enumerated()), id: \.offset) { _, key in
-                            KeyCap(text: key)
-                        }
-                    }
-                }
-            }
-            .buttonStyle(.highlight(radius: Radius.r5, outset: Spacing.s3))
-            .help(form.isRecordingHotkey ? "取消录制" : "点一下录制新的快捷键")
-        }
-        .padding(.horizontal, Spacing.s14)
-        .padding(.vertical, Spacing.s12 - 1)
     }
 
     // MARK: 通知与启动
@@ -180,7 +142,7 @@ struct SettingsView: View {
         .help("打开系统设置")
     }
 
-    /// 立即生效的设置被拒时的提示；成功不提示，开关、按键帽本身就是结果。
+    /// 立即生效的设置被拒时的提示；成功不提示，开关本身就是结果。
     @ViewBuilder
     private func message(_ message: FormMessage?) -> some View {
         if case .error(let text) = message {
@@ -210,6 +172,7 @@ private struct SettingsGroup<Content: View>: View {
 /// 卡片里可点开的一行：左边名称，右边当前值 (12 号等宽) 与箭头；悬停、按下整行叠一层底，手型光标。
 private struct NavigationRow: View {
     let title: String
+    /// 右侧的值，可以有多行 (如作息的上下班与饭点)，各行靠右对齐。
     let value: String
     /// 值用 ink 色 (月薪)，否则 muted (时段)。
     var emphasized = false
@@ -220,7 +183,11 @@ private struct NavigationRow: View {
             HStack(spacing: Spacing.s4) {
                 Text(title).font(AppFont.body).foregroundStyle(Palette.ink)
                 Spacer(minLength: Spacing.s8)
-                Text(value).font(AppFont.numCaption).foregroundStyle(emphasized ? Palette.ink : Palette.muted)
+                Text(value)
+                    .font(AppFont.numCaption)
+                    .foregroundStyle(emphasized ? Palette.ink : Palette.muted)
+                    .multilineTextAlignment(.trailing)
+                    .lineSpacing(Spacing.s2)
                 PhosphorIcon(.caretRight, size: 12).foregroundStyle(Palette.muted)
             }
             .padding(.horizontal, Spacing.s14)
@@ -228,32 +195,6 @@ private struct NavigationRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.highlight(radius: 0))
-    }
-}
-
-/// 快捷键的一个按键帽 (24×24，surface 底、line 描边、圆角 5、11/600 等宽)。
-private struct KeyCap: View {
-    let text: String
-
-    static let size: CGFloat = 24
-    private static let modifiers: Set<Character> = ["⌃", "⌥", "⇧", "⌘"]
-
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.r5)
-        Text(text)
-            .font(AppFont.num(11, .semibold))
-            .foregroundStyle(Palette.ink)
-            .padding(.horizontal, Spacing.s6)
-            .frame(minWidth: Self.size, minHeight: Self.size)
-            .background(Palette.surface, in: shape)
-            .overlay(shape.strokeBorder(Palette.line, lineWidth: 1))
-    }
-
-    /// 「⌃⌥B」拆成一个个按键帽：修饰键各一个，剩下的主键一个 (主键可能不止一个字，如「F1」)。
-    static func split(_ text: String) -> [String] {
-        let mods = text.prefix { modifiers.contains($0) }.map(String.init)
-        let key = String(text.dropFirst(mods.count))
-        return key.isEmpty ? mods : mods + [key]
     }
 }
 
@@ -273,7 +214,23 @@ private struct SalarySettingSheet: View {
     }
 }
 
-/// 改作息的表单 (PRD 4.2.3 #2)：上下班与午休。
+/// 改休息模式的表单 (PRD 4.2.2)：四选一，预先选中当前的；对本月整月生效。
+struct RestModeSettingSheet: View {
+    @Bindable var form: SettingsFormModel
+    let dismiss: () -> Void
+
+    var body: some View {
+        SettingSheet(title: "休息模式", footnote: "对本月整月生效，本月日薪跟着重算", message: form.restModeMessage, save: save, dismiss: dismiss) {
+            RestModePicker(selection: form.restModeDraft) { form.restModeDraft = $0 }
+        }
+    }
+
+    private func save() {
+        if form.saveRestMode() { dismiss() }
+    }
+}
+
+/// 改作息的表单 (PRD 4.2.3 #2)：上下班与饭点。
 private struct ScheduleSettingSheet: View {
     @Bindable var form: SettingsFormModel
     let dismiss: () -> Void
@@ -325,11 +282,14 @@ extension WorkSchedule {
     /// 设置页展示的上下班，如「10:00 – 18:00」。
     var workText: String { "\(start.clockText) – \(end.clockText)" }
 
-    /// 设置页展示的午休，如「12:00 – 13:00」；不午休时「不午休」。
+    /// 设置页展示的饭点，如「饭点 12:00 – 13:00」；没有饭点时「没有饭点」。
     var lunchText: String {
-        guard let lunch else { return "不午休" }
-        return "\(lunch.start.clockText) – \(lunch.end.clockText)"
+        guard let lunch else { return "没有饭点" }
+        return "饭点 \(lunch.start.clockText) – \(lunch.end.clockText)"
     }
+
+    /// 设置页「作息」一行右侧的两行：上下班，换行后饭点。
+    var summaryText: String { "\(workText)\n\(lunchText)" }
 }
 
 extension TimeOfDay {

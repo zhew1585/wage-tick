@@ -4,7 +4,7 @@ import SwiftUI
 import WageCore
 
 /// 离屏渲染面板与两个表单的各个状态，存成 PNG，和设计稿 (P2、F5、F6 · 760) 对照用。只在 Debug 构建里。
-/// 状态全部在内存里用核心命令造出来 (2026 年 11 月，月薪 21000、10:00 至 18:00、午休 12:00 至 13:00，日薪 1000)，
+/// 状态全部在内存里用核心命令造出来 (2026 年 11 月，月薪 21000、10:00 至 18:00、饭点 12:00 至 13:00，日薪 1000)，
 /// 不起菜单栏、不读写 state.json，可以和正在跑的 App 同时用。
 ///
 /// 入口是 C 符号 `wagetick_render_panel_previews(目录)`：Debug 构建关掉 hardened runtime 后，
@@ -42,11 +42,10 @@ private enum PanelPreviews {
             try $0.send(.addDeduction(DeductionInput(amount: .fixed(50), reason: .late, note: "地铁又晚了五分钟")))
         }
         let unpaid = try at(fined, day: 5, 18, 0) { try $0.send(.startUnpaidWork) }
-        let afternoonLeave = try at(base, day: 5, 9, 0) {
-            try $0.send(.requestLeave(Leave(period: .afternoon, deductionPercent: 50)))
-        }
-        let morningLeave = try at(try onboarded(), day: 5, 9, 0) {
-            try $0.send(.requestLeave(Leave(period: .morning, deductionPercent: 50)))
+        let middle = Leave(start: TimeOfDay(hour: 14, minute: 0), end: TimeOfDay(hour: 16, minute: 0), deductionPercent: Decimal(string: "28.57")!)
+        let middleLeave = try at(base, day: 5, 9, 0) { try $0.send(.setLeave(middle)) }
+        let firstHalfLeave = try at(try onboarded(), day: 5, 9, 0) {
+            try $0.send(.setLeave(Leave(start: TimeOfDay(hour: 10, minute: 0), end: TimeOfDay(hour: 12, minute: 0), deductionPercent: 50)))
         }
         let percentItem = try at(base, day: 5, 15, 0) {
             try $0.send(.addDeduction(DeductionInput(amount: .percentOfDailyWage(10), reason: .late, note: "地铁又晚了五分钟")))
@@ -55,14 +54,17 @@ private enum PanelPreviews {
             ("P2-working", panel(base, day: 5, 15, 0)),
             ("P2-off-work", panel(base, day: 5, 18, 30)),
             ("P2-unpaid-work", panel(unpaid, day: 5, 19, 5, 12)),
+            // 5 日 18:00 开始没停，过了零点 6 日 00:30 仍在白干中 (6 日 10:00 计划上班时自动停止)。
+            ("P2-unpaid-work-past-midnight", panel(unpaid, day: 6, 0, 30)),
             ("P2-off-work-fined", panel(fined, day: 5, 18, 30)),
             ("P2-rest-day", panel(base, day: 7, 10, 12, 40)),
-            ("P2-morning-leave-no-goal", panel(morningLeave, day: 5, 15, 0)),
+            ("P2-first-half-leave-no-goal", panel(firstHalfLeave, day: 5, 15, 0)),
+            ("P2-middle-leave", panel(middleLeave, day: 5, 15, 0)),
             ("F5-add", panel(base, day: 5, 15, 0, route: .deduction(.add))),
             ("F5-edit-fixed", panel(fined, day: 5, 15, 0, route: .deduction(.edit(firstDeduction(fined, day: 5))))),
             ("F5-edit-percent", panel(percentItem, day: 5, 15, 0, route: .deduction(.edit(firstDeduction(percentItem, day: 5))))),
             ("F6-request", panel(base, day: 5, 9, 0, route: .leave(.request))),
-            ("F6-edit-afternoon", panel(afternoonLeave, day: 5, 9, 0, route: .leave(.edit(Leave(period: .afternoon, deductionPercent: 50))))),
+            ("F6-edit-middle", panel(middleLeave, day: 5, 9, 0, route: .leave(.edit(middle)))),
         ]
     }
 
@@ -132,7 +134,6 @@ private enum PanelPreviews {
         content.panel = snap.panel
         content.status = snap.today?.status
         content.leaveForm = snap.leaveForm
-        content.bossHotkey = snap.settings.bossModeHotkey.displayText
         content.route = route
         let actions = PanelActions(
             dryRun: { command in

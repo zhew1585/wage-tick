@@ -2,18 +2,16 @@ import Foundation
 
 /// 改变状态的动作。所有状态变化都经 `apply` 执行一条命令完成。
 public enum Command: Sendable, Equatable {
-    /// 完成引导 (PRD 4.1.1)：设计稿 760 版只有月薪、作息两步，开机自启不再询问。
+    /// 完成引导 (PRD 4.1.1)：设计稿 760 版只有月薪 (含休息模式)、作息两步，开机自启不再询问。
     case completeOnboarding(OnboardingInput)
-    /// 开启或关闭老板路过模式 (PRD 4.7.1 第 3 条)，由全局快捷键或左键菜单发出。
-    case toggleBossMode
     /// 修改当月月薪，对当月整月生效 (PRD 4.2.1 #1)。
     case changeMonthlySalary(Decimal)
     /// 修改作息，从今天起生效 (PRD 4.2.3 #2)。
     case changeSchedule(WorkSchedule)
+    /// 修改休息模式，与月薪一样对当月整月生效，过去的月份不变 (PRD 4.2.2)。
+    case changeRestMode(RestModeChoice)
     /// 切换菜单栏显示模式 (PRD 4.7.1 第 2 条)。
     case setMenuBarMode(MenuBarMode)
-    /// 修改老板路过快捷键 (PRD 4.7.2)。
-    case setBossModeHotkey(Hotkey)
     /// 开关开机自动启动 (PRD 4.7.2)。
     case setLaunchAtLogin(Bool)
     /// 给今天记一笔扣钱 (PRD 4.4.1、F5)。
@@ -22,17 +20,15 @@ public enum Command: Sendable, Equatable {
     case editDeduction(id: Int, DeductionInput)
     /// 删除今天的一笔扣钱记录。
     case deleteDeduction(id: Int)
-    /// 今天请假 (PRD 4.4.2、F6)：与今天已有的另一半天假合并为全天 (4.3.5 #21)，其余情况替换。
-    case requestLeave(Leave)
-    /// 修改今天的请假：整条替换，不合并 (4.4.2 #5)。
-    case editLeave(Leave)
+    /// 今天请假或修改今天的请假 (PRD 4.4.2、F6)：一天只有一条，已有时整条替换 (4.4.2 #4、#5)。
+    case setLeave(Leave)
     /// 撤销今天的请假，当天恢复为普通应出勤日 (4.4.2 #5)；没有请假时什么都不变。
     case cancelLeave
     /// 开始白干计时 (PRD 4.4.3)："我还没走"或"被迫营业"。
     case startUnpaidWork
     /// 停止白干计时："终于下班了"。
     case stopUnpaidWork
-    /// 推进到此刻：处理随时间发生的状态变化，依次为白干到 23:59:59 自动停止、累计中目标达成 (产生一次达成事件)、
+    /// 推进到此刻：处理随时间发生的状态变化，依次为白干到下一次计划上班自动停止、累计中目标达成 (产生一次达成事件)、
     /// 跨过当日计划下班 (产生一次下班事件，PRD 4.6.3)。
     /// 外壳每次刷新时先发它，再取快照。
     case advance
@@ -64,19 +60,22 @@ public enum Command: Sendable, Equatable {
 public struct OnboardingInput: Sendable, Equatable {
     public let monthlySalary: Decimal
     public let schedule: WorkSchedule
+    /// 第 1 步「怎么休」选的休息模式，默认双休 (PRD 4.7.2)；大小周按完成引导那天所在的周定下大小。
+    public let restMode: RestModeChoice
     /// 引导不再询问开机自启 (设计稿 760 版)，外壳不传，按 PRD 4.7.2 的默认值开；之后可在设置里改。
     public let launchAtLogin: Bool
 
-    public init(monthlySalary: Decimal, schedule: WorkSchedule, launchAtLogin: Bool = true) {
+    public init(monthlySalary: Decimal, schedule: WorkSchedule, restMode: RestModeChoice = .twoDaysOff, launchAtLogin: Bool = true) {
         self.monthlySalary = monthlySalary
         self.schedule = schedule
+        self.restMode = restMode
         self.launchAtLogin = launchAtLogin
     }
 }
 
 /// 命令执行后产生的领域事件，外壳据此发系统通知。
 public enum DomainEvent: Sendable, Equatable {
-    /// 到达当日计划下班 (PRD 4.6.3)。`message` 是通知正文，已按老板路过模式决定是否含金额，外壳原样发出。
+    /// 到达当日计划下班 (PRD 4.6.3)。`message` 是通知正文，含今日结算金额，外壳原样发出。
     case offWork(message: String)
     /// 累计中目标完成 (PRD 4.6.3)。`message` 是通知正文，不含金额，外壳原样发出。
     case goalReached(message: String)
@@ -89,13 +88,14 @@ public enum CommandError: Error, Sendable, Equatable {
     case lunchOutsideWorkHours
     case alreadyOnboarded
     case notOnboarded
-    case hotkeyKeyInvalid
-    case hotkeyModifiersInvalid
     case deductionNotPositive
     case deductionNoteTooLong
     case notAttendanceDay
     case deductionNotFound
     case leavePercentOutOfRange
+    case leaveOutsideWorkHours
+    case leaveTooShort
+    case leaveOffStep
     case unpaidWorkUnavailable
     case unpaidWorkAlreadyRunning
     case unpaidWorkNotRunning
@@ -107,22 +107,25 @@ public enum CommandError: Error, Sendable, Equatable {
     case unpaidWorkEndNotAfterStart
     case unpaidWorkOverlap
     case unpaidWorkInFuture
+    case unpaidWorkBeyondAutoStop
     case unpaidWorkNotFound
 
     public var message: String {
         switch self {
         case .salaryNotPositive: "月薪得是个正数"
         case .endNotAfterStart: "下班时间要晚于上班时间"
-        case .lunchOutsideWorkHours: "午休要在上下班时间之内"
+        case .lunchOutsideWorkHours: "饭点要在上下班时间之内"
         case .alreadyOnboarded: "已经完成过引导了"
         case .notOnboarded: "还没完成引导"
-        case .hotkeyKeyInvalid: "主键只能是字母或数字"
-        case .hotkeyModifiersInvalid: "快捷键要按住两个以上修饰键，且包含 ⌃ 或 ⌘"
         case .deductionNotPositive: "扣钱金额得大于 0"
         case .deductionNoteTooLong: "备注最多 \(Validation.deductionNoteLimit) 个字"
         case .notAttendanceDay: "今天本来就不上班"
         case .deductionNotFound: "这笔扣钱已经不在了"
         case .leavePercentOutOfRange: "扣薪比例要在 0% 到 100% 之间"
+        // 以下三条 PRD 没给文案：时间条只能拖出合规的时段，正常用不到。
+        case .leaveOutsideWorkHours: "请假要在上下班时间之内"
+        case .leaveTooShort: "请假至少 \(Validation.leaveMinimumMinutes) 分钟"
+        case .leaveOffStep: "请假时间按 \(Validation.leaveStepMinutes) 分钟取整"
         // 以下三条 PRD 没给文案：外壳只在快照允许时才提供按钮，正常用不到。
         case .unpaidWorkUnavailable: "下班后或休息日才能白干计时"
         case .unpaidWorkAlreadyRunning: "已经在白干计时了"
@@ -138,6 +141,7 @@ public enum CommandError: Error, Sendable, Equatable {
         case .unpaidWorkEndNotAfterStart: "结束时间要晚于开始时间"
         case .unpaidWorkOverlap: "和这天已有的白干段重叠了"
         case .unpaidWorkInFuture: "还没到这个时间"
+        case .unpaidWorkBeyondAutoStop: "结束不能晚于下一个上班日的上班时间"
         case .unpaidWorkNotFound: "这段白干已经不在了"
         }
     }
@@ -145,30 +149,26 @@ public enum CommandError: Error, Sendable, Equatable {
 
 /// 核心入口一：在 `now` 时刻对 `state` 执行 `command`，返回新状态与领域事件。
 /// 校验失败时抛出 `CommandError`，原状态不受影响。
-/// `holidays` 用于需要判定应出勤日的命令 (如记扣钱、请假、白干计时、新建目标、推进到此刻)；不传时为空表，只按双休。
-/// 状态里的单日覆盖在这里并入节假日表，各命令拿到的 `holidays` 已带上覆盖 (PRD 4.2.2)。
+/// `holidays` 用于需要判定应出勤日的命令 (如记扣钱、请假、白干计时、新建目标、推进到此刻)；不传时为空表，只按休息模式。
+/// 状态里的单日覆盖与各月的休息模式在这里并入节假日表，各命令拿到的 `holidays` 已带上 (PRD 4.2.2)。
 public func apply(
     _ command: Command,
     to state: AppState,
     at now: Moment,
     holidays: HolidayTable = .empty
 ) throws(CommandError) -> (state: AppState, events: [DomainEvent]) {
-    let holidays = holidays.overlaying(state.dayRecords)
+    let holidays = holidays.overlaying(state)
     switch command {
     case .completeOnboarding(let input):
         return (try completeOnboarding(input, state: state, now: now), [])
-    case .toggleBossMode:
-        var next = state
-        next.settings.bossMode.toggle()
-        return (next, [])
     case .changeMonthlySalary(let amount):
         return (try changeMonthlySalary(amount, state: state, now: now), [])
     case .changeSchedule(let schedule):
         return (try changeSchedule(schedule, state: state, now: now), [])
+    case .changeRestMode(let choice):
+        return (try changeRestMode(choice, state: state, now: now), [])
     case .setMenuBarMode(let mode):
         return (setMenuBarMode(mode, state: state), [])
-    case .setBossModeHotkey(let hotkey):
-        return (try setBossModeHotkey(hotkey, state: state), [])
     case .setLaunchAtLogin(let enabled):
         return (try setLaunchAtLogin(enabled, state: state), [])
     // 面板上的扣钱、请假只作用于今天 (#7、#8)，与历史编辑走同一套逻辑；不检查历史范围，
@@ -179,16 +179,14 @@ public func apply(
         return (try editDeduction(id: id, input, on: now.localDate, state: state, now: now, holidays: holidays), [])
     case .deleteDeduction(let id):
         return (try deleteDeduction(id: id, on: now.localDate, state: state), [])
-    case .requestLeave(let leave):
-        return (try setLeave(leave, mergingWithExisting: true, on: now.localDate, state: state, holidays: holidays), [])
-    case .editLeave(let leave):
-        return (try setLeave(leave, mergingWithExisting: false, on: now.localDate, state: state, holidays: holidays), [])
+    case .setLeave(let leave):
+        return (try setLeave(leave, on: now.localDate, state: state, holidays: holidays), [])
     case .cancelLeave:
         return (cancelLeave(on: now.localDate, state: state), [])
     case .startUnpaidWork:
         return (try startUnpaidWork(state: state, now: now, holidays: holidays), [])
     case .stopUnpaidWork:
-        return (try stopUnpaidWork(state: state, now: now), [])
+        return (try stopUnpaidWork(state: state, now: now, holidays: holidays), [])
     case .advance:
         return advance(state, now: now, holidays: holidays)
     case .createGoal(let name, let amount):
@@ -227,6 +225,7 @@ private func completeOnboarding(_ input: OnboardingInput, state: AppState, now: 
         installDate: today,
         salaries: [MonthlySalary(month: today.yearMonth, amount: input.monthlySalary)],
         schedule: input.schedule,
+        restMode: input.restMode.mode(on: today),
         launchAtLogin: input.launchAtLogin
     )
     return next

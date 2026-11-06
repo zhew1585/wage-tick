@@ -36,10 +36,12 @@ struct TodayPanelView: View {
                     subtitle: content.panel?.dateText, dismiss: goHome
                 )
             case .leave(let mode):
-                LeaveFormView(
-                    mode: mode, actions: actions, initialForm: content.leaveForm,
-                    subtitle: content.panel?.dateText, dismiss: goHome
-                )
+                // 请假入口只在有请假表单时出现；表单在打开期间消失 (如过了零点) 时回到概览。
+                if let form = content.leaveForm {
+                    LeaveFormView(mode: mode, form: form, actions: actions, subtitle: content.panel?.dateText, dismiss: goHome)
+                } else {
+                    home
+                }
             }
         }
         .frame(width: PanelMetrics.width)
@@ -47,14 +49,20 @@ struct TodayPanelView: View {
         .background(Palette.bg)
     }
 
-    /// 概览：上面各段在窗口里滚动 (提示条多了时可能放不下)，情绪按钮与底部入口栏固定在窗口底部。
+    /// 概览：情绪按钮与底部入口栏固定在窗口底部，上面各段占剩下的高度。
+    /// 攒钱队列按放得下的程度依次收紧 (`GoalDensity`)，最紧的也放不下 (提示条多了) 时整段滚动。
     private var home: some View {
         VStack(spacing: 0) {
             if let panel = content.panel {
-                ScrollBody { homeSections(panel) }
+                ViewThatFits(in: .vertical) {
+                    homeSections(panel, density: .full)
+                    homeSections(panel, density: .oneQueued)
+                    homeSections(panel, density: .minimal)
+                    ScrollBody { homeSections(panel, density: .minimal) }
+                }
+                .frame(maxHeight: .infinity, alignment: .top)
                 actionsSection(panel)
                 PanelFooter(
-                    bossHotkey: content.bossHotkey,
                     openHistory: navigation.openHistory,
                     openGoals: navigation.openGoals,
                     openSettings: navigation.openSettings
@@ -69,7 +77,7 @@ struct TodayPanelView: View {
         }
     }
 
-    private func homeSections(_ panel: TodayPanel) -> some View {
+    private func homeSections(_ panel: TodayPanel, density: GoalDensity) -> some View {
         VStack(spacing: 0) {
             notices(panel.notices)
             PanelTopBar(panel: panel)
@@ -85,6 +93,7 @@ struct TodayPanelView: View {
                 card: panel.goal,
                 queue: panel.goalQueue,
                 countText: panel.goalCountText,
+                density: density,
                 openGoals: navigation.openGoals
             )
         }
@@ -127,11 +136,11 @@ struct TodayPanelView: View {
         PanelStatsRow(stats: attendance.stats)
     }
 
-    /// 白干计时中：与上班中同样的结构，主数字为今日已倒贴，进度区换成「终于下班了」(F4 第 4 条)。
+    /// 白干计时中：与上班中同样的结构，主数字为今日已倒贴 (跨过零点后为开始那天的，标签取自快照)，进度区换成「终于下班了」(F4 第 4 条)。
     @ViewBuilder
     private func unpaidWorkSection(_ unpaidWork: UnpaidWorkPanel, button: UnpaidWorkButton?) -> some View {
         PanelHero(
-            label: "今日已倒贴",
+            label: unpaidWork.label,
             headline: unpaidWork.headline,
             caption: unpaidWork.caption
         )
@@ -170,7 +179,7 @@ struct TodayPanelView: View {
     }
 
     /// 进度区位置上的白干计时按钮 (我还没走、终于下班了)：主按钮高 48、文字 14、图标 16。文案和命令都取自快照，原样发出。
-    /// 不可用时 (已过 23:59:59) 留出同高的空位。
+    /// 不可用时留出同高的空位 (正常用不到：已下班且没在计时时总能开始)。
     @ViewBuilder
     private func unpaidWorkButton(_ button: UnpaidWorkButton?) -> some View {
         if let button {

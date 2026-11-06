@@ -35,7 +35,7 @@ public struct HistoryDay: Sendable, Equatable, Identifiable {
     public let isToday: Bool
     /// 格子里的金额，四舍五入到元，如「¥950」：已过的应出勤日为结算，今天为今日已赚；未来与不应出勤的日子为 nil。
     public let amountText: String?
-    /// 格子里的小字：请假写时段 (如「下午」)，改成不上班写「改休」，改成上班写「改班」；其余为 nil。
+    /// 格子里的小字：请假写「全天」或请掉的时长 (如「2h」)，改成不上班写「改休」，改成上班写「改班」；其余为 nil。
     public let tag: String?
     /// 点开这一天看到的单日详情。
     public let detail: HistoryDayDetail
@@ -49,7 +49,7 @@ public enum CalendarDayKind: Sendable, Equatable, CaseIterable {
     case fullAttendance
     /// 被扣钱：有扣钱记录。
     case deducted
-    /// 请假：全天或半天。
+    /// 请假：全天或一段。
     case leave
     /// 休息日：不应出勤。
     case rest
@@ -89,9 +89,9 @@ public struct HistoryDayDetail: Sendable, Equatable {
     public let breakdown: String?
     /// 扣款明细，按记录先后。不应出勤的日子 (单日覆盖或节假日表更新后变成不上班) 已有的也列出，不计入结算，可删除。
     public let deductions: [DeductionItem]
-    /// 请假，如「下午假 · 扣薪 50% · −¥500」；没请假为 nil。不应出勤的日子已有的同样列出。
+    /// 请假，如「请假 14:00–16:00 · 扣薪 28.57% · −¥285.71」，请掉全部工时时标题为「全天请假」；没请假为 nil。不应出勤的日子已有的同样列出。
     public let leave: HistoryLine?
-    /// 白干段，按开始时刻先后，标题如「18:00 – 19:30」、数值如「1h30m」；疑似通宵、计时中写在 `detail`。
+    /// 白干段，按开始时刻先后，标题如「18:00 – 19:30」「23:00 – 次日 01:30」、数值如「1h30m」；可能忘了停、计时中写在 `detail`。
     /// 每段倒贴见 `editing.unpaidWorkItems`。
     public let unpaidWork: [HistoryLine]
     /// 不应出勤的日子还留着扣钱或请假时的提示，否则为 nil (#14 遗留)。
@@ -162,7 +162,7 @@ extension HistoryLedger {
                 leave: leaveLine(day, settlement: shown),
                 unpaidWork: unpaidWork,
                 notice: staleNotice(day),
-                editing: editing(day, unpaidWorkLines: unpaidWork, dailyWage: dailyWage)
+                editing: editing(day, unpaidWorkLines: unpaidWork)
             )
         )
     }
@@ -183,9 +183,13 @@ extension HistoryLedger {
         return amount.map(Format.wholeMoney)
     }
 
-    /// 格子小字：请假时段优先，其次单日覆盖的方向。
+    /// 格子小字：请假优先 (全天为「全天」，否则为请掉的时长，如「2h」「1.5h」「40m」，格子窄)，其次单日覆盖的方向。
     private func tag(_ day: DayLedger) -> String? {
-        if day.isAttendanceDay, let leave = day.record?.leave { return leave.period.label }
+        if day.isAttendanceDay, let leave = day.record?.leave {
+            let minutes = leave.range.span.length
+            if leave.isFullDay(day.schedule) { return "全天" }
+            return minutes < 60 ? "\(minutes)m" : "\(Format.workHours(milliseconds: minutes * 60_000))h"
+        }
         return switch day.record?.override {
         case .dayOff: "改休"
         case .attendanceDay: "改班"
@@ -197,9 +201,9 @@ extension HistoryLedger {
     private func breakdown(_ settlement: DaySettlement) -> String? {
         let fines = settlement.deductions.map(\.money).reduce(0, +)
         guard settlement.leaveDeduction > 0 || fines > 0 else { return nil }
-        let leave = settlement.leaveDeduction > 0 ? ["请假 \(Format.trimmed(settlement.leaveDeduction))"] : []
-        let fine = fines > 0 ? ["扣款 \(Format.trimmed(fines))"] : []
-        return (["日薪 \(Format.trimmed(settlement.dailyWage))"] + leave + fine).joined(separator: " − ")
+        let leave = settlement.leaveDeduction > 0 ? ["请假 \(Format.amount(settlement.leaveDeduction))"] : []
+        let fine = fines > 0 ? ["扣款 \(Format.amount(fines))"] : []
+        return (["日薪 \(Format.amount(settlement.dailyWage))"] + leave + fine).joined(separator: " − ")
     }
 
     private func stats(_ day: DayLedger) -> [StatItem] {
@@ -222,27 +226,27 @@ extension HistoryLedger {
     private func leaveLine(_ day: DayLedger, settlement: DaySettlement?) -> HistoryLine? {
         guard let settlement, let leave = day.record?.leave else { return nil }
         return HistoryLine(
-            title: "\(leave.period.label)假",
+            title: leave.isFullDay(day.schedule) ? "全天请假" : "请假 \(Format.span(leave.range.span))",
             detail: "扣薪 \(Format.percent(leave.deductionPercent / 100))",
             value: Format.deductionOrZero(settlement.leaveDeduction)
         )
     }
 
-    /// 白干段：结束了的写「开始 – 结束」，到 23:59:59 被自动停止 (或该停还没推进) 的标疑似通宵 (PRD 4.3.5 #12)，
-    /// 计时中的写「开始 起」。时长如「1h30m」。
+    /// 白干段：结束了的写「开始 – 结束」，结束在次日写「23:00 – 次日 01:30」，更晚写「18:00 – 11月9日 09:00」；
+    /// 被自动停止 (或该停还没推进) 的标可能忘了停 (PRD 4.3.5 #12)，计时中的写「开始 起」。时长如「1h30m」。
     private func unpaidWorkLines(_ day: DayLedger) -> [HistoryLine] {
-        let now = inputs.now
-        let cutoff = now.unpaidWorkCutoff(on: day.date)
-        let clock = { (date: Date) in Format.time(Moment(date: date, timeZone: now.timeZone)) }
+        let timeZone = inputs.now.timeZone
         return day.unpaidWork.map { timed in
             let segment = timed.segment
             let duration = Format.compactDuration(milliseconds: timed.milliseconds)
-            if segment.isRunning(on: day.date, now: now) {
-                return HistoryLine(title: "\(clock(segment.start)) 起", detail: "计时中", value: duration)
+            let start = Format.time(Moment(date: segment.start, timeZone: timeZone))
+            if clock.isRunning(segment, on: day.date) {
+                return HistoryLine(title: "\(start) 起", detail: "计时中", value: duration)
             }
+            let end = Format.endTime(clock.end(of: segment, on: day.date), from: day.date, timeZone: timeZone)
             return HistoryLine(
-                title: "\(clock(segment.start)) – \(clock(segment.end ?? cutoff))",
-                detail: segment.isSuspectedAllNighter(on: day.date, now: now) ? "疑似通宵" : nil,
+                title: "\(start) – \(end)",
+                detail: clock.isAutoStopped(segment, on: day.date) ? "可能忘了停" : nil,
                 value: duration
             )
         }
@@ -252,5 +256,16 @@ extension HistoryLedger {
     private func staleNotice(_ day: DayLedger) -> String? {
         guard !day.isAttendanceDay, let record = day.record, !record.deductions.isEmpty || record.leave != nil else { return nil }
         return "这天不上班，下面的扣钱和请假不计入结算，可以删掉"
+    }
+}
+
+extension Format {
+    /// 白干段的结束时刻，`day` 是开始那天：同一天只写时分，如「19:30」；次日如「次日 01:30」；更晚带月日，如「11月9日 09:00」。
+    static func endTime(_ end: Date, from day: LocalDate, timeZone: TimeZone) -> String {
+        let moment = Moment(date: end, timeZone: timeZone)
+        let time = Format.time(moment)
+        let endDay = moment.localDate
+        if endDay <= day { return time }
+        return endDay == day.adding(days: 1) ? "次日 \(time)" : "\(monthDay(endDay)) \(time)"
     }
 }

@@ -3,7 +3,7 @@ import Testing
 import WageCore
 
 // 今日概览面板与扣钱、请假表单按 760 设计稿 (P2、F5、F6 · 760) 需要的快照字段。
-// 标准算例：2026 年 2 月 20 个应出勤日，月薪 20000，日薪 1000，作息 10:00 至 18:00、午休 12:00 至 13:00。
+// 标准算例：2026 年 2 月 20 个应出勤日，月薪 20000，日薪 1000，作息 10:00 至 18:00、饭点 12:00 至 13:00。
 
 /// 在 `now` 时刻依次执行命令，返回新状态。
 private func sending(_ commands: [Command], to state: AppState, at now: Moment) throws -> AppState {
@@ -23,14 +23,14 @@ struct Panel760HeroTests {
 
     @Test("上班中主数字下方为满勤日薪与时薪 (时薪 = 日薪 ÷ 标准工时)")
     func wageCaption() throws {
-        #expect(try attendancePanel(try onboarded(), at: standardDay(15, 0)).caption == "满勤日薪 ¥1000 · 时薪 ¥142.8571")
+        #expect(try attendancePanel(try onboarded(), at: standardDay(15, 0)).caption == "满勤日薪 ¥1000 · 时薪 ¥142.86")
     }
 
-    @Test("请下午假后仍显示满勤日薪与按标准工时的时薪，不随今日上限变化")
+    @Test("请后半天后仍显示满勤日薪与按标准工时的时薪，不随今日上限变化")
     func wageCaptionIgnoresLeave() throws {
-        let state = try sending([.requestLeave(Leave(period: .afternoon, deductionPercent: 50))], to: try onboarded(), at: standardDay(9, 0))
+        let state = try sending([.setLeave(secondHalfLeave(50))], to: try onboarded(), at: standardDay(9, 0))
 
-        #expect(try attendancePanel(state, at: standardDay(11, 0)).caption == "满勤日薪 ¥1000 · 时薪 ¥142.8571")
+        #expect(try attendancePanel(state, at: standardDay(11, 0)).caption == "满勤日薪 ¥1000 · 时薪 ¥142.86")
     }
 
     @Test("白干计时中主数字下方为开始时刻与已白干时长")
@@ -56,9 +56,9 @@ struct Panel760ProgressTests {
         #expect(progress.endText == "下班 18:00")
     }
 
-    @Test("请下午假后进度条两端为当日计划：10:00 至 12:00")
+    @Test("请后半天后进度条两端为当日计划：10:00 至 12:00")
     func progressTicksFollowLeave() throws {
-        let state = try sending([.requestLeave(Leave(period: .afternoon, deductionPercent: 50))], to: try onboarded(), at: standardDay(9, 0))
+        let state = try sending([.setLeave(secondHalfLeave(50))], to: try onboarded(), at: standardDay(9, 0))
         let progress = try #require(try attendancePanel(state, at: standardDay(11, 0)).progress)
 
         #expect([progress.startText, progress.endText] == ["上班 10:00", "下班 12:00"])
@@ -90,8 +90,8 @@ struct Panel760RestTests {
     }
 
     @Test("全天请假：标题为今天请假，没有「不计钱」的说明 (请假可能扣薪)")
-    func fullDayLeave() throws {
-        let state = try sending([.requestLeave(Leave(period: .fullDay, deductionPercent: 100))], to: try onboarded(), at: standardDay(9, 0))
+    func fullDayLeaveHeadline() throws {
+        let state = try sending([.setLeave(fullDayLeave(100))], to: try onboarded(), at: standardDay(9, 0))
         guard case .rest(let rest) = try panel(state, at: standardDay(11, 0)).body else {
             Issue.record("全天请假应按休息日呈现")
             return
@@ -152,58 +152,7 @@ struct Panel760DeductionTests {
         let may = try #require(try panel(try onboarded(), at: moment(2026, 5, 6, 15, 0)).deductionEntry)
 
         #expect(feb.previewTitle(.percentOfDailyWage(10)) == "扣 ¥100 · 今日上限")
-        #expect(may.previewTitle(.percentOfDailyWage(10)) == "扣 ¥95.2381 · 今日上限")
+        #expect(may.previewTitle(.percentOfDailyWage(10)) == "扣 ¥95.24 · 今日上限")
         #expect(feb.previewTitle(.fixed(50)) == "今日上限")
-    }
-}
-
-@Suite("请假表单 760")
-struct Panel760LeaveTests {
-    @Test("各时段的工时：全天 10:00–18:00，上午到午休开始，下午从午休结束")
-    func periodHours() throws {
-        let form = try #require(snapshot(of: try onboarded(), at: standardDay(9, 0)).leaveForm)
-
-        #expect(form.periodHours == [.fullDay: "10:00–18:00", .morning: "10:00–12:00", .afternoon: "13:00–18:00"])
-    }
-
-    @Test("关闭午休时半天以计划上下班中点为界")
-    func periodHoursWithoutLunch() throws {
-        let schedule = WorkSchedule(start: TimeOfDay(hour: 10, minute: 0), end: TimeOfDay(hour: 18, minute: 0), lunch: nil)
-        let form = try #require(snapshot(of: try onboarded(schedule: schedule), at: standardDay(9, 0)).leaveForm)
-
-        #expect(form.periodHours == [.fullDay: "10:00–18:00", .morning: "10:00–14:00", .afternoon: "14:00–18:00"])
-    }
-
-    @Test("请下午假 50%：汇总为今天改为 10:00–12:00 上班、请假扣薪 −¥500、今日上限 ¥500，输入框旁为 = ¥500")
-    func summaryWithAfternoonLeave() throws {
-        let state = try sending([.requestLeave(Leave(period: .afternoon, deductionPercent: 50))], to: try onboarded(), at: standardDay(9, 0))
-        let form = try #require(snapshot(of: state, at: standardDay(9, 0)).leaveForm)
-
-        #expect(form.summary == [
-            StatItem(title: "今天改为", value: "10:00–12:00 上班"),
-            StatItem(title: "请假扣薪", value: "−¥500"),
-            StatItem(title: "今日上限", value: "¥500"),
-        ])
-        #expect(form.deductionText == "= ¥500")
-    }
-
-    @Test("还没请假：今天改为作息原样，请假扣薪 ¥0")
-    func summaryWithoutLeave() throws {
-        let form = try #require(snapshot(of: try onboarded(), at: standardDay(9, 0)).leaveForm)
-
-        #expect(form.summary == [
-            StatItem(title: "今天改为", value: "10:00–18:00 上班"),
-            StatItem(title: "请假扣薪", value: "¥0"),
-            StatItem(title: "今日上限", value: "¥1000"),
-        ])
-        #expect(form.deductionText == "= ¥0")
-    }
-
-    @Test("全天请假：今天改为全天请假")
-    func summaryWithFullDayLeave() throws {
-        let state = try sending([.requestLeave(Leave(period: .fullDay, deductionPercent: 100))], to: try onboarded(), at: standardDay(9, 0))
-        let form = try #require(snapshot(of: state, at: standardDay(11, 0)).leaveForm)
-
-        #expect(form.summary.first == StatItem(title: "今天改为", value: "全天请假"))
     }
 }

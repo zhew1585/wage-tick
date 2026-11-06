@@ -1,20 +1,21 @@
 import SwiftUI
 import WageCore
 
-/// 请假表单 (PRD F6，设计稿 F6 · 760)，从今日概览面板 (今天) 或历史单日详情 (那一天，#15) 打开：
-/// 时段 (每段下方是请掉的工时)、扣日薪的百分比 (右侧「= ¥500」)，下方汇总当日计划、请假扣薪、收入项 (今天为今日上限，历史为结算或预计结算)。
-/// 汇总与校验提示都来自核心：每次改动都把待保存的命令交给 `PanelActions.dryRun` 试算。
+/// 请假表单 (PRD F6，设计稿 F6 · 时间条 · 760)，从今日概览面板 (今天) 或历史单日详情 (那一天，#15) 打开：
+/// 「请哪段」时间条 (拖两个把手选时段，下面快捷的全天、前半天、后半天)、扣日薪的百分比 (右侧「= ¥500」)，
+/// 下方汇总当日计划、请假扣薪、收入项 (今天为今日上限，历史为结算或预计结算)。
+/// 汇总与校验提示都来自核心：每次改动都把待保存的命令交给 `PanelActions.dryRun` 试算；时间条的吸附与时段文字问 `LeaveBar`。
 struct LeaveFormView: View {
-    /// 新请一条 (与已有的另一半天假合并) 还是修改已有的那条 (整条替换)。
+    /// 新请一条还是修改已有的那条；一天只有一条，两者都发 `setLeave` (整条替换)，只影响标题和按钮。
     enum Mode: Equatable {
         case request
         case edit(Leave)
     }
 
     let mode: Mode
+    /// 打开时这天的请假表单，时间条取自它 (作息不随填写变化)。
+    let form: LeaveForm
     let actions: PanelActions
-    /// 打开时这天的请假表单 (今天取快照的 `leaveForm`)，用来给时段选项配工时；nil 时工时取自试算结果，比例填错时不显示。
-    let initialForm: LeaveForm?
     /// 关闭表单：保存、撤销成功或取消后调用。
     let dismiss: () -> Void
     /// 作用的日子：今天或历史里的某一天。
@@ -22,46 +23,39 @@ struct LeaveFormView: View {
     /// 表头右侧的日期，如「11月5日 周四」；nil 时不显示。
     let subtitle: String?
 
-    @State private var period: LeavePeriod
+    @State private var range: LeaveRange
     @State private var percentText: String
     @State private var errorMessage: String?
     @FocusState private var percentFocused: Bool
 
     /// 汇总下方的说明 (设计稿 F6)。
-    private static let hint = "病假打折、年假不扣，可按需调整。请假日仍算应出勤日。"
+    private static let hint = "按请掉的工时占比带出，饭点不算工时。病假打折、年假不扣，可以改。请假日仍算应出勤日。"
 
     init(
-        mode: Mode, actions: PanelActions, initialForm: LeaveForm? = nil, target: FormTarget = .today,
+        mode: Mode, form: LeaveForm, actions: PanelActions, target: FormTarget = .today,
         subtitle: String? = nil, dismiss: @escaping () -> Void
     ) {
         self.mode = mode
+        self.form = form
         self.actions = actions
-        self.initialForm = initialForm
         self.target = target
         self.subtitle = subtitle
         self.dismiss = dismiss
         let initial = switch mode {
-        case .request: Leave(period: .fullDay, deductionPercent: LeavePeriod.fullDay.defaultDeductionPercent)
+        case .request: Leave(range: form.bar.fullDay, deductionPercent: form.bar.defaultPercent(for: form.bar.fullDay))
         case .edit(let leave): leave
         }
-        _period = State(initialValue: initial.period)
+        _range = State(initialValue: initial.range)
         _percentText = State(initialValue: Self.text(initial.deductionPercent))
     }
 
     var body: some View {
         FormSheet(title: mode == .request ? "请假" : "修改请假", subtitle: subtitle, back: dismiss) {
-            VStack(alignment: .leading, spacing: Spacing.s8) {
-                FormLabel("时段")
-                ThemeSegmented(
-                    options: LeavePeriod.allCases.map { .init(id: $0, title: $0.label, subtitle: periodHours[$0]) },
-                    selection: period,
-                    size: .large
-                ) { period = $0 }
-                // 切换时段时带出默认比例【D4】，牛马可再修改。
-                .onChange(of: period) { _, newValue in
-                    percentText = Self.text(newValue.defaultDeductionPercent)
+            LeaveBarView(bar: form.bar, range: $range)
+                // 时段变了就按工时占比重新带出比例【D4】，手改的比例保留到下次改时段。
+                .onChange(of: range) { _, newValue in
+                    percentText = Self.text(form.bar.defaultPercent(for: newValue))
                 }
-            }
             VStack(alignment: .leading, spacing: Spacing.s8) {
                 FormLabel("扣日薪的")
                 percentInput
@@ -72,6 +66,7 @@ struct LeaveFormView: View {
         }
         .onAppear { percentFocused = true }
         .onChange(of: percentText) { errorMessage = nil }
+        .onChange(of: range) { errorMessage = nil }
     }
 
     /// 比例输入 (白底、圆角 12、内边距 16)：数字 36/700，紧跟着「%」18，右侧试算出的「= ¥500」16/600 loss；获得焦点时描边换成墨色。
@@ -174,10 +169,8 @@ struct LeaveFormView: View {
         guard let percent = parsedPercent else {
             return .failure(Validation.leaveDeductionPercent(nil) ?? .leavePercentOutOfRange)
         }
-        let leave = Leave(period: period, deductionPercent: percent)
-        return .success(mode == .request
-            ? target.command(today: .requestLeave(leave), .requestLeave(leave))
-            : target.command(today: .editLeave(leave), .editLeave(leave)))
+        let leave = Leave(range: range, deductionPercent: percent)
+        return .success(target.command(today: .setLeave(leave), .setLeave(leave)))
     }
 
     private var cancelCommand: Command {
@@ -192,11 +185,6 @@ struct LeaveFormView: View {
     /// 试算成功时的表单；比例填错时为 nil。
     private var previewForm: LeaveForm? {
         if case .success(let form) = previewResult { form } else { nil }
-    }
-
-    /// 各时段下方的工时：优先取打开时的表单 (不随填写变化)，没有时取试算结果。
-    private var periodHours: [LeavePeriod: String] {
-        initialForm?.periodHours ?? previewForm?.periodHours ?? [:]
     }
 
     /// 只认纯数字写法 (可带小数)，其他写法视为未填；范围交给核心的 `Validation`。

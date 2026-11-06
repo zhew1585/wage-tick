@@ -9,14 +9,70 @@
 /* Begin PBXBuildFile section */
 		A10000000000000000000012 /* WageCore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000011 /* WageCore */; };
 		A10000000000000000040014 /* HolidaySource in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000040013 /* HolidaySource */; };
+		A10000000000000000050015 /* WageCore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000050014 /* WageCore */; };
+		A10000000000000000050021 /* WageTickWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000050001 /* WageTickWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A10000000000000000050023 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000050010;
+			remoteInfo = WageTickWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A10000000000000000050020 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A10000000000000000050021 /* WageTickWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A10000000000000000000004 /* 牛马鼓励器.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "牛马鼓励器.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000050001 /* WageTickWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WageTickWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A10000000000000000050003 /* Exceptions for "WageTickWidgets" folder in "WageTickWidgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				WageTickWidgets.entitlements,
+			);
+			target = A10000000000000000050010 /* WageTickWidgets */;
+		};
+		A10000000000000000050004 /* Exceptions for "WageTick" folder in "WageTickWidgets" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				App/AppIdentity.swift,
+				Assets.xcassets,
+				Components/Phosphor.swift,
+				Resources/Fonts/JetBrainsMono.ttf,
+				"Resources/Fonts/NotoSansSC-GB2312.ttf",
+				Shared/WidgetPayload.swift,
+				Theme/AppFont.swift,
+				Theme/Metrics.swift,
+				Theme/Palette.swift,
+				Widgets/WidgetParts.swift,
+				Widgets/WidgetViews.swift,
+			);
+			target = A10000000000000000050010 /* WageTickWidgets */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		A10000000000000000000005 /* WageTick */ = {isa = PBXFileSystemSynchronizedRootGroup; path = WageTick; sourceTree = "<group>"; };
+		A10000000000000000000005 /* WageTick */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A10000000000000000050004 /* Exceptions for "WageTick" folder in "WageTickWidgets" target */, ); path = WageTick; sourceTree = "<group>"; };
+		A10000000000000000050002 /* WageTickWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A10000000000000000050003 /* Exceptions for "WageTickWidgets" folder in "WageTickWidgets" target */, ); path = WageTickWidgets; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -29,6 +85,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000050012 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000050015 /* WageCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -36,6 +100,7 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000005 /* WageTick */,
+				A10000000000000000050002 /* WageTickWidgets */,
 				A10000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -44,6 +109,7 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000004 /* 牛马鼓励器.app */,
+				A10000000000000000050001 /* WageTickWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -58,10 +124,12 @@
 				A10000000000000000000007 /* Sources */,
 				A10000000000000000000008 /* Frameworks */,
 				A10000000000000000000009 /* Resources */,
+				A10000000000000000050020 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A10000000000000000050022 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				A10000000000000000000005 /* WageTick */,
@@ -75,6 +143,29 @@
 			productReference = A10000000000000000000004 /* 牛马鼓励器.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A10000000000000000050010 /* WageTickWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000050016 /* Build configuration list for PBXNativeTarget "WageTickWidgets" */;
+			buildPhases = (
+				A10000000000000000050011 /* Sources */,
+				A10000000000000000050012 /* Frameworks */,
+				A10000000000000000050013 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000050002 /* WageTickWidgets */,
+			);
+			name = WageTickWidgets;
+			packageProductDependencies = (
+				A10000000000000000050014 /* WageCore */,
+			);
+			productName = WageTickWidgets;
+			productReference = A10000000000000000050001 /* WageTickWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -86,6 +177,9 @@
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					A10000000000000000000006 = {
+						CreatedOnToolsVersion = 16.4;
+					};
+					A10000000000000000050010 = {
 						CreatedOnToolsVersion = 16.4;
 					};
 				};
@@ -108,12 +202,20 @@
 			projectRoot = "";
 			targets = (
 				A10000000000000000000006 /* WageTick */,
+				A10000000000000000050010 /* WageTickWidgets */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A10000000000000000000009 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000050013 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -130,7 +232,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000050011 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A10000000000000000050022 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000050010 /* WageTickWidgets */;
+			targetProxy = A10000000000000000050023 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A1000000000000000000000B /* Debug */ = {
@@ -220,6 +337,56 @@
 			};
 			name = Release;
 		};
+		A10000000000000000050017 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WageTickWidgets/WageTickWidgets.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WageTickWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "牛马鼓励器";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zhew1585.WageTick.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		A10000000000000000050018 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WageTickWidgets/WageTickWidgets.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WageTickWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "牛马鼓励器";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zhew1585.WageTick.Widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -241,6 +408,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		A10000000000000000050016 /* Build configuration list for PBXNativeTarget "WageTickWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000050017 /* Debug */,
+				A10000000000000000050018 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -258,6 +434,10 @@
 		A10000000000000000040013 /* HolidaySource */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = HolidaySource;
+		};
+		A10000000000000000050014 /* WageCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WageCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

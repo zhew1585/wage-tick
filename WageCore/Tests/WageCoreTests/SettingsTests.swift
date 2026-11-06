@@ -95,7 +95,7 @@ struct ChangeScheduleTests {
         let state = try applied(.changeSchedule(scheduleEnding(at: 19)), to: try onboarded(), at: standardDay(15, 0))
         let snap = snapshot(of: state, at: standardDay(15, 0))
 
-        // 新作息有效工时 8 小时，10:00 至 15:00 扣午休已过 4 小时，正好一半。
+        // 新作息有效工时 8 小时，10:00 至 15:00 扣饭点已过 4 小时，正好一半。
         let earnings = try #require(snap.today?.earnings)
         #expect(earnings.progress == Decimal(string: "0.5")!)
         #expect(snap.menuBar.text == "500.0000")
@@ -160,14 +160,14 @@ struct ChangeScheduleTests {
         #expect(error?.message == "下班时间要晚于上班时间")
     }
 
-    @Test("PRD 4.3.5 #3 设置页作息校验与引导一致：午休不在上下班之内")
+    @Test("PRD 4.3.5 #3 设置页作息校验与引导一致：饭点不在上下班之内")
     func lunchMustBeInsideWorkHours() throws {
         let lunch = LunchBreak(start: TimeOfDay(hour: 17, minute: 0), end: TimeOfDay(hour: 19, minute: 0))
         let schedule = WorkSchedule(start: standardSchedule.start, end: standardSchedule.end, lunch: lunch)
         let error = rejection(.changeSchedule(schedule), to: try onboarded())
 
         #expect(error == .lunchOutsideWorkHours)
-        #expect(error?.message == "午休要在上下班时间之内")
+        #expect(error?.message == "饭点要在上下班时间之内")
     }
 
     @Test("未完成引导时不能改作息")
@@ -240,15 +240,6 @@ struct MenuBarModeTests {
         #expect(snapshot(of: try inMode(.iconOnly), at: standardDay(15, 0)).menuBar == MenuBarDisplay(pose: .grinding, text: nil))
     }
 
-    @Test("AC-BOSS-01、02 进度模式下老板路过：隐藏百分比，关闭后恢复为进度模式")
-    func bossModeOverridesAndRestoresMode() throws {
-        let on = try applied(.toggleBossMode, to: try inMode(.progress), at: standardDay(15, 0))
-        let off = try applied(.toggleBossMode, to: on, at: standardDay(15, 0))
-
-        #expect(snapshot(of: on, at: standardDay(15, 0)).menuBar.text == nil)
-        #expect(snapshot(of: off, at: standardDay(15, 0)).menuBar.text == "57.14%")
-    }
-
     @Test("切回金额模式：恢复 4 位小数的今日已赚")
     func backToAmount() throws {
         let state = try applied(.setMenuBarMode(.amount), to: try inMode(.iconOnly), at: standardDay(15, 0))
@@ -276,70 +267,34 @@ struct MenuBarModeTests {
     }
 }
 
-@Suite("设置：老板路过快捷键")
-struct BossModeHotkeyTests {
-    @Test("修改后快照给出新快捷键，供外壳重新注册与菜单显示")
-    func changeHotkey() throws {
-        let hotkey = Hotkey(key: "K", modifiers: [.command, .shift])
-        let state = try applied(.setBossModeHotkey(hotkey), to: try onboarded(), at: standardDay(15, 0))
+@Suite("设置：旧状态文件兼容")
+struct LegacySettingsTests {
+    @Test("没有界面设置的旧状态文件照常读回，取默认界面设置")
+    func oldStateWithoutSettingsDecodes() throws {
+        var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(try onboarded())) as? [String: Any])
+        json["settings"] = nil
+        let restored = try JSONDecoder().decode(AppState.self, from: JSONSerialization.data(withJSONObject: json))
 
-        #expect(snapshot(of: state, at: standardDay(15, 0)).settings.bossModeHotkey == hotkey)
+        let snap = snapshot(of: restored, at: standardDay(11, 0))
+        #expect(snap.menuBar.text == "142.8571")
+        #expect(snap.settings == snapshot(of: AppState(), at: standardDay(11, 0)).settings)
     }
 
-    @Test("引导前也能改 (界面设置不依赖引导)")
-    func worksBeforeOnboarding() throws {
-        let hotkey = Hotkey(key: "9", modifiers: [.control, .shift])
+    @Test("已去掉的老板路过留下的 bossMode、bossModeHotkey 读时忽略：数字照常显示，其余设置不受影响，再存盘时消失")
+    func legacyBossModeKeysIgnored() throws {
+        var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(try applied(.setMenuBarMode(.progress), to: try onboarded(), at: standardDay(9, 0)))) as? [String: Any])
+        var settings = try #require(json["settings"] as? [String: Any])
+        settings["bossMode"] = true
+        settings["bossModeHotkey"] = ["key": "B", "modifiers": ["control", "option"]]
+        json["settings"] = settings
+        let restored = try JSONDecoder().decode(AppState.self, from: JSONSerialization.data(withJSONObject: json))
 
-        #expect(rejection(.setBossModeHotkey(hotkey), to: AppState()) == nil)
-    }
-
-    @Test(
-        "macOS 15 不允许只用 ⌥ 或 ⌥⇧；单个修饰键会抢走 ⌘C、⌃A 这类常用键：都拦下",
-        arguments: [
-            Set<HotkeyModifier>(), [.option], [.option, .shift], [.shift], [.command], [.control],
-        ]
-    )
-    func rejectsWeakModifiers(modifiers: Set<HotkeyModifier>) throws {
-        let hotkey = Hotkey(key: "B", modifiers: modifiers)
-        let error = rejection(.setBossModeHotkey(hotkey), to: try onboarded())
-
-        #expect(error == .hotkeyModifiersInvalid)
-        #expect(error?.message == "快捷键要按住两个以上修饰键，且包含 ⌃ 或 ⌘")
-        #expect(Validation.hotkey(hotkey) == error)
-    }
-
-    @Test("至少两个修饰键且含 ⌃ 或 ⌘ 时可以保存", arguments: [
-        Set<HotkeyModifier>([.control, .option]), [.command, .shift], [.control, .shift], [.command, .option], [.control, .option, .shift, .command],
-    ])
-    func acceptsStrongModifiers(modifiers: Set<HotkeyModifier>) throws {
-        #expect(rejection(.setBossModeHotkey(Hotkey(key: "B", modifiers: modifiers)), to: try onboarded()) == nil)
-    }
-
-    @Test("主键只能是单个大写字母或数字", arguments: ["", "b", "BB", "?", " ", "é"])
-    func rejectsInvalidKey(key: String) throws {
-        let error = rejection(.setBossModeHotkey(Hotkey(key: key, modifiers: [.control, .option])), to: try onboarded())
-
-        #expect(error == .hotkeyKeyInvalid)
-        #expect(error?.message == "主键只能是字母或数字")
-    }
-
-    @Test("校验失败时原快捷键不变")
-    func rejectedKeepsOld() throws {
-        let state = try onboarded()
-        #expect(throws: CommandError.hotkeyModifiersInvalid) {
-            try apply(.setBossModeHotkey(Hotkey(key: "B", modifiers: [.option])), to: state, at: standardDay(15, 0))
-        }
-
-        #expect(snapshot(of: state, at: standardDay(15, 0)).settings.bossModeHotkey.displayText == "⌃⌥B")
-    }
-
-    @Test("快捷键展示文案按 ⌃⌥⇧⌘ 顺序", arguments: [
-        (Hotkey(key: "B", modifiers: [.control, .option]), "⌃⌥B"),
-        (Hotkey(key: "K", modifiers: [.command, .shift]), "⇧⌘K"),
-        (Hotkey(key: "1", modifiers: [.command, .shift, .option, .control]), "⌃⌥⇧⌘1"),
-    ])
-    func displayText(hotkey: Hotkey, text: String) {
-        #expect(hotkey.displayText == text)
+        #expect(snapshot(of: restored, at: standardDay(15, 0)).menuBar == MenuBarDisplay(pose: .grinding, text: "57.14%"))
+        #expect(restored.settings.menuBarMode == .progress)
+        let saved = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(restored)) as? [String: Any])
+        let savedSettings = try #require(saved["settings"] as? [String: Any])
+        #expect(savedSettings["bossMode"] == nil)
+        #expect(savedSettings["bossModeHotkey"] == nil)
     }
 }
 
@@ -378,9 +333,9 @@ struct SettingsFormTests {
         #expect(snapshot(of: state, at: moment(2026, 3, 2, 9, 0)).settingsForm?.monthlySalaryText == "22000")
     }
 
-    @Test("显示模式各段下面的预览 (设计稿 P6 · 760)：15:00 金额 571.4286、进度 57.14%、仅图标「—」，与当前模式和老板路过无关")
+    @Test("显示模式各段下面的预览 (设计稿 P6 · 760)：15:00 金额 571.4286、进度 57.14%、仅图标「—」，与当前模式无关")
     func menuBarPreviews() throws {
-        let state = try applied(.toggleBossMode, to: try applied(.setMenuBarMode(.iconOnly), to: try onboarded(), at: standardDay(9, 0)), at: standardDay(9, 0))
+        let state = try applied(.setMenuBarMode(.iconOnly), to: try onboarded(), at: standardDay(9, 0))
         let form = try #require(snapshot(of: state, at: standardDay(15, 0)).settingsForm)
 
         #expect(MenuBarMode.allCases.map(form.menuBarPreview) == ["571.4286", "57.14%", "—"])

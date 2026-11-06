@@ -14,11 +14,11 @@ private let february = YearMonth(year: 2026, month: 2)
 
 private let lateFifty = Command.addDeduction(DeductionInput(amount: .fixed(50), reason: .late, note: ""))
 
-/// 2 月的一串情绪记录：2 月 2 日 (周一) 安装，4 日迟到扣 50，6 日请下午假 (默认 50%)，9 日 18:00 至 19:30 白干。
+/// 2 月的一串情绪记录：2 月 2 日 (周一) 安装，4 日迟到扣 50，6 日请后半天 13:00 至 18:00 (50%)，9 日 18:00 至 19:30 白干。
 private func februaryWithRecords() throws -> AppState {
     var state = try onboarded(at: moment(2026, 2, 2, 9, 0))
     state = try applied(lateFifty, to: state, at: moment(2026, 2, 4, 15, 0))
-    state = try applied(.requestLeave(Leave(period: .afternoon, deductionPercent: 50)), to: state, at: moment(2026, 2, 6, 9, 0))
+    state = try applied(.setLeave(secondHalfLeave(50)), to: state, at: moment(2026, 2, 6, 9, 0))
     state = try applied(.startUnpaidWork, to: state, at: moment(2026, 2, 9, 18, 0))
     return try applied(.stopUnpaidWork, to: state, at: moment(2026, 2, 9, 19, 30))
 }
@@ -55,32 +55,32 @@ struct HistoryMonthSummaryTests {
         let snap = snapshot(of: state, at: now)
         let panelMonthToDate = try attendancePanel(state, at: now).stats.first { $0.title == "本月累计" }
 
-        #expect(try summary(snap, february).total == "¥9542.8571")
-        #expect(panelMonthToDate?.value == "¥9542.8571")
+        #expect(try summary(snap, february).total == "¥9542.86")
+        #expect(panelMonthToDate?.value == "¥9542.86")
     }
 
-    @Test("AC-HIS-02 3 月查看 2 月：结算总额 20000 - 50 - 500 = ¥19450，应出勤 20 天，扣款 ¥550，请假 0.5 天，白干 1h30m")
+    @Test("AC-HIS-02 3 月查看 2 月：结算总额 20000 - 50 - 500 = ¥19450，应出勤 20 天，扣款 ¥550，请假 0.71 天，白干 1h30m")
     func pastMonthSummary() throws {
         let summary = try summary(snapshot(of: try februaryWithRecords(), at: moment(2026, 3, 10, 15, 0)), february)
 
         #expect(summary.total == "¥19450")
-        #expect(summary.figures.map(\.value) == ["20 天", "¥550", "0.5 天", "1h30m"])
+        #expect(summary.figures.map(\.value) == ["20 天", "¥550", "0.71 天", "1h30m"])
     }
 
-    @Test("AC-HIS-03 某月请了一次下午假：请假天数 0.5")
-    func halfDayLeaveCountsHalf() throws {
+    @Test("AC-HIS-03 某月请了一次前半天 (2 小时工时，标准工时 7 小时)：请假天数 0.29")
+    func partialLeaveCountsByWorkShare() throws {
         let state = try applied(
-            .requestLeave(Leave(period: .afternoon, deductionPercent: 50)), to: try onboarded(), at: standardDay(9, 0)
+            .setLeave(firstHalfLeave(50)), to: try onboarded(), at: standardDay(9, 0)
         )
         let summary = try summary(snapshot(of: state, at: standardDay(20, 0)), february)
 
-        #expect(summary.leave.value == "0.5 天")
+        #expect(summary.leave.value == "0.29 天")
     }
 
     @Test("一整天假计 1 天；没有扣款和白干时扣款合计 ¥0、白干时长 0:00")
     func fullDayLeaveCountsOne() throws {
         let state = try applied(
-            .requestLeave(Leave(period: .fullDay, deductionPercent: 0)), to: try onboarded(), at: standardDay(9, 0)
+            .setLeave(fullDayLeave(0)), to: try onboarded(), at: standardDay(9, 0)
         )
         let summary = try summary(snapshot(of: state, at: moment(2026, 3, 2, 9, 0)), february)
 
@@ -89,11 +89,11 @@ struct HistoryMonthSummaryTests {
 
     @Test("本月的扣款合计、请假天数与结算总额同口径，只算到今天：系统时间拨回到请假那天之前，未来那天的请假不计入")
     func currentMonthCountsUpToToday() throws {
-        let leave = Command.requestLeave(Leave(period: .fullDay, deductionPercent: 100))
+        let leave = Command.setLeave(fullDayLeave(100))
         let state = try applied(leave, to: try onboarded(), at: moment(2026, 2, 13, 9, 0))
         let snap = snapshot(of: state, at: standardDay(15, 0))
 
-        #expect(try [summary(snap, february).total] + summary(snap, february).figures.map(\.value) == ["¥7571.4286", "20 天", "¥0", "0 天", "0m"])
+        #expect(try [summary(snap, february).total] + summary(snap, february).figures.map(\.value) == ["¥7571.43", "20 天", "¥0", "0 天", "0m"])
         #expect(try day(snap, feb(13)).kind == .leave)
     }
 
@@ -176,11 +176,11 @@ struct HistoryDayDetailTests {
         #expect(detail.editing.unpaidWorkItems.isEmpty)
     }
 
-    @Test("请下午假的一天：请假下午假 · 扣薪 50% −¥500，结算 ¥500")
+    @Test("请后半天的一天：请假 13:00–18:00 · 扣薪 50% −¥500，结算 ¥500")
     func leaveDay() throws {
         let detail = try day(snapshot(of: try februaryWithRecords(), at: moment(2026, 3, 10, 15, 0)), feb(6)).detail
 
-        #expect(detail.leave == HistoryLine(title: "下午假", detail: "扣薪 50%", value: "−¥500"))
+        #expect(detail.leave == HistoryLine(title: "请假 13:00–18:00", detail: "扣薪 50.00%", value: "−¥500"))
         #expect(detail.stats == [StatItem(title: "当天结算", value: "¥500")])
     }
 
@@ -189,19 +189,23 @@ struct HistoryDayDetailTests {
         let detail = try day(snapshot(of: try februaryWithRecords(), at: moment(2026, 3, 10, 15, 0)), feb(9)).detail
 
         #expect(detail.unpaidWork == [HistoryLine(title: "18:00 – 19:30", detail: nil, value: "1h30m")])
-        #expect(detail.editing.unpaidWorkItems.map(\.loss) == ["倒贴 ¥214.2857"])
+        #expect(detail.editing.unpaidWorkItems.map(\.loss) == ["倒贴 ¥214.29"])
         #expect(detail.stats == [StatItem(title: "当天结算", value: "¥1000")])
     }
 
-    @Test("#9 遗留 疑似通宵：18:00 开始忘了停，次日推进后那段在 23:59:59 结束，详情标出疑似通宵")
-    func suspectedAllNighter() throws {
+    @Test("PRD 4.3.5 #12 可能忘了停：周一 18:00 开始忘了停，周二 10:00 计划上班时自动停止，详情写「次日 10:00」并标出")
+    func autoStopped() throws {
         let running = try applied(.startUnpaidWork, to: try onboarded(), at: moment(2026, 2, 9, 18, 0))
-        let advanced = try applied(.advance, to: running, at: moment(2026, 2, 10, 9, 0))
-        let expected = [HistoryLine(title: "18:00 – 23:59", detail: "疑似通宵", value: "5h59m")]
+        let now = moment(2026, 2, 10, 10, 30)
+        let advanced = try applied(.advance, to: running, at: now)
+        let expected = [HistoryLine(title: "18:00 – 次日 10:00", detail: "可能忘了停", value: "16h00m")]
 
-        #expect(try day(snapshot(of: advanced, at: moment(2026, 2, 10, 9, 0)), feb(9)).detail.unpaidWork == expected)
-        // 还没推进时按已在 23:59:59 自动停止推导，与推进后一致。
-        #expect(try day(snapshot(of: running, at: moment(2026, 2, 10, 9, 0)), feb(9)).detail.unpaidWork == expected)
+        #expect(try day(snapshot(of: advanced, at: now), feb(9)).detail.unpaidWork == expected)
+        // 还没推进时按已在计划上班自动停止推导，与推进后一致。
+        #expect(try day(snapshot(of: running, at: now), feb(9)).detail.unpaidWork == expected)
+        // 自动停止之前，跨过零点也还在计时，详情写计时中。
+        #expect(try day(snapshot(of: running, at: moment(2026, 2, 10, 0, 30)), feb(9)).detail.unpaidWork
+            == [HistoryLine(title: "18:00 起", detail: "计时中", value: "6h30m")])
     }
 
     @Test("今天计时中的白干段：18:00 起 · 计时中，时长算到此刻")
@@ -217,7 +221,7 @@ struct HistoryDayDetailTests {
         let snap = snapshot(of: try onboarded(), at: standardDay(15, 0))
 
         #expect(try day(snap, feb(11)).detail.stats == [
-            StatItem(title: "今日已赚", value: "¥571.4286"),
+            StatItem(title: "今日已赚", value: "¥571.43"),
             StatItem(title: "今日上限", value: "¥1000"),
         ])
         #expect(try day(snap, feb(12)).detail.stats == [StatItem(title: "预计结算", value: "¥1000")])

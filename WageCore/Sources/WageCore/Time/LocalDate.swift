@@ -18,15 +18,15 @@ public struct LocalDate: Sendable, Hashable, Comparable, Codable {
         (lhs.year, lhs.month, lhs.day) < (rhs.year, rhs.month, rhs.day)
     }
 
-    /// 是否周六或周日。星期与时区无关，用 UTC 公历计算。
-    var isWeekend: Bool {
-        weekday == 1 || weekday == 7
-    }
-
-    /// 星期几：1 为周日，2 为周一，…，7 为周六 (公历 weekday 口径)。
+    /// 星期几 (星期与时区无关)：1 为周日，2 为周一，…，7 为周六 (公历 weekday 口径)。
     /// 1970-01-01 是周四。
     var weekday: Int {
         ((dayNumber % 7 + 7 + 4) % 7) + 1
+    }
+
+    /// 从 `other` 到这天相隔几天，这天在前时为负。
+    func days(since other: LocalDate) -> Int {
+        dayNumber - other.dayNumber
     }
 
     /// 往后数 `days` 天的日期。

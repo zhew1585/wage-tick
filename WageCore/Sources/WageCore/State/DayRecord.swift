@@ -7,7 +7,7 @@ public struct DayRecord: Sendable, Equatable, Codable {
     public let date: LocalDate
     /// 扣钱记录 (PRD 4.4.1)，1:N，按记录先后排列。
     public internal(set) var deductions: [Deduction]
-    /// 请假 (PRD 4.4.2)；nil 表示这天没请假。同一天只有一条 (4.4.2 #4)。
+    /// 请假 (PRD 4.4.2)：请掉的时段与扣薪比例；nil 表示这天没请假。同一天只有一条 (4.4.2 #4)。
     public internal(set) var leave: Leave?
     /// 白干段 (PRD 4.4.3)，1:N，按开始时刻先后排列。
     public internal(set) var unpaidWork: [UnpaidWorkSegment]
@@ -28,11 +28,21 @@ public struct DayRecord: Sendable, Equatable, Codable {
     }
 
     /// 其他票追加的字段可能让一条日记录没有扣钱记录，缺省视为空。
+    /// 旧格式的请假 (全天 / 上午 / 下午) 换算不了，拒绝读入；读整个状态文件时走 `init(from:legacySchedule:)`。
     public init(from decoder: Decoder) throws {
+        try self.init(from: decoder, legacySchedule: { _ in nil })
+    }
+
+    /// 读入一条日记录，旧格式的请假按 `legacySchedule` 给出的这天作息换算成时段 (见 `Leave.init(from:legacySchedule:)`)。
+    init(from decoder: Decoder, legacySchedule: (LocalDate) -> WorkSchedule?) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         date = try container.decode(LocalDate.self, forKey: .date)
         deductions = try container.decodeIfPresent([Deduction].self, forKey: .deductions) ?? []
-        leave = try container.decodeIfPresent(Leave.self, forKey: .leave)
+        leave = if container.contains(.leave), try !container.decodeNil(forKey: .leave) {
+            try Leave(from: container.superDecoder(forKey: .leave), legacySchedule: legacySchedule(date))
+        } else {
+            nil
+        }
         unpaidWork = try container.decodeIfPresent([UnpaidWorkSegment].self, forKey: .unpaidWork) ?? []
         // #15 之前的旧文件没有单日覆盖。
         override = try container.decodeIfPresent(DayOverride.self, forKey: .override)
@@ -43,18 +53,38 @@ public struct DayRecord: Sendable, Equatable, Codable {
 }
 
 /// 一段白干计时 (PRD 4.4.3)："我还没走"或"被迫营业"从开始到停止。
+/// 记在开始那天的日记录里，结束可以在之后的日子 (跨过零点)，最晚到自动停止时刻 (见 `UnpaidWorkClock`)。
 public struct UnpaidWorkSegment: Sendable, Equatable, Codable {
     public let start: Date
     /// 计时中为 nil。
     public internal(set) var end: Date?
-    /// 疑似通宵：到 23:59:59 被自动停止时为 true (PRD 4.3.5 #12)。
-    public internal(set) var suspectedAllNighter: Bool
+    /// 可能忘了停：计时到下一次计划上班还没停、被自动停止时为 true (PRD 4.3.5 #12)；牛马修改过这段后为 false。
+    public internal(set) var autoStopped: Bool
+
+    /// V1.8 之前叫「疑似通宵」(`suspectedAllNighter`)，读旧文件时认这个键。
+    private enum CodingKeys: String, CodingKey { case start, end, autoStopped, suspectedAllNighter }
 
     /// 文件里结束早于开始的段不拒绝读入 (那样整个状态文件都会被隔离)：推导时长时按 0 计。
-    init(start: Date, end: Date? = nil, suspectedAllNighter: Bool = false) {
+    init(start: Date, end: Date? = nil, autoStopped: Bool = false) {
         self.start = start
         self.end = end
-        self.suspectedAllNighter = suspectedAllNighter
+        self.autoStopped = autoStopped
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        start = try container.decode(Date.self, forKey: .start)
+        end = try container.decodeIfPresent(Date.self, forKey: .end)
+        autoStopped = try container.decodeIfPresent(Bool.self, forKey: .autoStopped)
+            ?? container.decodeIfPresent(Bool.self, forKey: .suspectedAllNighter)
+            ?? false
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(start, forKey: .start)
+        try container.encodeIfPresent(end, forKey: .end)
+        try container.encode(autoStopped, forKey: .autoStopped)
     }
 }
 

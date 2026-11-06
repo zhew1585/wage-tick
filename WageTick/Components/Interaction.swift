@@ -112,6 +112,8 @@ enum HoverCursor {
     case openHand
     /// 握住的手：正在拖动。
     case closedHand
+    /// 左右箭头：可以左右拖的把手 (请假时间条)。
+    case columnResize
 
     @available(macOS 15, *)
     fileprivate var pointerStyle: PointerStyle {
@@ -120,6 +122,7 @@ enum HoverCursor {
         case .iBeam: .horizontalText
         case .openHand: .grabIdle
         case .closedHand: .grabActive
+        case .columnResize: .columnResize
         }
     }
 
@@ -129,6 +132,7 @@ enum HoverCursor {
         case .iBeam: .iBeam
         case .openHand: .openHand
         case .closedHand: .closedHand
+        case .columnResize: .resizeLeftRight
         }
     }
 }

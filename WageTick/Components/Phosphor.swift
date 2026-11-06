@@ -16,7 +16,6 @@ enum Phosphor: String {
     case caretRight = "caret-right"
     case caretUp = "caret-up"
     case check
-    case eyeSlash = "eye-slash"
     case flagBanner = "flag-banner"
     case gearSix = "gear-six"
     case hourglassSimple = "hourglass-simple"

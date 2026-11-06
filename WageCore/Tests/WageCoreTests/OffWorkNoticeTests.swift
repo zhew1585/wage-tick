@@ -60,12 +60,12 @@ struct OffWorkNoticeTriggerTests {
         // 通知里四舍五入到 4 位后截掉末尾 0。
         let makeupDays = HolidayTable(days: [LocalDate(year: 2026, month: 2, day: 14): .makeupDay])
         let makeup = try refreshes(state, at: [moment(2026, 2, 14, 17, 0), moment(2026, 2, 14, 18, 0)], holidays: makeupDays)
-        #expect(makeup.events == [.offWork(message: "今日 952.381 元已到账，可以走了")])
+        #expect(makeup.events == [.offWork(message: "今日 952.38 元已到账，可以走了")])
     }
 
     @Test("AC-NTF-03 全天请假日不发下班通知")
-    func fullDayLeave() throws {
-        let onLeave = try applied(.requestLeave(Leave(period: .fullDay, deductionPercent: 100)), to: try onboarded())
+    func noNoticeOnFullDayLeave() throws {
+        let onLeave = try applied(.setLeave(fullDayLeave(100)), to: try onboarded())
         let result = try refreshes(onLeave, at: [standardDay(9, 30), standardDay(17, 0), standardDay(18, 0), standardDay(19, 0)])
 
         #expect(result.events.isEmpty)
@@ -75,20 +75,39 @@ struct OffWorkNoticeTriggerTests {
     func fullDayLeaveMidway() throws {
         let waiting = try refreshes(try onboarded(), at: [standardDay(15, 0)])
         let onLeave = try applied(
-            .requestLeave(Leave(period: .fullDay, deductionPercent: 100)), to: waiting.state, at: standardDay(15, 0)
+            .setLeave(fullDayLeave(100)), to: waiting.state, at: standardDay(15, 0)
         )
 
         #expect(try refreshes(onLeave, at: [standardDay(15, 1), standardDay(18, 0)]).events.isEmpty)
     }
 
-    @Test("AC-NTF-04 下午假 (默认 50%)：12:00 发下班通知，金额 500")
-    func afternoonLeave() throws {
-        let onLeave = try applied(.requestLeave(Leave(period: .afternoon, deductionPercent: 50)), to: try onboarded())
+    @Test("AC-NTF-04 请后半天 (50%)：12:00 发下班通知，金额 500")
+    func noticeAtSecondHalfStart() throws {
+        let onLeave = try applied(.setLeave(secondHalfLeave(50)), to: try onboarded())
         let result = try refreshes(onLeave, at: [standardDay(11, 0), standardDay(11, 59, 59)])
         #expect(result.events.isEmpty)
 
         let atEnd = try refreshes(result.state, at: [standardDay(12, 0), standardDay(18, 0)])
         #expect(atEnd.events == [.offWork(message: "今日 500 元已到账，可以走了")])
+    }
+
+    @Test("请中间一段 (14:00 至 16:00)：进入请假中不发，18:00 才发")
+    func middleLeaveNoticeAtPlanEnd() throws {
+        let onLeave = try applied(.setLeave(leave("14:00", "16:00", 0)), to: try onboarded())
+        let result = try refreshes(onLeave, at: [standardDay(13, 0), standardDay(14, 0), standardDay(15, 0), standardDay(17, 59)])
+        #expect(result.events.isEmpty)
+
+        let atEnd = try refreshes(result.state, at: [standardDay(18, 0)])
+        #expect(atEnd.events == [.offWork(message: "今日 1000 元已到账，可以走了")])
+    }
+
+    @Test("请假连着结尾 (16:00 至 18:00)：16:00 发下班通知")
+    func leaveCoveringEndNoticeAtLeaveStart() throws {
+        let onLeave = try applied(.setLeave(leave("16:00", "18:00", 0)), to: try onboarded())
+        let result = try refreshes(onLeave, at: [standardDay(15, 0), standardDay(15, 59, 59)])
+        #expect(result.events.isEmpty)
+
+        #expect(try refreshes(result.state, at: [standardDay(16, 0)]).events == [.offWork(message: "今日 1000 元已到账，可以走了")])
     }
 
     @Test("PRD 4.3.4 通知金额是当日结算：记了一笔 50 元扣钱，18:00 为 950")
@@ -107,14 +126,6 @@ struct OffWorkNoticeTriggerTests {
         let result = try refreshes(try onboarded(salary: 20001), at: [standardDay(17, 0), standardDay(18, 0)])
 
         #expect(result.events == [.offWork(message: "今日 1000.05 元已到账，可以走了")])
-    }
-
-    @Test("AC-BOSS-03 老板路过模式下通知为【今天的砖搬完了，可以走了】，不含金额")
-    func bossModeHidesAmount() throws {
-        let state = try applied(.toggleBossMode, to: try onboarded())
-        let result = try refreshes(state, at: [standardDay(17, 0), standardDay(18, 0)])
-
-        #expect(result.events == [.offWork(message: "今天的砖搬完了，可以走了")])
     }
 
     @Test("PRD 4.3.5 #14 下班前睡眠、下班后醒来：醒来那次刷新补发一次")
@@ -197,7 +208,7 @@ struct OffWorkNoticeOnceTests {
         let earlier = WorkSchedule(start: standardSchedule.start, end: TimeOfDay(hour: 14, minute: 0), lunch: standardSchedule.lunch)
         let changed = try applied(.changeSchedule(earlier), to: waiting.state, at: standardDay(15, 0))
 
-        // 当日计划 10:00 至 14:00 扣午休 3 小时，今日上限仍是日薪 1000。
+        // 当日计划 10:00 至 14:00 扣饭点 3 小时，今日上限仍是日薪 1000。
         #expect(try refreshes(changed, at: [standardDay(15, 0), standardDay(15, 1)]).events == [standardNotice])
     }
 }
@@ -236,7 +247,7 @@ struct OffWorkNoticeSettingTests {
         let restored = try JSONDecoder().decode(AppState.self, from: JSONEncoder().encode(off))
         #expect(restored.settings.offWorkNotification == false)
 
-        let legacy = try JSONDecoder().decode(AppState.self, from: Data(#"{"settings":{"bossMode":true}}"#.utf8))
+        let legacy = try JSONDecoder().decode(AppState.self, from: Data(#"{"settings":{"menuBarMode":"amount"}}"#.utf8))
         #expect(snapshot(of: legacy, at: standardDay(9, 0)).settings.offWorkNotification)
     }
 

@@ -1,7 +1,8 @@
 import SwiftUI
 import WageCore
 
-/// 补记或修改一段白干 (PRD 4.4.3 #5、F11)：这一天之内的开始、结束时刻。校验与提示都来自核心。
+/// 补记或修改一段白干 (PRD 4.4.3 #5、F11)：这一天的开始时刻，结束时刻可以落在次日 (跨过零点)。
+/// 结束日期的选项、校验与提示都来自核心；只有当天一个选项时不显示结束日期。
 struct UnpaidWorkFormView: View {
     /// 新补记 (带预填时段) 还是修改第 `index` 段。
     enum Request: Identifiable {
@@ -24,20 +25,25 @@ struct UnpaidWorkFormView: View {
 
     let request: Request
     let date: LocalDate
+    /// 结束日期的选项 (`DayEditing.unpaidWorkEndDays`)。
+    let endDays: [UnpaidWorkEndDay]
     let actions: PanelActions
     let dismiss: () -> Void
 
     @State private var start: Date
     @State private var end: Date
+    @State private var endDayOffset: Int
     @State private var errorMessage: String?
 
-    init(request: Request, date: LocalDate, actions: PanelActions, dismiss: @escaping () -> Void) {
+    init(request: Request, date: LocalDate, endDays: [UnpaidWorkEndDay], actions: PanelActions, dismiss: @escaping () -> Void) {
         self.request = request
         self.date = date
+        self.endDays = endDays
         self.actions = actions
         self.dismiss = dismiss
         _start = State(initialValue: request.input.start.pickerDate)
         _end = State(initialValue: request.input.end.pickerDate)
+        _endDayOffset = State(initialValue: request.input.endDayOffset)
     }
 
     var body: some View {
@@ -46,6 +52,9 @@ struct UnpaidWorkFormView: View {
             HStack(spacing: Spacing.s12) {
                 Field("开始") { TimeInput(selection: $start) }
                 Field("结束") { TimeInput(selection: $end) }
+            }
+            if endDays.count > 1 {
+                Field("结束日期") { EndDayInput(options: endDays, selection: $endDayOffset) }
             }
             if let errorMessage {
                 Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
@@ -64,6 +73,7 @@ struct UnpaidWorkFormView: View {
         .background(Palette.bg)
         .onChange(of: start) { errorMessage = nil }
         .onChange(of: end) { errorMessage = nil }
+        .onChange(of: endDayOffset) { errorMessage = nil }
     }
 
     private var isEditing: Bool {
@@ -71,7 +81,7 @@ struct UnpaidWorkFormView: View {
     }
 
     private func save() {
-        let input = UnpaidWorkInput(start: TimeOfDay(pickerDate: start), end: TimeOfDay(pickerDate: end))
+        let input = UnpaidWorkInput(start: TimeOfDay(pickerDate: start), end: TimeOfDay(pickerDate: end), endDayOffset: endDayOffset)
         let edit: DayEdit = switch request {
         case .add: .addUnpaidWork(input)
         case .edit(let index, _): .editUnpaidWork(index: index, input)
@@ -82,6 +92,33 @@ struct UnpaidWorkFormView: View {
         } catch {
             errorMessage = error.message
         }
+    }
+}
+
+/// 白干段结束日期的选择，放进 `Field` 里用，外观同 `TimeInput`：当前选项的文字，右侧一个向下箭头，点开是选项菜单。
+private struct EndDayInput: View {
+    let options: [UnpaidWorkEndDay]
+    @Binding var selection: Int
+
+    var body: some View {
+        Menu {
+            ForEach(options) { option in
+                Button(option.label) { selection = option.offset }
+            }
+        } label: {
+            HStack(spacing: Spacing.s8) {
+                Text(options.first { $0.offset == selection }?.label ?? "")
+                    .font(AppFont.fieldText)
+                    .foregroundStyle(Palette.ink)
+                Spacer(minLength: 0)
+                PhosphorIcon(.caretDown, size: 12).foregroundStyle(Palette.muted)
+            }
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
     }
 }
 

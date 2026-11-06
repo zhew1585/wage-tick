@@ -21,21 +21,22 @@ func standardDay(_ hour: Int, _ minute: Int, _ second: Int = 0) -> Moment {
     moment(2026, 2, 11, hour, minute, second)
 }
 
-/// 标准算例作息：10:00 至 18:00，午休 12:00 至 13:00。
+/// 标准算例作息：10:00 至 18:00，饭点 12:00 至 13:00。
 let standardSchedule = WorkSchedule(
     start: TimeOfDay(hour: 10, minute: 0),
     end: TimeOfDay(hour: 18, minute: 0),
     lunch: LunchBreak(start: TimeOfDay(hour: 12, minute: 0), end: TimeOfDay(hour: 13, minute: 0))
 )
 
-/// 在 `at` 时刻按给定月薪与作息完成引导后的状态。
+/// 在 `at` 时刻按给定月薪、作息与休息模式完成引导后的状态。
 func onboarded(
     salary: Decimal = 20000,
     schedule: WorkSchedule = standardSchedule,
+    restMode: RestModeChoice = .twoDaysOff,
     at now: Moment = moment(2026, 2, 11, 9, 0)
 ) throws -> AppState {
     let command = Command.completeOnboarding(
-        OnboardingInput(monthlySalary: salary, schedule: schedule, launchAtLogin: true)
+        OnboardingInput(monthlySalary: salary, schedule: schedule, restMode: restMode, launchAtLogin: true)
     )
     return try apply(command, to: AppState(), at: now).state
 }

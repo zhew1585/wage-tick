@@ -1,12 +1,19 @@
 import Foundation
 
-// 设置页发出的命令 (PRD F12)：月薪、作息、菜单栏显示模式、老板路过快捷键、开机自启。
+// 设置页发出的命令 (PRD F12)：月薪、休息模式、作息、菜单栏显示模式、开机自启。
 // 校验规则与引导共用 `Validation` (PRD 4.3.5 #1 至 #3)。
 
 /// 修改当月月薪，当月整月生效。
 func changeMonthlySalary(_ amount: Decimal, state: AppState, now: Moment) throws(CommandError) -> AppState {
     if let error = Validation.monthlySalary(amount) { throw error }
     return try updatingProfile(state) { $0.setSalary(amount, for: now.localDate.yearMonth) }
+}
+
+/// 修改休息模式，当月整月生效 (本月已过去的日子跟着重算)，过去的月份保留当时的模式。
+/// 选项都是合法值，没有要拦的输入；大小周按今天所在的周定下大小。
+func changeRestMode(_ choice: RestModeChoice, state: AppState, now: Moment) throws(CommandError) -> AppState {
+    let today = now.localDate
+    return try updatingProfile(state) { $0.setRestMode(choice.mode(on: today), for: today.yearMonth) }
 }
 
 /// 修改作息，从今天起生效。
@@ -26,15 +33,7 @@ func setMenuBarMode(_ mode: MenuBarMode, state: AppState) -> AppState {
     return next
 }
 
-/// 快捷键属于界面设置，引导前也能改。
-func setBossModeHotkey(_ hotkey: Hotkey, state: AppState) throws(CommandError) -> AppState {
-    if let error = Validation.hotkey(hotkey) { throw error }
-    var next = state
-    next.settings.bossModeHotkey = hotkey
-    return next
-}
-
-/// 月薪、作息、开机自启存在引导产生的配置里，引导前不能改。历史里改月薪 (#15) 也用它。
+/// 月薪、休息模式、作息、开机自启存在引导产生的配置里，引导前不能改。历史里改月薪 (#15) 也用它。
 func updatingProfile(_ state: AppState, _ change: (inout Profile) -> Void) throws(CommandError) -> AppState {
     guard var profile = state.profile else { throw .notOnboarded }
     change(&profile)
@@ -47,6 +46,12 @@ extension Profile {
     /// 设置 `month` 的月薪，该月整月生效；其他月份的记录不动 (PRD 4.2.1 #1、#2)。
     mutating func setSalary(_ amount: Decimal, for month: YearMonth) {
         salaries = (salaries.filter { $0.month != month } + [MonthlySalary(month: month, amount: amount)])
+            .sorted { $0.month < $1.month }
+    }
+
+    /// 设置 `month` 的休息模式，该月整月生效；其他月份的记录不动。
+    mutating func setRestMode(_ mode: RestMode, for month: YearMonth) {
+        restModes = (restModes.filter { $0.month != month } + [MonthlyRestMode(month: month, mode: mode)])
             .sorted { $0.month < $1.month }
     }
 

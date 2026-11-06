@@ -59,8 +59,8 @@ struct OverrideTests {
         let saturday = try #require(snap.historyDay(feb(7)))
 
         #expect(try monthSummary(state, february).attendance.value == "21 天")
-        #expect(try detail(state, feb(9)).stats == [StatItem(title: "当天结算", value: "¥952.381")])
-        #expect(saturday.detail.stats == [StatItem(title: "当天结算", value: "¥952.381")])
+        #expect(try detail(state, feb(9)).stats == [StatItem(title: "当天结算", value: "¥952.38")])
+        #expect(saturday.detail.stats == [StatItem(title: "当天结算", value: "¥952.38")])
         // 改成上班的日子按上班日标颜色 (设计稿 760)，判定来源仍是单日覆盖。
         #expect(saturday.kind == .fullAttendance)
         #expect(saturday.detail.source == .override)
@@ -92,7 +92,7 @@ struct OverrideTests {
         #expect(holiday.detail.source == .override)
         #expect(holiday.kind == .fullAttendance)
         #expect(makeup.kind == .override)
-        #expect(holiday.detail.stats == [StatItem(title: "当天结算", value: "¥1111.1111")])
+        #expect(holiday.detail.stats == [StatItem(title: "当天结算", value: "¥1111.11")])
         #expect(makeup.detail.source == .override)
         #expect(makeup.detail.stats.isEmpty)
         // 18 天 + 1 - 1，日薪 20000 ÷ 18。
@@ -184,13 +184,12 @@ struct BackfillTests {
         let state = try editing(feb(7), .setOverride(.attendanceDay), in: fined)
 
         #expect(try attendancePanel(fined, at: standardDay(15, 0)).deductions.map(\.amount) == ["−¥100"])
-        #expect(try attendancePanel(state, at: standardDay(15, 0)).deductions.map(\.amount) == ["−¥95.2381"])
+        #expect(try attendancePanel(state, at: standardDay(15, 0)).deductions.map(\.amount) == ["−¥95.24"])
     }
 
     @Test("AC-LEAVE-06 历史日历给下周三请全天假 (默认 100%)：当天预计结算 0，本月应出勤日数不变")
     func futureLeave() throws {
-        let leave = Leave(period: .fullDay, deductionPercent: LeavePeriod.fullDay.defaultDeductionPercent)
-        let state = try editing(feb(18), .requestLeave(leave), in: try installedFebruary2())
+        let state = try editing(feb(18), .setLeave(fullDayLeave(100)), in: try installedFebruary2())
         let day = try #require(snapshot(of: state, at: standardDay(15, 0)).historyDay(feb(18)))
 
         #expect(day.detail.stats == [StatItem(title: "预计结算", value: "¥0")])
@@ -198,13 +197,16 @@ struct BackfillTests {
         #expect(try monthSummary(state, february).attendance.value == "20 天")
     }
 
-    @Test("过去的请假可以补请、修改 (整条替换) 和撤销，上下午合并规则与今天相同")
+    @Test("过去的请假可以补请、修改 (整条替换) 和撤销：详情为「请假 14:00–16:00 · 扣薪 28.57% · −¥285.70」")
     func pastLeave() throws {
-        var state = try editing(feb(4), .requestLeave(Leave(period: .morning, deductionPercent: 50)), in: try installedFebruary2())
-        state = try editing(feb(4), .requestLeave(Leave(period: .afternoon, deductionPercent: 20)), in: state)
-        #expect(try detail(state, feb(4)).leave == HistoryLine(title: "全天假", detail: "扣薪 70%", value: "−¥700"))
+        var state = try editing(feb(4), .setLeave(firstHalfLeave(50)), in: try installedFebruary2())
+        state = try editing(feb(4), .setLeave(leave("14:00", "16:00", Decimal(string: "28.57")!)), in: state)
+        #expect(try detail(state, feb(4)).leave == HistoryLine(title: "请假 14:00–16:00", detail: "扣薪 28.57%", value: "−¥285.70"))
+        #expect(try detail(state, feb(4)).stats == [StatItem(title: "当天结算", value: "¥714.30")])
+        state = try editing(feb(4), .setLeave(fullDayLeave(70)), in: state)
+        #expect(try detail(state, feb(4)).leave == HistoryLine(title: "全天请假", detail: "扣薪 70.00%", value: "−¥700"))
 
-        state = try editing(feb(4), .editLeave(Leave(period: .afternoon, deductionPercent: 0)), in: state)
+        state = try editing(feb(4), .setLeave(secondHalfLeave(0)), in: state)
         #expect(try detail(state, feb(4)).stats == [StatItem(title: "当天结算", value: "¥1000")])
 
         state = try editing(feb(4), .cancelLeave, in: state)
@@ -219,7 +221,7 @@ struct BackfillTests {
         #expect(try rejection(feb(18), .addDeduction(fifty), in: state) == .futureDate)
         #expect(try rejection(feb(18), .addUnpaidWork(segment), in: state) == .futureDate)
         #expect(CommandError.futureDate.message == "还没到这一天，只能请假或设置单日覆盖")
-        #expect(throws: Never.self) { try editing(feb(18), .requestLeave(Leave(period: .fullDay, deductionPercent: 100)), in: state) }
+        #expect(throws: Never.self) { try editing(feb(18), .setLeave(fullDayLeave(100)), in: state) }
         #expect(throws: Never.self) { try editing(feb(18), .setOverride(.dayOff), in: state) }
     }
 
@@ -229,7 +231,7 @@ struct BackfillTests {
 
         #expect(try rejection(feb(7), .addDeduction(fifty), in: state) == .notAttendanceDay)
         #expect(try rejection(feb(4), .addDeduction(fifty), in: state) == .notAttendanceDay)
-        #expect(try rejection(feb(4), .requestLeave(Leave(period: .fullDay, deductionPercent: 100)), in: state) == .notAttendanceDay)
+        #expect(try rejection(feb(4), .setLeave(fullDayLeave(100)), in: state) == .notAttendanceDay)
         #expect(CommandError.notAttendanceDay.message == "今天本来就不上班")
     }
 
@@ -249,14 +251,14 @@ struct StaleRecordTests {
     @Test("#14 遗留 单日覆盖后某天不上班：已有的扣钱和请假仍在详情里，提示不计入，可以删除")
     func overrideHidesNothing() throws {
         var state = try editing(feb(4), .addDeduction(fifty), in: try installedFebruary2())
-        state = try editing(feb(4), .requestLeave(Leave(period: .afternoon, deductionPercent: 50)), in: state)
+        state = try editing(feb(4), .setLeave(secondHalfLeave(50)), in: state)
         state = try editing(feb(4), .setOverride(.dayOff), in: state)
         let off = try detail(state, feb(4))
         let id = try #require(off.deductions.first?.id)
 
         #expect(off.stats.isEmpty)
         #expect(off.deductions.map(\.amount) == ["−¥50"])
-        #expect(off.leave?.title == "下午假")
+        #expect(off.leave?.title == "请假 13:00–18:00")
         #expect(off.notice == "这天不上班，下面的扣钱和请假不计入结算，可以删掉")
 
         state = try editing(feb(4), .deleteDeduction(id: id), in: state)
@@ -358,6 +360,7 @@ struct HistoryEditGoalTests {
         }
 
         #expect(try activeGoal(state, at: standardDay(15, 0)).estimate == "本月没有要上班的日子，暂时没法预计")
+        #expect(try activeGoal(state, at: standardDay(15, 0)).shortEstimate == "暂时没法预计")
     }
 
     @Test("#12 遗留 本月没有应出勤日时排队中目标也不按日薪 0 去除：展开后显示「排队中 · 暂时没法预计」")
@@ -371,6 +374,7 @@ struct HistoryEditGoalTests {
         let queue = try #require(snapshot(of: state, at: standardDay(15, 0)).panel?.goalQueue)
 
         #expect(queue.queued.map(\.estimate) == ["排队中 · 暂时没法预计"])
+        #expect(queue.upcoming.map(\.shortEstimate) == ["暂时没法预计"])
     }
 
     @Test("历史编辑让当前目标达标：立即完成，发达成通知、排庆祝动画，下一个目标接着累计；已完成目标不变")
@@ -391,7 +395,7 @@ struct HistoryEditGoalTests {
         #expect(list.queue.map(\.name) == ["Switch 2"])
         #expect(list.completed.map(\.name) == ["键盘"])
         // 零头结转：1904.7619 - 1100 = 804.7619。
-        #expect(list.queue.first?.asFirst.amountText == "¥804.7619 / ¥5000")
+        #expect(list.queue.first?.asFirst.amountText == "¥804.76 / ¥5000")
 
         // 再撤销覆盖让累计收入回落：已完成目标冻结，不会变回累计中。
         let undone = try apply(.editDay(feb(1), .clearOverride), to: result.state, at: now)
@@ -425,7 +429,7 @@ struct UnpaidWorkEditTests {
         let day = try detail(state, feb(9))
 
         #expect(day.unpaidWork == [HistoryLine(title: "18:00 – 19:30", detail: nil, value: "1h30m")])
-        #expect(day.editing.unpaidWorkItems.map(\.loss) == ["倒贴 ¥214.2857"])
+        #expect(day.editing.unpaidWorkItems.map(\.loss) == ["倒贴 ¥214.29"])
         #expect(day.stats == [StatItem(title: "当天结算", value: "¥1000")])
     }
 
@@ -443,10 +447,10 @@ struct UnpaidWorkEditTests {
         #expect(state == (try installedFebruary2()))
     }
 
-    @Test("修改被自动停止的那段：去掉疑似通宵标记")
-    func editClearsAllNighter() throws {
+    @Test("修改被自动停止的那段：去掉可能忘了停的标记")
+    func editClearsAutoStopped() throws {
         var state = try apply(.startUnpaidWork, to: try installedFebruary2(), at: moment(2026, 2, 9, 18, 0)).state
-        state = try apply(.advance, to: state, at: moment(2026, 2, 10, 9, 0)).state
+        state = try apply(.advance, to: state, at: moment(2026, 2, 10, 10, 30)).state
         state = try editing(feb(9), .editUnpaidWork(index: 0, segment(18, 0, 22, 0)), in: state)
 
         #expect(try detail(state, feb(9)).unpaidWork == [HistoryLine(title: "18:00 – 22:00", detail: nil, value: "4h00m")])

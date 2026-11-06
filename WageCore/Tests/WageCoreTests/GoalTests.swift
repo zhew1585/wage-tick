@@ -39,7 +39,8 @@ struct GoalCreationTests {
         #expect(atCreation.name == "Switch 2")
         #expect(atCreation.amountText == "¥0 / ¥10000")
         #expect(atCreation.progress == 0)
-        #expect(at1100.amountText == "¥142.8571 / ¥10000")
+        #expect(atCreation.percentText == "0.00%")
+        #expect(at1100.amountText == "¥142.86 / ¥10000")
     }
 
     @Test(
@@ -179,7 +180,7 @@ struct GoalProgressTests {
         let created = moment(2026, 2, 26, 18, 30)
         let state = try creatingGoal("键盘", 10000, in: try onboarded(at: created), at: created)
 
-        #expect(try activeGoal(state, at: moment(2026, 3, 3, 9, 0)).amountText == "¥1909.0909 / ¥10000")
+        #expect(try activeGoal(state, at: moment(2026, 3, 3, 9, 0)).amountText == "¥1909.09 / ¥10000")
     }
 
     @Test("AC-GPRG 进度条：累计额 3000 / 10000 时为 0.3")
@@ -234,7 +235,7 @@ struct GoalListTests {
 
         let list = try #require(snapshot(of: third, at: moment(2026, 2, 13, 11, 0)).goals)
         // 2 月 12 日 15:00 新建，当天还剩 428.5714，加上 13 日 11:00 已赚 142.8571。
-        #expect(list.queue.map { [$0.name, $0.asFirst.amountText] } == [["Switch 2", "¥571.4286 / ¥3000"]])
+        #expect(list.queue.map { [$0.name, $0.asFirst.amountText] } == [["Switch 2", "¥571.43 / ¥3000"]])
         #expect(list.completed.map { [$0.name, $0.amountText, $0.completedText] } == [
             ["耳机", "¥300", "2月12日 15:00 达成"],
             ["键盘", "¥500", "2月11日 15:00 达成"],
@@ -335,24 +336,24 @@ struct GoalSettlementTests {
         let created = try creatingGoal("键盘", 10000, in: try onboarded(), at: standardDay(9, 0))
         let fined = try apply(.addDeduction(DeductionInput(amount: .fixed(50), reason: .late, note: "")), to: created, at: standardDay(15, 0)).state
 
-        #expect(try activeGoal(fined, at: standardDay(15, 0)).amountText == "¥542.8571 / ¥10000")
+        #expect(try activeGoal(fined, at: standardDay(15, 0)).amountText == "¥542.86 / ¥10000")
         #expect(try activeGoal(fined, at: moment(2026, 2, 12, 9, 0)).amountText == "¥950 / ¥10000")
     }
 
     @Test("PRD 4.5.2 / 4.4.2 今天全天请假扣 100%：今天结算为 0，不计入累计额")
     func fullDayLeaveEarnsNothing() throws {
         let created = try creatingGoal("键盘", 10000, in: try onboarded(), at: standardDay(9, 0))
-        let onLeave = try apply(.requestLeave(Leave(period: .fullDay, deductionPercent: 100)), to: created, at: standardDay(9, 0)).state
+        let onLeave = try apply(.setLeave(fullDayLeave(100)), to: created, at: standardDay(9, 0)).state
 
         #expect(try activeGoal(onLeave, at: moment(2026, 2, 12, 9, 0)).amountText == "¥0 / ¥10000")
     }
 
-    @Test("spec #1 推进到此刻依次处理：跨过 23:59:59 的白干自动停止，同一次推进里累计中目标也达成")
+    @Test("spec #1 推进到此刻依次处理：到次日计划上班的白干自动停止，同一次推进里累计中目标也达成")
     func advanceStopsUnpaidWorkAndCompletesGoal() throws {
-        // 09:00 新建 1000 元目标；18:30 开始白干，到次日 09:00 才推进。
+        // 09:00 新建 1000 元目标；18:30 开始白干，到次日 10:30 (计划上班 10:00 之后) 才推进。
         let created = try creatingGoal("键盘", 1000, in: try onboarded(), at: standardDay(9, 0))
         let working = try apply(.startUnpaidWork, to: created, at: standardDay(18, 30)).state
-        let next = moment(2026, 2, 12, 9, 0)
+        let next = moment(2026, 2, 12, 10, 30)
         let advanced = try apply(.advance, to: working, at: next).state
 
         #expect(advanced.goals.map(\.status) == [.completed(at: next.date)])

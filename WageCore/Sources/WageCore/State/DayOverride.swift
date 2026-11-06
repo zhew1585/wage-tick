@@ -13,15 +13,16 @@ public enum DayOverride: String, Sendable, Equatable, Codable {
 }
 
 extension HolidayTable {
-    /// 把状态里的单日覆盖并入节假日表，供 `AttendanceRule` 按第 1 优先级判定 (PRD 4.2.2)。
-    /// `apply`、`snapshot` 入口各并一次，下游所有拿着节假日表判定应出勤日的地方 (今天、本月累计、目标累计收入、历史) 都自动带上覆盖。
-    /// 用状态当前的覆盖整体替换，重复调用结果不变。
-    func overlaying(_ dayRecords: [DayRecord]) -> HolidayTable {
+    /// 把状态里的单日覆盖与各月的休息模式并入节假日表，供 `AttendanceRule` 判定 (PRD 4.2.2)。
+    /// `apply`、`snapshot` 入口各并一次，下游所有拿着节假日表判定应出勤日的地方 (今天、本月累计、目标累计收入、历史) 都自动带上。
+    /// 用状态当前的内容整体替换，重复调用结果不变。
+    func overlaying(_ state: AppState) -> HolidayTable {
         var table = self
         table.overrides = Dictionary(
-            dayRecords.compactMap { record in record.override.map { (record.date, $0) } },
+            state.dayRecords.compactMap { record in record.override.map { (record.date, $0) } },
             uniquingKeysWith: { first, _ in first }
         )
+        table.restModes = state.profile?.restModes ?? []
         return table
     }
 }

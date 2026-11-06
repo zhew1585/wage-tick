@@ -5,7 +5,8 @@ public enum DayStatus: Sendable, Equatable {
     case restDay     // 休息日
     case notStarted  // 未上班
     case working     // 上班中
-    case lunchBreak  // 午休中
+    case lunchBreak  // 干饭中
+    case onLeave     // 请假中：落在两段上班中间的请假 (PRD 4.4.2)
     case offWork     // 已下班
 }
 
@@ -30,12 +31,12 @@ public struct Today: Sendable, Equatable {
     let settlement: DaySettlement?
     /// 今天的请假 (PRD 4.4.2)；没请假或今天不是应出勤日时为 nil。
     public let leave: Leave?
-    /// 今天的白干时长、已倒贴与计时状态 (PRD 4.4.3)。
+    /// 今天的白干时长、已倒贴与计时状态 (PRD 4.4.3)；计时中的那段可能是前一天开始、跨过零点的。
     public let unpaidWork: UnpaidWorkToday
-    /// 今天生效的作息 (未经半天假调整)：面板的时薪、请假表单各时段的工时据此推导。
+    /// 今天生效的作息 (未经请假调整)：面板的时薪、请假表单的时间条据此推导。
     let schedule: WorkSchedule
 
-    /// 时薪 = 日薪 ÷ 标准工时 (PRD 4.2.4)，不受半天假影响。
+    /// 时薪 = 日薪 ÷ 标准工时 (PRD 4.2.4)，不受请假影响。
     var hourlyWage: Decimal {
         schedule.owed(dailyWage: dailyWage, milliseconds: 3_600_000)
     }
@@ -73,12 +74,10 @@ extension Today {
         }
         let pastDays = month.days.filter { $0 < day && rule.isAttendanceDay($0) }
         let settledSum = pastDays.map { settle($0).cap }.reduce(0, +)
-        // 时薪按该日生效作息的标准工时，不受半天假影响 (PRD 4.4.3 #4)。
+        // 时薪按该日生效作息的标准工时，不受请假影响 (PRD 4.4.3 #4)。
+        let clock = UnpaidWorkClock(profile: profile, rule: rule, dayRecords: dayRecords, now: now)
         let unpaidWorkToday = { (status: DayStatus) in
-            UnpaidWorkToday(
-                segments: dayRecords.first { $0.date == day }?.unpaidWork ?? [],
-                status: status, dailyWage: wage, schedule: profile.schedule(on: day), now: now
-            )
+            UnpaidWorkToday(dayRecords: dayRecords, status: status, clock: clock)
         }
         date = day
         dailyWage = wage
@@ -97,7 +96,7 @@ extension Today {
         }
         let todaySettlement = settle(day)
         let todayLeave = dayRecords.first { $0.date == day }?.leave
-        let todayPlan = DayPlan(schedule: schedule, leave: todayLeave?.period, on: day, now: now)
+        let todayPlan = DayPlan(schedule: schedule, leave: todayLeave?.range, on: day, now: now)
         let todayEarnings = todayPlan.map { Earnings(settlement: todaySettlement, plan: $0, now: now.date) }
             ?? Earnings(fullDayLeave: todaySettlement)
         // 全天请假按休息日呈现【D2】。
@@ -120,7 +119,7 @@ extension Earnings {
         self.cap = cap
         deductionTotal = settlement.deductionTotal
         guard total > 0 else {
-            // 半天假后那半天没有工时 (午休紧贴计划上班或下班)：到计划下班即拿满今日上限。
+            // 计划里没有有效工时 (理论上不会：请掉全部工时即全天请假)：到计划下班即拿满今日上限。
             progress = now >= plan.end ? 1 : 0
             earned = cap * progress
             perSecond = 0
@@ -145,23 +144,23 @@ extension Earnings {
 extension MenuBarDisplay {
     /// 按显示模式 (PRD 4.7.1 第 2 条) 决定数字：金额模式为 4 位小数的今日已赚，进度模式为 2 位小数的工作进度，
     /// 仅图标模式不显示数字；休息日 (含全天请假，AC-HOME-07) 一律只显示小牛。
-    /// 老板路过模式下 (第 3 条) 只隐藏数字，小牛姿势照常随日状态变化。
-    /// 白干计时中小牛边拉磨边冒汗 (AC-BAR-09)，数字不变 (白干不改变收入)。
+    /// 白干计时中 (含前一天开始、跨过零点还在计时) 小牛边拉磨边冒汗 (AC-BAR-09)，数字不变 (白干不改变收入)。
     init(today: Today, settings: InterfaceSettings) {
         let statusPose: CowPose = switch today.status {
         case .restDay: .sunbathing
         case .notStarted: .yawning
         case .working: .grinding
         case .lunchBreak: .sleeping
+        case .onLeave: .sunbathing
         case .offWork: .lyingFlat
         }
         let pose = today.unpaidWork.isRunning ? .sweating : statusPose
-        let text: String? = if settings.bossMode || today.status == .restDay {
+        let text: String? = if today.status == .restDay {
             nil
         } else {
             switch settings.menuBarMode {
             case .amount: today.earnings.map { Format.rolling($0.earned) }
-            case .progress: today.earnings.map { Format.rollingPercent($0.progress) }
+            case .progress: today.earnings.map { Format.percent($0.progress) }
             case .iconOnly: nil
             }
         }

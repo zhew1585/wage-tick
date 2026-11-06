@@ -14,11 +14,6 @@ private func unpaidWork(_ state: AppState, from: Moment, to: Moment) throws -> A
     try applied(.stopUnpaidWork, to: applied(.startUnpaidWork, to: state, at: from), at: to)
 }
 
-/// 秒级以下的此刻，如 23:59:59.5。
-private func later(_ base: Moment, by seconds: TimeInterval) -> Moment {
-    Moment(date: base.date.addingTimeInterval(seconds), timeZone: base.timeZone)
-}
-
 @Suite("白干计时：时长与倒贴")
 struct UnpaidWorkAmountTests {
     @Test("AC-OT-02 18:00 开始 19:30 停止：白干 1 小时 30 分，相当于倒贴 ¥214.2857")
@@ -28,7 +23,7 @@ struct UnpaidWorkAmountTests {
 
         #expect(today.unpaidWork.milliseconds == 90 * 60 * 1000)
         #expect(rounded4(today.unpaidWork.owed) == Decimal(string: "214.2857")!)
-        #expect(try attendancePanel(state, at: standardDay(19, 30)).caption == "今日白干 1:30 · 倒贴 ¥214.2857")
+        #expect(try attendancePanel(state, at: standardDay(19, 30)).caption == "今日白干 1:30 · 倒贴 ¥214.29")
     }
 
     @Test("AC-OT-07 同一天两段各 30 分钟：白干时长 1 小时")
@@ -38,7 +33,7 @@ struct UnpaidWorkAmountTests {
         let today = try #require(snapshot(of: both, at: standardDay(20, 0)).today)
 
         #expect(today.unpaidWork.milliseconds == 60 * 60 * 1000)
-        #expect(try attendancePanel(both, at: standardDay(20, 0)).caption == "今日白干 1:00 · 倒贴 ¥142.8571")
+        #expect(try attendancePanel(both, at: standardDay(20, 0)).caption == "今日白干 1:00 · 倒贴 ¥142.86")
     }
 
     @Test("AC-OT-06 计时中退出，10 分钟后打开：期间没有任何命令，白干时长包含这 10 分钟")
@@ -105,7 +100,7 @@ struct UnpaidWorkAvailabilityTests {
         }
     }
 
-    @Test("PRD 4.4.3 #1 未上班、午休中也不能开始", arguments: [(9, 0), (12, 30)])
+    @Test("PRD 4.4.3 #1 未上班、干饭中也不能开始", arguments: [(9, 0), (12, 30)])
     func notBeforeWorkOrDuringLunch(time: (Int, Int)) throws {
         let now = standardDay(time.0, time.1)
 
@@ -149,66 +144,6 @@ struct UnpaidWorkAvailabilityTests {
     }
 }
 
-@Suite("白干计时：23:59:59 自动停止")
-struct UnpaidWorkAutoStopTests {
-    @Test("AC-OT-05 开始后不停止，跨过 23:59:59：推进到此刻时自动停止在 23:59:59，当天标记疑似通宵")
-    func autoStopsAtCutoff() throws {
-        let running = try applied(.startUnpaidWork, to: try onboarded(), at: standardDay(23, 0))
-        let lastSecond = later(standardDay(23, 59, 59), by: 0.5)
-        let stopped = try applied(.advance, to: running, at: lastSecond)
-        let unpaid = try #require(snapshot(of: stopped, at: lastSecond).today).unpaidWork
-
-        #expect(!unpaid.isRunning)
-        #expect(unpaid.suspectedAllNighter)
-        #expect(unpaid.milliseconds == (59 * 60 + 59) * 1000)
-        #expect(try #require(snapshot(of: stopped, at: lastSecond).panel).statusLabel == "已下班")
-    }
-
-    @Test("AC-OT-05 退出期间跨过零点：次日打开推进到此刻后不再计时，前一天记为疑似通宵，次日可以重新开始")
-    func autoStopsAcrossMidnight() throws {
-        let running = try applied(.startUnpaidWork, to: try onboarded(), at: standardDay(23, 0))
-        let nextMorning = moment(2026, 2, 12, 9, 0)
-        let advanced = try applied(.advance, to: running, at: nextMorning)
-        let previousDay = try #require(snapshot(of: advanced, at: later(standardDay(23, 59, 59), by: 0.5)).today).unpaidWork
-
-        #expect(snapshot(of: advanced, at: nextMorning).today?.unpaidWork.isRunning == false)
-        #expect(snapshot(of: advanced, at: nextMorning).menuBar.pose == .yawning)
-        #expect(previousDay.suspectedAllNighter)
-        #expect(previousDay.milliseconds == (59 * 60 + 59) * 1000)
-        // 次日 18:30 已下班，可以重新开始一段。
-        #expect(throws: Never.self) { try apply(.startUnpaidWork, to: advanced, at: moment(2026, 2, 12, 18, 30)) }
-    }
-
-    @Test("23:59:59 之前推进到此刻：照常计时，不标记")
-    func advanceBeforeCutoffKeepsRunning() throws {
-        let running = try applied(.startUnpaidWork, to: try onboarded(), at: standardDay(23, 0))
-        let advanced = try applied(.advance, to: running, at: standardDay(23, 59, 58))
-        let unpaid = try #require(snapshot(of: advanced, at: standardDay(23, 59, 58)).today).unpaidWork
-
-        #expect(unpaid.isRunning)
-        #expect(!unpaid.suspectedAllNighter)
-    }
-
-    @Test("没推进时取快照也按 23:59:59 自动停止推导，与推进后的快照一致")
-    func snapshotWithoutAdvanceMatches() throws {
-        let running = try applied(.startUnpaidWork, to: try onboarded(), at: standardDay(23, 0))
-        let lastSecond = later(standardDay(23, 59, 59), by: 0.5)
-        let advanced = try applied(.advance, to: running, at: lastSecond)
-
-        #expect(snapshot(of: running, at: lastSecond) == snapshot(of: advanced, at: lastSecond))
-    }
-
-    @Test("PRD 4.4.3 #3 已过 23:59:59 不能再开始")
-    func cannotStartAfterCutoff() throws {
-        let lastSecond = later(standardDay(23, 59, 59), by: 0.5)
-
-        #expect(snapshot(of: try onboarded(), at: lastSecond).panel?.unpaidWorkButton == nil)
-        #expect(throws: CommandError.unpaidWorkUnavailable) {
-            try apply(.startUnpaidWork, to: try onboarded(), at: lastSecond)
-        }
-    }
-}
-
 @Suite("白干计时：面板与菜单栏")
 struct UnpaidWorkPanelTests {
     @Test("AC-HOME-10 18:00 点「我还没走」，19:05:12 打开：标签【白干中】、主数字 ¥155.2381、小字含【18:00 起 · 已白干 1:05:12】，统计行为今日结算、扣款、本月累计")
@@ -219,6 +154,7 @@ struct UnpaidWorkPanelTests {
         #expect(panel.statusLabel == "白干中")
         // 扣款一项随扣钱 (#7) 加入，与已下班的统计行共用同一份。
         #expect(panel.body == .unpaidWork(UnpaidWorkPanel(
+            label: "今日已倒贴",
             headline: "¥155.2381",
             caption: "18:00 起 · 已白干 1:05:12",
             stats: [
@@ -252,6 +188,7 @@ struct UnpaidWorkPanelTests {
 
         #expect(panel.statusLabel == "白干中")
         #expect(panel.body == .unpaidWork(UnpaidWorkPanel(
+            label: "今日已倒贴",
             headline: "¥71.4286",
             caption: "10:00 起 · 已白干 0:30:00",
             stats: [
@@ -269,14 +206,6 @@ struct UnpaidWorkPanelTests {
 
         #expect(snapshot(of: running, at: standardDay(18, 30)).menuBar == MenuBarDisplay(pose: .sweating, text: "1000.0000"))
         #expect(snapshot(of: stopped, at: standardDay(19, 30)).menuBar == MenuBarDisplay(pose: .lyingFlat, text: "1000.0000"))
-    }
-
-    @Test("AC-BAR-09 老板路过模式下白干：只隐藏数字，小牛照样冒汗")
-    func cowSweatsInBossMode() throws {
-        let boss = try applied(.toggleBossMode, to: try onboarded(), at: standardDay(18, 0))
-        let running = try applied(.startUnpaidWork, to: boss, at: standardDay(18, 0))
-
-        #expect(snapshot(of: running, at: standardDay(18, 30)).menuBar == MenuBarDisplay(pose: .sweating, text: nil))
     }
 
     @Test("AC-HOME-05 没有白干记录时已下班小字仍为【准点下班，赢】")
@@ -349,7 +278,7 @@ struct UnpaidWorkWithDayRecordsTests {
 
     @Test("全天请假按休息日呈现，可以被迫营业；白干中统计行带今日结算、扣款、本月累计")
     func forcedOnFullDayLeave() throws {
-        let state = try onLeave(.fullDay, 100)
+        let state = try onLeave(fullDayLeave(100))
 
         #expect(snapshot(of: state, at: standardDay(10, 0)).panel?.unpaidWorkButton
             == UnpaidWorkButton(title: "被迫营业", command: .startUnpaidWork))
@@ -357,6 +286,7 @@ struct UnpaidWorkWithDayRecordsTests {
         let panel = try #require(snapshot(of: running, at: standardDay(10, 30)).panel)
         #expect(panel.statusLabel == "白干中")
         #expect(panel.body == .unpaidWork(UnpaidWorkPanel(
+            label: "今日已倒贴",
             headline: "¥71.4286",
             caption: "10:00 起 · 已白干 0:30:00",
             stats: [
@@ -384,13 +314,13 @@ struct UnpaidWorkWithDayRecordsTests {
         ])
     }
 
-    @Test("PRD 4.4.3 #4 半天假不影响时薪：上午请假后白干 1 小时仍倒贴 ¥142.8571；撤销请假后白干段仍在")
+    @Test("PRD 4.4.3 #4 请假不影响时薪：请前半天后白干 1 小时仍倒贴 ¥142.86；撤销请假后白干段仍在")
     func halfDayLeaveKeepsHourlyWageAndRecord() throws {
-        let worked = try unpaidWork(try onLeave(.morning, 50), from: standardDay(18, 0), to: standardDay(19, 0))
+        let worked = try unpaidWork(try onLeave(firstHalfLeave(50)), from: standardDay(18, 0), to: standardDay(19, 0))
         let cancelled = try applied(.cancelLeave, to: worked, at: standardDay(19, 10))
 
-        #expect(try attendancePanel(worked, at: standardDay(19, 5)).caption == "今日白干 1:00 · 倒贴 ¥142.8571")
-        #expect(try attendancePanel(cancelled, at: standardDay(19, 30)).caption == "今日白干 1:00 · 倒贴 ¥142.8571")
+        #expect(try attendancePanel(worked, at: standardDay(19, 5)).caption == "今日白干 1:00 · 倒贴 ¥142.86")
+        #expect(try attendancePanel(cancelled, at: standardDay(19, 30)).caption == "今日白干 1:00 · 倒贴 ¥142.86")
     }
 
     @Test("PRD 4.2.3 #2 今天改了作息：时薪按今天生效的作息算，默认作息 8 小时，白干 1 小时倒贴 ¥125")

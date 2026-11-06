@@ -12,17 +12,15 @@ public enum DayEdit: Sendable, Equatable {
     case addDeduction(DeductionInput)
     case editDeduction(id: Int, DeductionInput)
     case deleteDeduction(id: Int)
-    /// 新请一条：与已有的另一半天假合并为全天 (4.3.5 #21)，其余情况替换。
-    case requestLeave(Leave)
-    /// 修改请假：整条替换，不合并。
-    case editLeave(Leave)
+    /// 请假或修改请假：一天只有一条，已有时整条替换。
+    case setLeave(Leave)
     /// 撤销请假；没有请假时什么都不变。
     case cancelLeave
     /// 设置单日覆盖 (PRD 4.2.2)，任意日期。
     case setOverride(DayOverride)
     /// 撤销单日覆盖，回到按规则判定；没有覆盖时什么都不变。
     case clearOverride
-    /// 补记一段白干 (PRD 4.4.3 #5)。
+    /// 补记一段白干 (PRD 4.4.3 #5)，结束可以在次日 (跨过零点)，最晚到这天的自动停止时刻。
     case addUnpaidWork(UnpaidWorkInput)
     /// 修改这天第 `index` 段白干 (按开始时刻先后，与单日详情里的顺序一致)；计时中的那段不能改。
     case editUnpaidWork(index: Int, UnpaidWorkInput)
@@ -43,10 +41,8 @@ func editDay(
         return try editDeduction(id: id, input, on: date, state: state, now: now, holidays: holidays)
     case .deleteDeduction(let id):
         return try deleteDeduction(id: id, on: date, state: state)
-    case .requestLeave(let leave):
-        return try setLeave(leave, mergingWithExisting: true, on: date, state: state, holidays: holidays)
-    case .editLeave(let leave):
-        return try setLeave(leave, mergingWithExisting: false, on: date, state: state, holidays: holidays)
+    case .setLeave(let leave):
+        return try setLeave(leave, on: date, state: state, holidays: holidays)
     case .cancelLeave:
         return cancelLeave(on: date, state: state)
     case .setOverride(let override):
@@ -54,9 +50,9 @@ func editDay(
     case .clearOverride:
         return state.settingOverride(nil, on: date)
     case .addUnpaidWork(let input):
-        return try addUnpaidWork(input, on: date, state: state, now: now)
+        return try addUnpaidWork(input, on: date, state: state, now: now, holidays: holidays)
     case .editUnpaidWork(let index, let input):
-        return try editUnpaidWork(index: index, input, on: date, state: state, now: now)
+        return try editUnpaidWork(index: index, input, on: date, state: state, now: now, holidays: holidays)
     case .deleteUnpaidWork(let index):
         return try deleteUnpaidWork(index: index, on: date, state: state)
     }
@@ -64,9 +60,9 @@ func editDay(
 
 /// 历史编辑后当前目标的累计额随之变化 (PRD 4.5.2「编辑历史只影响当前累计中目标」)，因此达标的立即完成：
 /// 走目标完成的唯一入口 `completingReachedGoals` (发达成通知、排庆祝动画、激活下一个)；已完成目标冻结不动。
-/// 编辑可能改了单日覆盖，节假日表按编辑后的状态重新并一次。
+/// 编辑可能改了单日覆盖、月薪，节假日表按编辑后的状态重新并一次。
 func completingGoalsAfterEdit(_ state: AppState, now: Moment, holidays: HolidayTable) -> (state: AppState, events: [DomainEvent]) {
-    completingReachedGoals(state, now: now, holidays: holidays.overlaying(state.dayRecords))
+    completingReachedGoals(state, now: now, holidays: holidays.overlaying(state))
 }
 
 /// 改 `month` 的月薪，该月整月生效 (PRD 4.2.1)，限安装当月至本月。改本月时未来月份沿用 (4.2.1 #3)。

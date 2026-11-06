@@ -4,7 +4,7 @@ import WageCore
 
 // 目标队列 (PRD 4.5.2、4.5.3 #5、F8、F9，issue #12)。
 // 与 GoalTests 同一约定：除「接入节假日」外都用空节假日表，2026 年 2 月 20 个应出勤日，日薪 1000；
-// 标准作息 10:00 至 18:00、午休 12:00 至 13:00，有效工时 7 小时。
+// 标准作息 10:00 至 18:00、饭点 12:00 至 13:00，有效工时 7 小时。
 
 /// 在 `now` 时刻执行一条命令，返回新状态。
 private func sending(_ command: Command, to state: AppState, at now: Moment, holidays: HolidayTable = .empty) throws -> AppState {
@@ -65,7 +65,7 @@ struct GoalQueueCreationTests {
         #expect(done.goals[0].status == .completed(at: standardDay(18, 0).date))
         let next = try activeGoal(done, at: standardDay(18, 0))
         #expect(next.name == "B")
-        #expect(next.amountText == "¥0.0397 / ¥3000")
+        #expect(next.amountText == "¥0.04 / ¥3000")
     }
 
     @Test("PRD 4.5.2 结转后仍达标继续完成：A 500、B 300 同一次推进里都完成，C 带着 200 开始")
@@ -108,8 +108,8 @@ struct GoalQueueCreationTests {
 
         #expect(fined.goals[0] == done.goals[0])
         // 16:00 已工作 5 小时，今日已赚 = 950 × 5/7 = 678.5714，B 累计额 = 678.5714 - 500；不扣钱时是 214.2857。
-        #expect(try activeGoal(done, at: standardDay(16, 0)).amountText == "¥214.2857 / ¥3000")
-        #expect(try activeGoal(fined, at: standardDay(16, 0)).amountText == "¥178.5714 / ¥3000")
+        #expect(try activeGoal(done, at: standardDay(16, 0)).amountText == "¥214.29 / ¥3000")
+        #expect(try activeGoal(fined, at: standardDay(16, 0)).amountText == "¥178.57 / ¥3000")
     }
 }
 
@@ -125,7 +125,7 @@ struct GoalQueueDeletionTests {
         let next = try activeGoal(deleted, at: standardDay(13, 6))
         #expect(next.name == "B")
         #expect(next.amountText == "¥300 / ¥3000")
-        #expect(try activeGoal(deleted, at: standardDay(14, 6)).amountText == "¥442.8571 / ¥3000")
+        #expect(try activeGoal(deleted, at: standardDay(14, 6)).amountText == "¥442.86 / ¥3000")
     }
 
     @Test("PRD 4.5.2 删除累计中 A 后 B 继承的累计额已达标：B 立即完成")
@@ -190,7 +190,7 @@ struct GoalQueueOrderTests {
         #expect(active.amountText == "¥300 / ¥2000")
         #expect(result.state.goals.first { $0.name == "A" }?.status == .queued)
         // C 接着从 A 的起算基准往上累计。
-        #expect(try activeGoal(result.state, at: standardDay(14, 6)).amountText == "¥442.8571 / ¥2000")
+        #expect(try activeGoal(result.state, at: standardDay(14, 6)).amountText == "¥442.86 / ¥2000")
     }
 
     @Test("AC-GOAL-09 / D6 累计中 A 已累计 300，把排队中 B (200) 拖到最前：B 立即完成，零头 100 结转给新的第一个")
@@ -216,7 +216,7 @@ struct GoalQueueOrderTests {
 
         let active = try activeGoal(done, at: standardDay(15, 0))
         #expect(active.name == "A")
-        #expect(active.amountText == "¥71.4286 / ¥10000")
+        #expect(active.amountText == "¥71.43 / ¥10000")
     }
 
     @Test("D6 换下来再换回去：A 从此刻继承当前第一个的累计额，不是自己原来的起算基准")
@@ -227,7 +227,7 @@ struct GoalQueueOrderTests {
         let swapped = try sending(.reorderGoals(ids: [b, a]), to: state, at: standardDay(13, 6))
         let back = try sending(.reorderGoals(ids: [a, b]), to: swapped, at: standardDay(15, 0))
 
-        #expect(try activeGoal(back, at: standardDay(15, 0)).amountText == "¥571.4286 / ¥10000")
+        #expect(try activeGoal(back, at: standardDay(15, 0)).amountText == "¥571.43 / ¥10000")
         #expect(back.goals.first { $0.id == b }?.status == .queued)
     }
 
@@ -301,7 +301,7 @@ struct GoalQueueEditTests {
 
         let queue = try goalList(edited, at: standardDay(11, 0)).queue
         #expect(queue.map { [$0.name, $0.amountText] } == [["A", "¥10000"], ["耳机", "¥1200"], ["C", "¥2500"]])
-        #expect(queue.first?.asFirst.amountText == "¥142.8571 / ¥10000")
+        #expect(queue.first?.asFirst.amountText == "¥142.86 / ¥10000")
     }
 
     @Test("PRD 4.5.2 不变量 3 已完成目标不能编辑：提示【已完成的目标不能再改】")
@@ -358,6 +358,17 @@ struct GoalQueuePanelTests {
         #expect(queue.toggleTitle == "收起")
     }
 
+    @Test("面板攒钱队列 (设计稿 760 改版)：累计中卡片的百分比与短版预计，排队中的短版预计")
+    func panelShortTexts() throws {
+        let queue = try #require(try goalQueue(try threeGoals(), at: standardDay(11, 0)))
+        let active = try activeGoal(try threeGoals(), at: standardDay(11, 0))
+
+        // A 10000 累计 142.8571：1.43%。
+        #expect(active.percentText == "1.43%")
+        #expect(active.shortEstimate == "还需 9 天 · 2月24日")
+        #expect(queue.upcoming.map(\.shortEstimate) == ["预计 2月27日", "预计 3月4日"])
+    }
+
     @Test("F9 收起：再切换一次回到【显示更多 (2)】")
     func collapseAgain() throws {
         let expanded = try sending(.toggleGoalQueueExpanded, to: try threeGoals(), at: standardDay(11, 0))
@@ -391,6 +402,7 @@ struct GoalQueuePanelTests {
         let expanded = try sending(.toggleGoalQueueExpanded, to: state, at: standardDay(11, 0))
 
         #expect(try activeGoal(expanded, at: standardDay(11, 0)).estimate == "今天就能达成")
+        #expect(try activeGoal(expanded, at: standardDay(11, 0)).shortEstimate == "今天就能达成")
         #expect(try goalQueue(expanded, at: standardDay(11, 0))?.queued.map(\.estimate) == ["排队中 · 预计 2月13日"])
     }
 
@@ -441,10 +453,10 @@ struct GoalQueuePersistenceTests {
 
     @Test("PRD 4.3.5 #14 #12 之前写出的界面设置没有展开状态：读入后为收起")
     func oldSettingsWithoutExpandedState() throws {
-        let settings = try JSONDecoder().decode(InterfaceSettings.self, from: Data(#"{"bossMode":true}"#.utf8))
+        let settings = try JSONDecoder().decode(InterfaceSettings.self, from: Data(#"{"menuBarMode":"progress"}"#.utf8))
 
         #expect(settings.goalQueueExpanded == false)
-        #expect(settings.bossMode == true)
+        #expect(settings.menuBarMode == .progress)
     }
 
     @Test("PRD 4.3.5 #14 排队中目标重启后仍在，顺序不变")
@@ -470,7 +482,7 @@ struct GoalQueueListTests {
         let list = try goalList(state, at: standardDay(11, 0))
         #expect(list.queue.map { [$0.name, $0.amountText, $0.amountInput] } == [
             ["A", "¥10000", "10000"],
-            ["B", "¥3000.5", "3000.5"],
+            ["B", "¥3000.50", "3000.5"],
             ["C", "¥2500", "2500"],
         ])
         #expect(list.completed.map { [$0.name, $0.amountText, $0.completedText] } == [["D", "¥100", "2月11日 11:00 达成"]])

@@ -1,9 +1,7 @@
 import SwiftUI
 
-/// 面板底部入口栏 (PRD F4 第 8 条，设计稿 P2 Footer)：surface 底，左边历史、目标、设置，右边老板路过快捷键。
+/// 面板底部入口栏 (PRD F4 第 8 条，设计稿 P2 Footer)：surface 底，历史、目标、设置靠左排开。
 struct PanelFooter: View {
-    /// 老板路过快捷键，如「⌃⌥B」。
-    let bossHotkey: String?
     let openHistory: () -> Void
     let openGoals: () -> Void
     let openSettings: () -> Void
@@ -14,17 +12,6 @@ struct PanelFooter: View {
             FooterItem(icon: .flagBanner, title: "目标", action: openGoals)
             FooterItem(icon: .gearSix, title: "设置", action: openSettings)
             Spacer()
-            if let bossHotkey {
-                HStack(spacing: Spacing.s4) {
-                    PhosphorIcon(.eyeSlash, size: 13)
-                    Text(bossHotkey).font(AppFont.numSmall)
-                }
-                .foregroundStyle(Palette.muted)
-                .padding(.horizontal, Spacing.s8)
-                .help("老板路过")
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("老板路过 \(bossHotkey)")
-            }
         }
         .padding(.horizontal, Spacing.s12)
         .padding(.vertical, Spacing.s10)

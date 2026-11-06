@@ -19,7 +19,7 @@ struct ToggleRow: View {
 
 /// 胶囊开关：开为 accent (主题色) 底、圆钮靠右，关为 line 底、圆钮靠左；点整行切换。
 /// 整行是一个按钮：悬停手型，开关轨道悬停、按下时叠一层加深；不可用时变淡、没有反馈。
-/// 行的上下内边距默认 10，设计稿去掉内边距的地方 (引导午休) 用 `.themeSwitch(verticalPadding: 0)`。
+/// 行的上下内边距默认 10，设计稿去掉内边距的地方 (引导饭点) 用 `.themeSwitch(verticalPadding: 0)`。
 /// 标签默认 13 ink，要别的字体颜色直接写在标签 `Text` 上 (离得近的修饰优先)。
 struct ThemeSwitchToggleStyle: ToggleStyle {
     private static let disabledOpacity = 0.4

@@ -143,7 +143,7 @@ struct PanelProgress: View {
     }
 }
 
-/// 分段进度条 (高 10、圆角 3)：每段宽度按 `share` 分配，段与段之间是一小块 surface 色的午休。
+/// 分段进度条 (高 10、圆角 3)：每段宽度按 `share` 分配，段与段之间是一小块 surface 色的饭点。
 private struct SegmentedProgressBar: View {
     let segments: [ProgressSegment]
 

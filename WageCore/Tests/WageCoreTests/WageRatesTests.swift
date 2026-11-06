@@ -21,33 +21,33 @@ struct WageRatesTests {
         )
     }
 
-    @Test("PRD 4.2.4 标准算例：20 个上班日，日薪 1000，标准工时 7 小时，时薪 142.8571")
+    @Test("PRD 4.2.4 标准算例：20 个上班日，日薪 1000，标准工时 7 小时，时薪 ¥142.86")
     func standardExample() throws {
         let rates = try #require(try rates())
 
         #expect(rates.attendanceDays == StatItem(title: "本月上班日", value: "20 天"))
         #expect(rates.dailyWage == StatItem(title: "满勤日薪", value: "¥1000"))
         #expect(rates.standardHours == StatItem(title: "标准工时", value: "7 小时"))
-        #expect(rates.hourlyWage == StatItem(title: "时薪", value: "¥142.8571"))
+        #expect(rates.hourlyWage == StatItem(title: "时薪", value: "¥142.86"))
     }
 
-    @Test("设计稿算例：2026 年 11 月 21 个上班日、默认作息，日薪 952.381，时薪 119.0476")
+    @Test("设计稿算例：2026 年 11 月 21 个上班日、默认作息，日薪 ¥952.38，时薪 ¥119.05")
     func designExample() throws {
         let rates = try #require(try rates(schedule: .default, at: moment(2026, 11, 6, 10, 0)))
 
         #expect(rates.attendanceDays.value == "21 天")
-        #expect(rates.dailyWage.value == "¥952.381")
+        #expect(rates.dailyWage.value == "¥952.38")
         #expect(rates.standardHours.value == "8 小时")
-        #expect(rates.hourlyWage.value == "¥119.0476")
+        #expect(rates.hourlyWage.value == "¥119.05")
     }
 
-    @Test("PRD 4.2.3 #4 关闭午休：上下班之间全算标准工时")
+    @Test("PRD 4.2.3 #4 关闭饭点：上下班之间全算标准工时")
     func lunchOff() throws {
         let rates = try #require(try rates(schedule: schedule((9, 0), (18, 0), lunch: false), at: moment(2026, 11, 6, 10, 0)))
 
         #expect(rates.standardHours.value == "9 小时")
         // 20000 ÷ 21 ÷ 9 = 105.82010…
-        #expect(rates.hourlyWage.value == "¥105.8201")
+        #expect(rates.hourlyWage.value == "¥105.82")
     }
 
     @Test("标准工时不是整点：保留 1 位小数，与面板工作进度一致")
@@ -56,7 +56,7 @@ struct WageRatesTests {
 
         #expect(rates.standardHours.value == "7.5 小时")
         // 1000 ÷ 7.5 = 133.3333…
-        #expect(rates.hourlyWage.value == "¥133.3333")
+        #expect(rates.hourlyWage.value == "¥133.33")
     }
 
     @Test("PRD 4.2.2 法定节假日不算上班日，日薪随之变大")
@@ -66,7 +66,7 @@ struct WageRatesTests {
 
         #expect(rates.attendanceDays.value == "19 天")
         // 20000 ÷ 19 = 1052.63157…
-        #expect(rates.dailyWage.value == "¥1052.6316")
+        #expect(rates.dailyWage.value == "¥1052.63")
     }
 
     @Test("PRD 4.2.3 #2 改作息后按今天生效的作息算")

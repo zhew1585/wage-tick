@@ -34,22 +34,22 @@ public struct MenuBarDisplay: Sendable, Equatable {
     }
 }
 
-/// 菜单栏小牛的姿势，与日状态一一对应 (PRD 4.3.3 主状态概览)；白干计时中另有冒汗姿势。
+/// 菜单栏小牛的姿势，随日状态变化 (PRD 4.3.3 主状态概览)，请假中与休息日同为晒太阳；白干计时中另有冒汗姿势。
 public enum CowPose: Sendable, Equatable {
-    case sunbathing  // 晒太阳：休息日
+    case sunbathing  // 晒太阳：休息日，也用于请假中
     case yawning     // 打哈欠：未上班，也用于未完成引导
     case grinding    // 埋头拉磨：上班中
-    case sleeping    // 趴着睡：午休中
+    case sleeping    // 趴着睡：干饭中
     case lyingFlat   // 躺平：已下班
     case sweating    // 边拉磨边冒汗：白干计时中，不论日状态
 }
 
 /// 核心入口二：推导 `state` 在 `now` 时刻的快照，纯函数，不改状态。
-/// `holidays` 由节假日数据源适配器提供；不传时为空表，只按双休判定应出勤日。
+/// `holidays` 由节假日数据源适配器提供；不传时为空表，只按休息模式判定应出勤日。
 /// 换上新的节假日表重新取快照，当月日薪与结算随之重算 (PRD 4.3.5 #16)。
-/// 状态里的单日覆盖在这里并入节假日表，作为应出勤判定的第 1 优先级 (PRD 4.2.2)。
+/// 状态里的单日覆盖与各月的休息模式在这里并入节假日表 (PRD 4.2.2)，单日覆盖为应出勤判定的第 1 优先级。
 public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable = .empty) -> Snapshot {
-    let holidays = holidays.overlaying(state.dayRecords)
+    let holidays = holidays.overlaying(state)
     guard let profile = state.profile else {
         return Snapshot(
             menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil,
@@ -68,7 +68,7 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
             goalCount: state.goals.filter { !$0.status.isCompleted }.count
         ),
         settingsForm: SettingsForm(profile: profile, today: today, settings: state.settings),
-        leaveForm: LeaveForm(today: today, now: now),
+        leaveForm: LeaveForm(today: today),
         goals: GoalList(state: state, profile: profile, today: today, now: now, holidays: holidays),
         celebration: GoalCelebration(state: state),
         history: HistoryInputs(profile: profile, dayRecords: state.dayRecords, today: today, now: now, holidays: holidays)

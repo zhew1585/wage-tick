@@ -8,6 +8,7 @@ import SwiftUI
 /// 用法：`ThemeSegmented(options: modes.map { .init(id: $0, title: $0.label) }, selection: mode) { setMode($0) }`
 /// 表单里直接绑定：`ThemeSegmented(selection: $method, options: [(.fixed, "按金额"), (.percent, "按日薪百分比")])`
 /// 760 设计稿扣钱、请假表单的大号分段 (13 号字、段高更高、11 号等宽小字)：传 `size: .large`。
+/// 休息模式的四选一 (引导第 1 步「怎么休」、设置「休息模式」，13 号字、10 号中文小字、段内上下 9)：传 `size: .choice`。
 struct ThemeSegmented<ID: Hashable>: View {
     struct Option: Identifiable {
         let id: ID
@@ -16,15 +17,16 @@ struct ThemeSegmented<ID: Hashable>: View {
         var isEnabled = true
     }
 
-    /// 段的尺寸：`regular` 为 P5、P6 的小号；`large` 为 760 设计稿 F5、F6 表单里的大号。
+    /// 段的尺寸：`regular` 为 P5、P6 的小号；`large` 为 760 设计稿 F5、F6 表单里的大号；
+    /// `choice` 为休息模式的选项 (小字是中文说明，不用等宽字)。
     enum Size {
-        case regular, large
+        case regular, large, choice
     }
 
     let options: [Option]
     let selection: ID?
     let select: (ID) -> Void
-    /// 选项文字字号：默认 12；`size: .large` 时固定 13，忽略此值。
+    /// 选项文字字号：默认 12；`size: .large`、`.choice` 时固定 13，忽略此值。
     var fontSize: CGFloat = 12
     var size: Size = .regular
 
@@ -46,11 +48,23 @@ struct ThemeSegmented<ID: Hashable>: View {
         ) { selection.wrappedValue = $0 }
     }
 
-    /// 段内上下内边距：大号无小字 10、带小字 11 (设计稿 F5、F6 · 760)；小号无小字 7、带小字 6。
+    /// 段内上下内边距：大号无小字 10、带小字 11 (设计稿 F5、F6 · 760)；小号无小字 7、带小字 6；休息模式 9。
     private func verticalPadding(hasSubtitle: Bool) -> CGFloat {
         switch size {
         case .regular: hasSubtitle ? Spacing.s6 : Spacing.s6 + 1
         case .large: hasSubtitle ? 11 : Spacing.s10
+        case .choice: 9
+        }
+    }
+
+    private var titleSize: CGFloat { size == .regular ? fontSize : 13 }
+
+    /// 小字：小号 9、大号 11 号等宽 (数字)；休息模式 10 号中文。
+    private var subtitleFont: Font {
+        switch size {
+        case .regular: AppFont.num(9)
+        case .large: AppFont.num(11)
+        case .choice: AppFont.tiny
         }
     }
 
@@ -72,11 +86,11 @@ struct ThemeSegmented<ID: Hashable>: View {
         return Button {
             select(option.id)
         } label: {
-            VStack(spacing: size == .large ? Spacing.s2 : Spacing.s1) {
+            VStack(spacing: size == .regular ? Spacing.s1 : Spacing.s2) {
                 // 标题颜色由下面的样式按选中、悬停给。
-                Text(option.title).font(AppFont.ui(size == .large ? 13 : fontSize, selected ? .semibold : .regular))
+                Text(option.title).font(AppFont.ui(titleSize, selected ? .semibold : .regular))
                 if let subtitle = option.subtitle {
-                    Text(subtitle).font(AppFont.num(size == .large ? 11 : 9)).foregroundStyle(Palette.muted)
+                    Text(subtitle).font(subtitleFont).foregroundStyle(Palette.muted)
                 }
             }
             .padding(.vertical, verticalPadding(hasSubtitle: option.subtitle != nil))

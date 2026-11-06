@@ -102,9 +102,9 @@ struct HolidayDataTests {
         // 只按双休：10 月 22 个应出勤日，今天之前已过 1、2、5、6、7、8 日共 6 天。
         let before = try attendancePanel(state, at: at)
         #expect(before.stats == [
-            StatItem(title: "今日结算", value: "¥818.1818"),
+            StatItem(title: "今日结算", value: "¥818.18"),
             StatItem(title: "今日扣款", value: "¥0"),
-            StatItem(title: "本月累计", value: "¥5727.2727"),
+            StatItem(title: "本月累计", value: "¥5727.27"),
         ])
 
         // 拿到节假日数据后：18 个应出勤日，日薪 1000，今天之前只有 10 月 8 日。
@@ -183,14 +183,14 @@ struct HolidayCommandTests {
     @Test("PRD 4.3.5 #8 国庆放假当天不能请假，调休上班的周六可以")
     func leaveFollowsHolidayTable() throws {
         let state = try onboarded()
-        let leave = Command.requestLeave(Leave(period: .fullDay, deductionPercent: 100))
+        let leave = Command.setLeave(fullDayLeave(100))
 
         #expect(throws: CommandError.notAttendanceDay) {
             try apply(leave, to: state, at: moment(2026, 10, 5, 11, 0), holidays: holidays2026)
         }
         let makeupDay = moment(2026, 10, 10, 11, 0)
         let onLeave = try apply(leave, to: state, at: makeupDay, holidays: holidays2026).state
-        #expect(snapshot(of: onLeave, at: makeupDay, holidays: holidays2026).today?.leave?.period == .fullDay)
+        #expect(snapshot(of: onLeave, at: makeupDay, holidays: holidays2026).today?.leave == fullDayLeave(100))
         #expect(snapshot(of: state, at: moment(2026, 10, 5, 11, 0), holidays: holidays2026).leaveForm == nil)
     }
 }

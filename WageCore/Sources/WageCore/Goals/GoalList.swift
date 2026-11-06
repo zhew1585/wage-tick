@@ -59,7 +59,7 @@ extension GoalList {
         let queue = state.goals.filter { !$0.status.isCompleted }.map { goal in
             QueueGoalRow(
                 id: goal.id, name: goal.name,
-                amountText: Format.money(goal.amount), amountInput: Format.trimmed(goal.amount),
+                amountText: Format.money(goal.amount), amountInput: Format.editable(goal.amount),
                 asFirst: ActiveGoalCard(goal: goal, accumulated: accumulated, today: today, rule: rule)
             )
         }

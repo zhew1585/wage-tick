@@ -63,15 +63,15 @@ struct TodayPanelWorkingTests {
         // 2026-02-13 周五是 2 月第 10 个应出勤日。
         let body = try attendancePanel(try onboarded(), at: moment(2026, 2, 13, 15, 0))
 
-        #expect(body.caption == "满勤日薪 ¥1000 · 时薪 ¥142.8571")
+        #expect(body.caption == "满勤日薪 ¥1000 · 时薪 ¥142.86")
         #expect(body.stats == [
             StatItem(title: "距离下班", value: "3:00:00"),
             StatItem(title: "今日扣款", value: "¥0"),
-            StatItem(title: "本月累计", value: "¥9571.4286"),
+            StatItem(title: "本月累计", value: "¥9571.43"),
         ])
     }
 
-    @Test("AC-HOME-03 12:30 打开：状态标签【午休中】，今日已赚与进度 10 秒内不变")
+    @Test("AC-HOME-03 12:30 打开：状态标签【干饭中】，今日已赚与进度 10 秒内不变")
     func lunchBreakPauses() throws {
         let state = try onboarded()
         let at1230 = try #require(snapshot(of: state, at: standardDay(12, 30)).panel)
@@ -79,8 +79,8 @@ struct TodayPanelWorkingTests {
         let body = try attendancePanel(state, at: standardDay(12, 30))
         let later = try attendancePanel(state, at: standardDay(12, 30, 10))
 
-        #expect(at1230.statusLabel == "午休中")
-        #expect(at1230and10.statusLabel == "午休中")
+        #expect(at1230.statusLabel == "干饭中")
+        #expect(at1230and10.statusLabel == "干饭中")
         #expect(body.headline == "¥285.7143")
         #expect(body.progress?.label == "已工作 2 / 7 小时")
         #expect(body.progress?.percent == "28.57%")
@@ -99,7 +99,7 @@ struct TodayPanelInstallMonthTests {
         let body = try attendancePanel(state, at: installDay)
 
         #expect(body.headline == "¥142.8571")
-        #expect(body.stats.last == StatItem(title: "本月累计", value: "¥9142.8571"))
+        #expect(body.stats.last == StatItem(title: "本月累计", value: "¥9142.86"))
         #expect(snapshot(of: state, at: installDay).today?.monthToDate == Decimal(9000) + Decimal(1000) / 7)
     }
 }
@@ -152,38 +152,38 @@ struct TodayPanelFormatTests {
         let body = try attendancePanel(try onboarded(), at: standardDay(15, 0))
 
         #expect(body.headline == "¥571.4286")
-        #expect(body.caption == "满勤日薪 ¥1000 · 时薪 ¥142.8571")
+        #expect(body.caption == "满勤日薪 ¥1000 · 时薪 ¥142.86")
     }
 
-    @Test("PRD 4.7.1 #5 日薪 952.380952…：主数字补足 4 位 ¥952.3810，其他位置四舍五入后截掉末尾 0 为 ¥952.381")
+    @Test("PRD 4.7.1 #5 日薪 952.380952…：主数字补足 4 位 ¥952.3810，其他位置四舍五入到 2 位为 ¥952.38")
     func trailingZerosAreTrimmed() throws {
         // 2026 年 5 月只按双休有 21 个应出勤日，日薪 = 20000 ÷ 21。5 月 6 日周三是第 4 个应出勤日。
         let state = try onboarded()
         let working = try attendancePanel(state, at: moment(2026, 5, 6, 15, 0))
         let offWork = try attendancePanel(state, at: moment(2026, 5, 6, 18, 30))
 
-        #expect(working.caption == "满勤日薪 ¥952.381 · 时薪 ¥136.0544")
+        #expect(working.caption == "满勤日薪 ¥952.38 · 时薪 ¥136.05")
         #expect(offWork.headline == "¥952.3810")
         #expect(offWork.stats == [
-            StatItem(title: "今日结算", value: "¥952.381"),
+            StatItem(title: "今日结算", value: "¥952.38"),
             StatItem(title: "今日扣款", value: "¥0"),
             // 4 × 20000 ÷ 21 = 3809.5238…
-            StatItem(title: "本月累计", value: "¥3809.5238"),
+            StatItem(title: "本月累计", value: "¥3809.52"),
         ])
     }
 
     @Test(
-        "PRD 4.3.4 工作进度百分比四舍五入到 2 位并截掉末尾 0；已工作小时数保留 1 位小数、向下取",
+        "PRD 4.3.4 工作进度百分比四舍五入到 2 位、固定 2 位小数；已工作小时数保留 1 位小数、向下取",
         arguments: [
-            (8, 30, 0, "已工作 0 / 8 小时", "0%"),
-            (10, 0, 0, "已工作 1 / 8 小时", "12.5%"),
+            (8, 30, 0, "已工作 0 / 8 小时", "0.00%"),
+            (10, 0, 0, "已工作 1 / 8 小时", "12.50%"),
             (10, 20, 0, "已工作 1.3 / 8 小时", "16.67%"),
             (17, 57, 0, "已工作 7.9 / 8 小时", "99.38%"),
-            (14, 0, 0, "已工作 4 / 8 小时", "50%"),
+            (14, 0, 0, "已工作 4 / 8 小时", "50.00%"),
         ]
     )
     func percentAndHours(hour: Int, minute: Int, second: Int, label: String, percent: String) throws {
-        // 默认作息 09:00 至 18:00，午休 12:00 至 13:00，应有有效工时 8 小时。
+        // 默认作息 09:00 至 18:00，饭点 12:00 至 13:00，应有有效工时 8 小时。
         let body = try attendancePanel(try onboarded(schedule: .default), at: standardDay(hour, minute, second))
 
         #expect(body.progress?.label == label)
@@ -201,7 +201,7 @@ struct TodayPanelLayoutTests {
         #expect(panel.timeText == "15:07:30")
     }
 
-    @Test("F4 进度条午休显示为间隔：上午、下午各一段，按有效工时占比分宽度")
+    @Test("F4 进度条饭点显示为间隔：上午、下午各一段，按有效工时占比分宽度")
     func progressBarSplitsAtLunch() throws {
         // 默认作息：上午 3 小时、下午 5 小时；14:00 时上午走满，下午走了 1 / 5。
         let body = try attendancePanel(try onboarded(schedule: .default), at: standardDay(14, 0))
@@ -212,7 +212,7 @@ struct TodayPanelLayoutTests {
         ])
     }
 
-    @Test("PRD 4.2.3 #4 关闭午休：进度条只有一段")
+    @Test("PRD 4.2.3 #4 关闭饭点：进度条只有一段")
     func progressBarWithoutLunch() throws {
         let schedule = WorkSchedule(start: TimeOfDay(hour: 10, minute: 0), end: TimeOfDay(hour: 18, minute: 0), lunch: nil)
         let body = try attendancePanel(try onboarded(schedule: schedule), at: standardDay(12, 0))
@@ -220,9 +220,9 @@ struct TodayPanelLayoutTests {
         #expect(body.progress?.segments == [ProgressSegment(share: 1, filled: 0.25)])
     }
 
-    @Test("PRD 4.3.5 #3 午休紧贴计划上班或下班时：进度条不出现零长度的段", arguments: [(10, 11), (17, 18)])
+    @Test("PRD 4.3.5 #3 饭点紧贴计划上班或下班时：进度条不出现零长度的段", arguments: [(10, 11), (17, 18)])
     func lunchTouchingStartOrEndHasNoEmptySegment(lunch: (Int, Int)) throws {
-        // 午休落在上下班之内即合法，可以从计划上班开始或到计划下班结束。
+        // 饭点落在上下班之内即合法，可以从计划上班开始或到计划下班结束。
         let schedule = WorkSchedule(
             start: TimeOfDay(hour: 10, minute: 0),
             end: TimeOfDay(hour: 18, minute: 0),
