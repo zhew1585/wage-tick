@@ -24,7 +24,7 @@ struct DeductionPanelTests {
         let body = try attendancePanel(fined, at: standardDay(15, 0))
 
         #expect(body.headline == "¥542.8571")
-        #expect(body.caption == "满勤日薪 ¥1000 · 时薪 ¥142.8571")
+        #expect(body.caption == "满勤日薪 ¥1000 · 时薪 ¥142.86")
         #expect(body.stats.map(\.title) == ["距离下班", "今日扣款", "本月累计"])
         #expect(body.stats[1].value == "−¥50")
     }
@@ -38,7 +38,7 @@ struct DeductionPanelTests {
 
         #expect(items.map(\.title) == ["迟到", "扣钱"])
         #expect(items.map(\.amount) == ["−¥50", "−¥100"])
-        #expect(items.map(\.detail) == ["地铁故障", "日薪 10%"])
+        #expect(items.map(\.detail) == ["地铁故障", "日薪 10.00%"])
     }
 
     @Test("PRD 4.4.1 #2 按百分比的明细：金额按当月日薪折算后截掉末尾 0，说明带比例与备注")
@@ -50,8 +50,8 @@ struct DeductionPanelTests {
         let item = try #require(try attendancePanel(fined, at: moment(2026, 5, 6, 15, 0)).deductions.first)
 
         #expect(item.title == "早退")
-        #expect(item.amount == "−¥119.0476")
-        #expect(item.detail == "日薪 12.5% · 提前走")
+        #expect(item.amount == "−¥119.05")
+        #expect(item.detail == "日薪 12.50% · 提前走")
     }
 
     @Test("没有扣钱时：无明细、无提示，统计行扣款显示 ¥0")
@@ -91,7 +91,7 @@ struct DeductionEntryTests {
         #expect(panel.deductionEntry == nil)
     }
 
-    @Test("F5 应出勤日全天都有入口：未上班、上班中、午休中、已下班", arguments: [(9, 30), (11, 0), (12, 30), (18, 30)])
+    @Test("F5 应出勤日全天都有入口：未上班、上班中、干饭中、已下班", arguments: [(9, 30), (11, 0), (12, 30), (18, 30)])
     func entryOnAttendanceDay(time: (Int, Int)) throws {
         let panel = try #require(snapshot(of: try onboarded(), at: standardDay(time.0, time.1)).panel)
 

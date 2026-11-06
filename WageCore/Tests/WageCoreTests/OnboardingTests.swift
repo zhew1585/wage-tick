@@ -60,14 +60,14 @@ struct OnboardingValidationTests {
     }
 
     @Test(
-        "PRD 4.3.5 #3 午休不在上下班之内或结束不晚于开始：提示「午休要在上下班时间之内」",
+        "PRD 4.3.5 #3 饭点不在上下班之内或结束不晚于开始：提示「饭点要在上下班时间之内」",
         arguments: [(8, 13), (12, 19), (13, 12), (12, 12), (9, 18)]
     )
     func lunchMustBeInsideWorkHours(lunch: (Int, Int)) {
         let error = complete(schedule: schedule(9, 18, lunch: lunch))
 
         #expect(error == .lunchOutsideWorkHours)
-        #expect(error?.message == "午休要在上下班时间之内")
+        #expect(error?.message == "饭点要在上下班时间之内")
     }
 
     @Test("PRD 4.3.5 #1 至 #3 分步校验：外壳单独校验月薪与作息，结果与命令一致")
@@ -79,7 +79,7 @@ struct OnboardingValidationTests {
         #expect(Validation.schedule(.default) == nil)
     }
 
-    @Test("AC-ONB-01 默认作息：09:00 至 18:00，午休 12:00 至 13:00，标准工时 8 小时")
+    @Test("AC-ONB-01 默认作息：09:00 至 18:00，饭点 12:00 至 13:00，标准工时 8 小时")
     func defaultSchedule() throws {
         let state = try onboarded(schedule: .default)
         let statuses = [(8, 59), (9, 0), (12, 0), (13, 0), (18, 0)].map { hour, minute in
@@ -87,7 +87,7 @@ struct OnboardingValidationTests {
         }
 
         #expect(statuses == [.notStarted, .working, .lunchBreak, .working, .offWork])
-        // 09:00 至 15:00 扣午休共 5 小时，占 8 小时 (9 - 1) 的 62.5%。
+        // 09:00 至 15:00 扣饭点共 5 小时，占 8 小时 (9 - 1) 的 62.5%。
         #expect(snapshot(of: state, at: standardDay(15, 0)).menuBar.text == "625.0000")
     }
 

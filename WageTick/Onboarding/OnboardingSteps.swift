@@ -2,12 +2,13 @@ import AppKit
 import SwiftUI
 import WageCore
 
-/// 第 1 步 · 月薪 (设计稿 P1 引导 · 1 月薪 · 760)：大小牛、标题、月薪大号输入框。
-/// 小牛照设计稿实例框画满 104，等比缩放。
+/// 第 1 步 · 月薪 (设计稿 P1 引导 · 1 月薪 · 双休 / 大小周 · 760)：大小牛、标题、月薪大号输入框，
+/// 下面「怎么休」选休息模式 (默认双休)。小牛照设计稿实例框画满 104，等比缩放。
 struct OnboardingSalaryStep: View {
     private static let mascotSize: CGFloat = 104
 
     @Binding var salaryText: String
+    @Binding var restMode: RestModeChoice
     let errorMessage: String?
     let onSubmit: () -> Void
 
@@ -26,14 +27,19 @@ struct OnboardingSalaryStep: View {
             OnboardingBody(spacing: Spacing.s16, errorMessage: errorMessage) {
                 Field("月薪", text: $salaryText, suffix: "元", size: .large)
                     .onSubmit(onSubmit)
+                // 「怎么休」13/500 muted，与月薪标签同款。
+                VStack(alignment: .leading, spacing: Spacing.s8) {
+                    Text("怎么休").font(AppFont.bodyMedium).foregroundStyle(Palette.muted)
+                    RestModePicker(selection: restMode) { restMode = $0 }
+                }
             }
         }
     }
 }
 
-/// 第 2 步 · 作息 (设计稿 P1 引导 · 2 作息 · 760)：上下班一行两格；午休开关，打开后午休时段一行两格；
+/// 第 2 步 · 作息 (设计稿 P1 引导 · 2 作息 · 760)：上下班一行两格；饭点开关，打开后饭点时段一行两格；
 /// 分隔线下是「按这个作息算」的工资换算卡片。
-/// 字段名与尺寸照设计稿 (「上班」「午休」、加高输入框)，与设置页共用的 `ScheduleFields` 不同，所以单独排。
+/// 字段名与尺寸照设计稿 (「上班」「饭点」、加高输入框)，与设置页共用的 `ScheduleFields` 不同，所以单独排。
 struct OnboardingScheduleStep: View {
     @Binding var draft: ScheduleDraft
     let rates: WageRates?
@@ -42,18 +48,18 @@ struct OnboardingScheduleStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             OnboardingIntro(
-                title: "几点上班，几点下班？", subtitle: "按计划时间算钱，不打卡。午休时段数字会暂停。",
+                title: "几点上班，几点下班？", subtitle: "按计划时间算钱，不打卡。饭点时段数字会暂停。",
                 top: OnboardingLayout.firstTop
             )
             OnboardingBody(spacing: Spacing.s22, errorMessage: errorMessage) {
                 timeRow("上班", $draft.start, "下班", $draft.end)
                 VStack(alignment: .leading, spacing: Spacing.s12) {
                     Toggle(isOn: $draft.lunchEnabled) {
-                        Text("午休").font(AppFont.bodyMedium).foregroundStyle(Palette.muted)
+                        Text("饭点").font(AppFont.bodyMedium).foregroundStyle(Palette.muted)
                     }
                     .toggleStyle(.themeSwitch(verticalPadding: 0))
                     if draft.lunchEnabled {
-                        timeRow("午休开始", $draft.lunchStart, "午休结束", $draft.lunchEnd)
+                        timeRow("饭点开始", $draft.lunchStart, "饭点结束", $draft.lunchEnd)
                     }
                 }
                 if let rates {

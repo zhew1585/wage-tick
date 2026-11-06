@@ -13,14 +13,14 @@ struct OffWorkWatch: Sendable, Equatable, Codable {
 }
 
 /// 推进到此刻的第 3 步 (见 `advance`)。日状态与结算取自 `Today`，与菜单栏、面板看到的完全一致。
-/// - 今天还没下班 (未上班、上班中、午休中)：记下"今天在等下班"，当天已处理过的不动。
+/// - 今天还没下班 (未上班、上班中、干饭中、请假中)：记下"今天在等下班"，当天已处理过的不动。
 /// - 今天已下班且之前在等：产生下班事件 (通知开着时)，记为已处理。
 /// 关着通知时也记为已处理，之后再打开不补发今天的。
 func advanceOffWork(_ state: AppState, now: Moment, holidays: HolidayTable) -> (state: AppState, events: [DomainEvent]) {
     guard let profile = state.profile else { return (state, []) }
     let today = Today(profile: profile, dayRecords: state.dayRecords, now: now, holidays: holidays)
     switch today.status {
-    case .notStarted, .working, .lunchBreak:
+    case .notStarted, .working, .lunchBreak, .onLeave:
         guard state.offWorkWatch?.day != today.date else { return (state, []) }
         return (state.watchingOffWork(OffWorkWatch(day: today.date, handled: false)), [])
     case .offWork:
@@ -30,7 +30,7 @@ func advanceOffWork(_ state: AppState, now: Moment, holidays: HolidayTable) -> (
         let next = state.watchingOffWork(OffWorkWatch(day: today.date, handled: true))
         guard state.settings.offWorkNotification else { return (next, []) }
         // 当日结算 = 今日上限 (含扣钱与请假扣薪，PRD 4.3.4)。
-        let message = NotificationCopy.offWork(settlement: settlement.cap, bossMode: state.settings.bossMode)
+        let message = NotificationCopy.offWork(settlement: settlement.cap)
         return (next, [.offWork(message: message)])
     case .restDay:
         return (state, [])

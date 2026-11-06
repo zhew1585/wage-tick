@@ -11,7 +11,7 @@ struct HistoryInputs: Sendable, Equatable {
     let holidays: HolidayTable
 
     /// 快照相等只看推导结果：按推导出的每个月比较，不比较原始输入
-    /// (如该在 23:59:59 自动停止、还没推进的白干段，与推进后的推导一致)。
+    /// (如该在下一次计划上班自动停止、还没推进的白干段，与推进后的推导一致)。
     /// 注意：每次比较都要把安装当月至本月整个推导一遍，不要在刷新热路径上比较快照。
     static func == (lhs: HistoryInputs, rhs: HistoryInputs) -> Bool {
         lhs.derived == rhs.derived
@@ -49,7 +49,7 @@ public struct HistoryMonthSummary: Sendable, Equatable, Identifiable {
     public let attendance: HistoryFigure
     /// 扣款合计 (扣钱 + 请假扣薪)，不带负号，如「扣款」「¥550」；有扣款时 `isLoss`。
     public let deduction: HistoryFigure
-    /// 请假天数 (半天计 0.5)，如「请假」「0.5 天」。
+    /// 请假天数 (按请掉的工时折算，全天计 1)，如「请假」「1.29 天」。
     public let leave: HistoryFigure
     /// 白干时长合计，如「白干」「1h30m」。
     public let unpaidWork: HistoryFigure
@@ -86,11 +86,14 @@ struct HistoryLedger {
     let rule: AttendanceRule
     /// 按日期索引的日记录，逐日推导时免得每天都扫一遍。
     let records: [LocalDate: DayRecord]
+    /// 白干段的时长、结束时刻与自动停止，与今天的面板同一套推导。
+    let clock: UnpaidWorkClock
 
     init(_ inputs: HistoryInputs) {
         self.inputs = inputs
         rule = AttendanceRule(holidays: inputs.holidays)
         records = Dictionary(inputs.dayRecords.map { ($0.date, $0) }, uniquingKeysWith: { first, _ in first })
+        clock = UnpaidWorkClock(profile: inputs.profile, rule: rule, dayRecords: inputs.dayRecords, now: inputs.now)
     }
 
     var today: LocalDate { inputs.today.date }

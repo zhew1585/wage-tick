@@ -57,7 +57,7 @@ extension DeductionItem {
         let deduction = charged.deduction
         let ratio: String? = switch deduction.amount {
         case .fixed: nil
-        case .percentOfDailyWage(let percent): "日薪 \(Format.trimmed(percent))%"
+        case .percentOfDailyWage(let percent): "日薪 \(Format.percent(percent / 100))"
         }
         let note = deduction.note.isEmpty ? nil : deduction.note
         let parts = [ratio, note].compactMap { $0 }
@@ -83,8 +83,8 @@ extension AttendancePanel {
 }
 
 extension Format {
-    /// 扣款金额：带负号 (U+2212) 与 ¥，按 `trimmed` 取舍，如「−¥50」。
+    /// 扣款金额：带负号 (U+2212) 与 ¥，按 `amount` 取舍，如「−¥50」。
     static func deduction(_ amount: Decimal) -> String {
-        "−¥" + trimmed(amount)
+        "−¥" + self.amount(amount)
     }
 }

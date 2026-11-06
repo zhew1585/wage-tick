@@ -6,11 +6,11 @@ import Foundation
 public struct WageRates: Sendable, Equatable {
     /// 「本月上班日」，如「21 天」：当月应出勤日数 (PRD 4.2.2)。
     public let attendanceDays: StatItem
-    /// 「满勤日薪」，如「¥952.381」：当月日薪 (PRD 4.2.4)。
+    /// 「满勤日薪」，如「¥952.38」：当月日薪 (PRD 4.2.4)。
     public let dailyWage: StatItem
     /// 「标准工时」，如「8 小时」「7.5 小时」：今天生效作息的标准工时 (PRD 4.2.3)，保留 1 位小数，与面板工作进度一致。
     public let standardHours: StatItem
-    /// 「时薪」，如「¥119.0476」：日薪 ÷ 标准工时 (PRD 4.2.4)。
+    /// 「时薪」，如「¥119.05」：日薪 ÷ 标准工时 (PRD 4.2.4)。
     public let hourlyWage: StatItem
 }
 

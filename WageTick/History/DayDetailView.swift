@@ -60,7 +60,9 @@ struct DayDetailView: View {
             )
         }
         .sheet(item: $unpaidWorkForm) { request in
-            UnpaidWorkFormView(request: request, date: day.date, actions: actions, dismiss: { unpaidWorkForm = nil })
+            UnpaidWorkFormView(
+                request: request, date: day.date, endDays: editing.unpaidWorkEndDays, actions: actions, dismiss: { unpaidWorkForm = nil }
+            )
         }
     }
 
@@ -143,7 +145,9 @@ struct DayDetailView: View {
         }
         // 与扣钱表单分开挂，避免同一视图上挂两个以上 sheet 互相干扰。
         .sheet(item: $leaveForm) { mode in
-            LeaveFormView(mode: mode, actions: actions, target: target, dismiss: { leaveForm = nil })
+            if let form {
+                LeaveFormView(mode: mode, form: form, actions: actions, target: target, dismiss: { leaveForm = nil })
+            }
         }
     }
 
@@ -336,8 +340,8 @@ private struct DetailLine: View {
     }
 }
 
-/// 白干的一行 (surface 底，圆角 10)：时段 13/600 等宽，后面时长 muted、疑似通宵或计时中 accent，右边这一段倒贴 (loss)；
-/// 点一下修改，悬停时出现删除。
+/// 白干的一行 (surface 底，圆角 10)：时段 13/600 等宽 (跨过零点如「23:00 – 次日 01:30」)，后面时长 muted、可能忘了停或计时中 accent，右边这一段倒贴 (loss)；
+/// 一行放不下时 (跨过零点的时段较长) 时长与标记换到时段下面。点一下修改，悬停时出现删除。
 private struct UnpaidWorkLine: View {
     let item: UnpaidWorkItem
     let edit: (() -> Void)?
@@ -347,16 +351,23 @@ private struct UnpaidWorkLine: View {
 
     var body: some View {
         HStack(spacing: Spacing.s8) {
-            Text(item.line.title).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.ink)
-            Text(item.line.value).font(AppFont.body).foregroundStyle(Palette.muted)
-            if let flag = item.line.detail {
-                Text(flag).font(AppFont.small).foregroundStyle(Palette.accent)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: Spacing.s8) {
+                    title
+                    duration
+                }
+                VStack(alignment: .leading, spacing: Spacing.s4) {
+                    title
+                    duration
+                }
             }
+            // 倒贴金额不缩，剩下的宽度先给时段，放得下就排成一行。
+            .layoutPriority(1)
             Spacer(minLength: Spacing.s8)
             if hovering {
                 IconButton(systemName: "trash", help: "删除", action: delete)
             }
-            Text(item.loss).font(AppFont.num(13)).foregroundStyle(Palette.loss).lineLimit(1)
+            Text(item.loss).font(AppFont.num(13)).foregroundStyle(Palette.loss).fixedSize()
         }
         .padding(.horizontal, Spacing.s14)
         .padding(.vertical, Spacing.s12)
@@ -365,5 +376,19 @@ private struct UnpaidWorkLine: View {
         .onTapGesture { edit?() }
         .hoverFeedback(cornerRadius: Radius.r10, isEnabled: edit != nil)
         .onHover { hovering = $0 }
+    }
+
+    private var title: some View {
+        Text(item.line.title).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.ink).fixedSize()
+    }
+
+    private var duration: some View {
+        HStack(spacing: Spacing.s8) {
+            Text(item.line.value).font(AppFont.body).foregroundStyle(Palette.muted)
+            if let flag = item.line.detail {
+                Text(flag).font(AppFont.small).foregroundStyle(Palette.accent)
+            }
+        }
+        .fixedSize()
     }
 }

@@ -20,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 设计稿只有浅色一套 token (`Palette`)，App 窗口固定浅色外观；菜单都是原生菜单，跟随系统深浅 (ADR-0004)。
         NSApp.appearance = NSAppearance(named: .aqua)
         FieldEditorTheme.install()
-        model = AppModel(store: StateStore())
+        model = AppModel(store: StateStore(), widgets: WidgetBridge())
         // 菜单栏第一次刷新就会推进到此刻，事件出口要先接好。
         notifier = SystemNotifier { [weak self] in self?.todayPanel.show() }
         model.onEvents = { [weak self] events in self?.notifier.post(events) }

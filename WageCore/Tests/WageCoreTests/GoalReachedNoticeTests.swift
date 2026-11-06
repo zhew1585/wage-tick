@@ -28,13 +28,6 @@ struct GoalReachedNoticeTests {
         #expect(try apply(.advance, to: state, at: standardDay(15, 0)).events == [reachedNotice])
     }
 
-    @Test("PRD 4.6.3 老板路过模式下文案不变 (本身不含金额)")
-    func bossModeKeepsMessage() throws {
-        let hidden = try applied(.toggleBossMode, to: try goalOf500())
-
-        #expect(try apply(.advance, to: hidden, at: standardDay(15, 0)).events == [reachedNotice])
-    }
-
     @Test("同一目标的达成通知只发一次：之后再推进不再产生")
     func onlyOnce() throws {
         let done = try apply(.advance, to: try goalOf500(), at: standardDay(15, 0)).state

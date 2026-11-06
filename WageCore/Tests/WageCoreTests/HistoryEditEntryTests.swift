@@ -35,7 +35,7 @@ struct HistoryEditEntryTests {
         #expect(form.current == nil)
         #expect(form.canRequest)
         #expect(form.summary == [
-            StatItem(title: "当日计划", value: "10:00–18:00 上班"),
+            StatItem(title: "当日计划", value: "10:00–18:00"),
             StatItem(title: "请假扣薪", value: "¥0"),
             StatItem(title: "结算", value: "¥1000"),
         ])
@@ -89,14 +89,14 @@ struct HistoryEditEntryTests {
 
     @Test("已请全天假的日子：请假表单带出已有的请假，不能再新请")
     func existingLeave() throws {
-        let state = try editing(feb(4), .requestLeave(Leave(period: .fullDay, deductionPercent: 30)), in: try onboarded())
+        let state = try editing(feb(4), .setLeave(fullDayLeave(30)), in: try onboarded())
         guard case .available(let form) = try entries(state, feb(4)).leave else {
             Issue.record("期望能请假")
             return
         }
 
-        #expect(form.current == Leave(period: .fullDay, deductionPercent: 30))
-        #expect(form.currentText == "已请全天假 · 扣薪 30%")
+        #expect(form.current == fullDayLeave(30))
+        #expect(form.currentText == "已请全天假 · 扣薪 30.00%")
         #expect(!form.canRequest)
         #expect(form.summary == [
             StatItem(title: "当日计划", value: "全天请假"),

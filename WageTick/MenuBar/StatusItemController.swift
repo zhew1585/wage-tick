@@ -1,5 +1,4 @@
 import AppKit
-import OSLog
 import WageCore
 
 /// 菜单栏条目：小牛 + 数字，内容完全取自快照的 `menuBar`，不自行拼接任何文字 (AC-BAR-06)。
@@ -19,14 +18,8 @@ final class StatusItemController: NSObject {
     private let openHistory: () -> Void
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
-    private let bossModeItem = NSMenuItem(title: "老板路过", action: #selector(bossModeClicked), keyEquivalent: "")
-    private let logger = Logger(subsystem: AppIdentity.bundleID, category: "StatusItem")
     private var timer: Timer?
     private var shown: MenuBarDisplay?
-    /// 注册失败时为 nil，只能从左键菜单切换 (PRD 6.4)。
-    private var bossModeHotkey: GlobalHotkey?
-    /// 设置页正在录制新快捷键，期间全局快捷键保持暂停，菜单合上也不恢复。
-    private var isRecordingHotkey = false
 
     init(
         model: AppModel,
@@ -45,21 +38,17 @@ final class StatusItemController: NSObject {
         super.init()
         configureButton()
         buildMenu()
-        registerBossModeHotkey()
         observeClockChanges()
         refresh()
     }
 
     /// 左键菜单：macOS 原生菜单，系统画标题、快捷键、勾选与分隔线，跟随系统深浅色，不放图标。
-    /// 项目与快捷键按 PRD F2：今日概览 ⌘1、目标 ⌘2、历史 ⌘3 | 老板路过 (当前全局快捷键) | 设置… ⌘, | 退出 ⌘Q。
+    /// 项目与快捷键按 PRD F2：今日概览 ⌘1、目标 ⌘2、历史 ⌘3 | 设置… ⌘, | 退出 ⌘Q。
     private func buildMenu() {
-        menu.delegate = self
-        bossModeItem.target = self
         addRow("今日概览", key: "1", action: #selector(todayPanelClicked))
         addRow("目标", key: "2", action: #selector(goalsClicked))
         addRow("历史", key: "3", action: #selector(historyClicked))
         menu.addItem(.separator())
-        menu.addItem(bossModeItem)
         addRow("设置…", key: ",", action: #selector(settingsClicked))
         menu.addItem(.separator())
         addRow("退出", key: "q", action: #selector(NSApplication.terminate(_:)), target: NSApp)
@@ -77,7 +66,6 @@ final class StatusItemController: NSObject {
         // 引导完成前没有菜单，点击直接走 `buttonClicked`。
         item.menu = model.isOnboarded ? menu : nil
         render(snap.menuBar)
-        renderBossModeItem(snap.settings)
         scheduleNextRefresh(rolling: snap.today?.isRolling == true)
     }
 
@@ -97,37 +85,6 @@ final class StatusItemController: NSObject {
         button.image = CowIcon.image(for: display.pose)
         button.title = display.text ?? ""
         button.imagePosition = display.text == nil ? .imageOnly : .imageLeading
-    }
-
-    /// 老板路过菜单项：开启时系统勾选，右侧由系统画出当前快捷键 (如 ⌃⌥B，F2)。
-    /// 全局快捷键注册失败时不显示快捷键，免得牛马以为按了有用。
-    private func renderBossModeItem(_ settings: InterfaceSettings) {
-        bossModeItem.state = settings.bossMode ? .on : .off
-        let hotkey = bossModeHotkey == nil ? nil : settings.bossModeHotkey
-        bossModeItem.keyEquivalent = hotkey?.menuKeyEquivalent ?? ""
-        bossModeItem.keyEquivalentModifierMask = hotkey?.menuModifierMask ?? []
-    }
-
-    /// 切换老板路过并立即重绘，不等下一次定时刷新 (F3：必须一键生效)。
-    private func toggleBossMode() {
-        do {
-            try model.send(.toggleBossMode)
-        } catch {
-            logger.error("切换老板路过失败：\(error.message, privacy: .public)")
-        }
-        refresh()
-    }
-
-    private func registerBossModeHotkey() {
-        bossModeHotkey = makeBossModeHotkey(model.currentSnapshot().settings.bossModeHotkey)
-    }
-
-    private func makeBossModeHotkey(_ hotkey: Hotkey) -> GlobalHotkey? {
-        GlobalHotkey(hotkey) { [weak self] in
-            // 引导前菜单栏本就只有小牛，切换了也看不到，忽略，免得引导完数字莫名被藏。
-            guard let self, self.model.isOnboarded else { return }
-            self.toggleBossMode()
-        }
     }
 
     private func scheduleNextRefresh(rolling: Bool) {
@@ -158,10 +115,6 @@ final class StatusItemController: NSObject {
         openOnboarding()
     }
 
-    @objc private func bossModeClicked() {
-        toggleBossMode()
-    }
-
     @objc private func todayPanelClicked() {
         openTodayPanel()
     }
@@ -178,41 +131,3 @@ final class StatusItemController: NSObject {
         openHistory()
     }
 }
-
-/// 设置页改老板路过快捷键 (#5 遗留)：录制期间暂停全局快捷键，免得按下当前组合直接切换了老板路过；
-/// 新组合在系统注册成功后才保存，旧的同时失效。
-extension StatusItemController {
-    func suspendBossModeHotkey() {
-        isRecordingHotkey = true
-        bossModeHotkey?.suspend()
-    }
-
-    func resumeBossModeHotkey() {
-        isRecordingHotkey = false
-        bossModeHotkey?.resume()
-    }
-
-    /// 换成新组合，返回是否注册成功；失败时旧组合保持有效。
-    /// 启动时注册失败过 (没有实例) 的，用新组合重新建一个。
-    func rebindBossModeHotkey(_ hotkey: Hotkey) -> Bool {
-        if let bossModeHotkey {
-            return bossModeHotkey.rebind(to: hotkey)
-        }
-        bossModeHotkey = makeBossModeHotkey(hotkey)
-        return bossModeHotkey != nil
-    }
-}
-
-/// 菜单展开期间注销全局快捷键，让这组按键作为普通按键交给菜单项的快捷键处理；
-/// 合上后再注册。这样任何时候按一次只走一条路，只切换一次。
-extension StatusItemController: NSMenuDelegate {
-    func menuWillOpen(_ menu: NSMenu) {
-        bossModeHotkey?.suspend()
-    }
-
-    func menuDidClose(_ menu: NSMenu) {
-        guard !isRecordingHotkey else { return }
-        bossModeHotkey?.resume()
-    }
-}
-

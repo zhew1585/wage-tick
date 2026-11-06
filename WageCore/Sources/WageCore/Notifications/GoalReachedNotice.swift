@@ -3,7 +3,7 @@ import Foundation
 // 目标达成通知 (PRD 4.6.3、F13)：事件由 `completingReachedGoals` 产生，这里放文案与开关。
 
 extension NotificationCopy {
-    /// 目标达成通知正文，如「🎉 目标「Switch 2」达成」。不含金额，老板路过模式下不变 (PRD 4.6.3)。
+    /// 目标达成通知正文，如「🎉 目标「Switch 2」达成」。不含金额 (PRD 4.6.3)。
     /// 面板庆祝动画里的文字也用这一句。
     static func goalReached(name: String) -> String {
         "🎉 目标「\(name)」达成"

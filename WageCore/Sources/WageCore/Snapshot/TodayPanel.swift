@@ -23,11 +23,11 @@ public struct TodayPanel: Sendable, Equatable {
     public let goalCountText: String?
 
     public enum Body: Sendable, Equatable {
-        /// 应出勤日：未上班、上班中、午休中、已下班。
+        /// 应出勤日：未上班、上班中、干饭中、请假中、已下班。
         case attendance(AttendancePanel)
         /// 休息日。
         case rest(RestPanel)
-        /// 白干计时中 (我还没走或被迫营业)。
+        /// 白干计时中 (我还没走或被迫营业)，含前一天开始、跨过零点还在计时。
         case unpaidWork(UnpaidWorkPanel)
     }
 }
@@ -51,7 +51,7 @@ public struct RestPanel: Sendable, Equatable {
     }
 }
 
-/// 统计行里的一项，如「本月累计 ¥9571.4286」。
+/// 统计行里的一项，如「本月累计 ¥9571.43」。
 public struct StatItem: Sendable, Equatable {
     public let title: String
     public let value: String
@@ -66,7 +66,7 @@ public struct StatItem: Sendable, Equatable {
 public struct AttendancePanel: Sendable, Equatable {
     /// 主数字，带 ¥，4 位小数：今日已赚。
     public let headline: String
-    /// 主数字下方一行小字：上班中等为「满勤日薪 ¥1000 · 时薪 ¥142.8571」，已下班见 `UnpaidWorkToday.offWorkCaption`。
+    /// 主数字下方一行小字：上班中等为「满勤日薪 ¥1000 · 时薪 ¥142.86」，已下班见 `UnpaidWorkToday.offWorkCaption`。
     public let caption: String
     public let progress: WorkProgress?
     /// 统计行，如距离下班倒计时、本月累计。
@@ -83,11 +83,11 @@ public struct WorkProgress: Sendable, Equatable {
     public let label: String
     /// 如「57.14%」。
     public let percent: String
-    /// 进度条各段，午休显示为段与段之间的间隔。
+    /// 进度条各段，饭点与落在中间的请假显示为段与段之间的间隔。
     public let segments: [ProgressSegment]
     /// 进度条下方左端，当日计划上班，如「上班 10:00」。
     public let startText: String
-    /// 进度条下方右端，当日计划下班，如「下班 18:00」(下午假为「下班 12:00」)。
+    /// 进度条下方右端，当日计划下班，如「下班 18:00」(请了后半天为「下班 12:00」)。
     public let endText: String
 }
 
@@ -115,15 +115,30 @@ extension TodayPanel {
         self.goal = goal
         self.goalQueue = goalQueue
         goalCountText = goalCount > 0 ? "\(goalCount) 个目标" : nil
-        if today.unpaidWork.isRunning {
-            body = .unpaidWork(UnpaidWorkPanel(today: today, now: now))
-            return
+        let regular = Self.regularBody(today: today, now: now, holidays: holidays)
+        if let running = today.unpaidWork.running {
+            body = .unpaidWork(UnpaidWorkPanel(today: today, running: running, now: now, todayStats: regular.stats))
+        } else {
+            body = regular
         }
+    }
+
+    /// 不在白干计时时的主体：应出勤日 (有当日计划) 或休息日 (含全天请假)。
+    private static func regularBody(today: Today, now: Moment, holidays: HolidayTable) -> Body {
         guard let earnings = today.earnings, let plan = today.plan, let settlement = today.settlement else {
-            body = .rest(RestPanel(today: today, holidays: holidays))
-            return
+            return .rest(RestPanel(today: today, holidays: holidays))
         }
-        body = .attendance(AttendancePanel(today: today, earnings: earnings, settlement: settlement, plan: plan, now: now))
+        return .attendance(AttendancePanel(today: today, earnings: earnings, settlement: settlement, plan: plan, now: now))
+    }
+}
+
+private extension TodayPanel.Body {
+    var stats: [StatItem] {
+        switch self {
+        case .attendance(let panel): panel.stats
+        case .rest(let panel): panel.stats
+        case .unpaidWork(let panel): panel.stats
+        }
     }
 }
 
@@ -149,7 +164,7 @@ extension AttendancePanel {
         notice = Self.notice(settlement)
     }
 
-    /// 距离下班：未上班时还没开始倒计时，显示「-」；上班中、午休中为计划下班前的剩余时间。
+    /// 距离下班：未上班时还没开始倒计时，显示「-」；上班中、干饭中、请假中为计划下班前的剩余时间。
     static func countdownText(today: Today, plan: DayPlan, now: Moment) -> String {
         today.status == .notStarted ? "-" : Format.countdown(from: now.date, to: plan.end)
     }
@@ -165,7 +180,7 @@ extension AttendancePanel {
 extension RestPanel {
     init(today: Today, holidays: HolidayTable) {
         // 全天请假按休息日呈现，但标题为「今天请假」(AC-HOME-07)。
-        let isLeave = today.leave?.period == .fullDay
+        let isLeave = today.leave != nil
         let monthDays = AttendanceRule(holidays: holidays).attendanceDayCount(in: today.date.yearMonth)
         self.init(
             headline: isLeave ? "今天请假" : "今天休息",
@@ -190,7 +205,7 @@ extension WorkProgress {
             : Format.workHours(milliseconds: elapsedMilliseconds, roundingDown: true)
         label = "已工作 \(elapsed) / \(total) 小时"
         percent = Format.percent(progress)
-        // 半天假后那半天没有工时时没有任何一段，`barLength` 不会被用作除数。
+        // 计划里没有有效工时时没有任何一段，`barLength` 不会被用作除数。
         let barLength = plan.workPeriods.map(\.length).reduce(0, +)
         segments = plan.workPeriods.map { period in
             let walked = min(max(now.timeIntervalSince(period.start), 0), period.length)
@@ -208,7 +223,8 @@ extension DayStatus {
         case .restDay: "休息日"
         case .notStarted: "未上班"
         case .working: "上班中"
-        case .lunchBreak: "午休中"
+        case .lunchBreak: "干饭中"
+        case .onLeave: "请假中"
         case .offWork: "已下班"
         }
     }

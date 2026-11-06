@@ -8,17 +8,23 @@ import WageCore
 final class AppModel {
     private let store: StateStore
     private var state: AppState
-    /// 节假日表，由 `HolidayUpdater` 从数据源适配器取来；未就绪时为空表，只按双休。
-    var holidays: HolidayTable = .empty
+    /// 节假日表，由 `HolidayUpdater` 从数据源适配器取来；未就绪时为空表，只按休息模式。换了表也交给小组件。
+    var holidays: HolidayTable = .empty {
+        didSet { publishToWidgets() }
+    }
     /// 「推进到此刻」产生的领域事件 (下班、目标达成) 交给它发系统通知。
     var onEvents: (([DomainEvent]) -> Void)?
     private let logger = Logger(subsystem: AppIdentity.bundleID, category: "AppModel")
     /// 清空数据后到退出前不再落盘，免得刷新把旧状态写回去。
     private var isResetting = false
+    /// 把状态交给桌面小组件；预览 (离屏渲染) 不传，免得写掉真实的小组件数据。
+    private let widgets: WidgetBridge?
 
-    init(store: StateStore) {
+    init(store: StateStore, widgets: WidgetBridge? = nil) {
         self.store = store
+        self.widgets = widgets
         state = store.load()
+        publishToWidgets()
     }
 
     var isOnboarded: Bool { state.profile != nil }
@@ -35,11 +41,20 @@ final class AppModel {
     func resetAllData() {
         isResetting = true
         store.reset()
+        widgets?.reset()
     }
 
+    /// 落盘后交给小组件：每条命令、推进到此刻改了状态都走这里。
     private func save() {
         guard !isResetting else { return }
         store.save(state)
+        publishToWidgets()
+    }
+
+    /// 内容没变时 `WidgetBridge` 不写也不刷新。
+    private func publishToWidgets() {
+        guard !isResetting else { return }
+        widgets?.publish(state: state, holidays: holidays)
     }
 
     /// 试算：在当前状态上执行命令但不保存，返回执行后的快照。表单实时预览用它，校验失败时返回错误。
@@ -52,7 +67,7 @@ final class AppModel {
         }
     }
 
-    /// 先发「推进到此刻」处理随时间发生的变化 (白干到 23:59:59 自动停止、累计中目标达成、跨过计划下班)，
+    /// 先发「推进到此刻」处理随时间发生的变化 (白干到下一次计划上班自动停止、累计中目标达成、跨过计划下班)，
     /// 再按同一此刻、当前节假日表取快照。每次刷新都走这里。
     func currentSnapshot() -> Snapshot {
         let now = Self.now()

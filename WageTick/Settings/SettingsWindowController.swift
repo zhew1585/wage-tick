@@ -26,9 +26,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         scheduleRefresh()
     }
 
-    /// 录制快捷键中途关窗或切走：结束录制，恢复全局快捷键，别的窗口的按键不再被吞掉。
+    /// 关窗后停掉显示模式预览的定时刷新。
     func windowWillClose(_ notification: Notification) {
-        form.endRecordingHotkey()
         timer?.invalidate()
         timer = nil
     }
@@ -40,10 +39,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         }
         RunLoop.main.add(timer, forMode: .common)
         self.timer = timer
-    }
-
-    func windowDidResignKey(_ notification: Notification) {
-        form.endRecordingHotkey()
     }
 
     /// 从系统设置改完通知权限切回来时，提示随之更新。

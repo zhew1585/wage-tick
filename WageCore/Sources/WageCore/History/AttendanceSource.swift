@@ -2,10 +2,17 @@ import Foundation
 
 /// 判定来源 (PRD 4.2.2 应出勤日字段)：这一天是否应出勤由哪条规则决定，历史单日详情里展示。
 public enum AttendanceSource: Sendable, Equatable, CaseIterable {
-    /// 工作日：不在节假日表里的周一至周五，应出勤 (含节假日数据缺失的年份)。设计稿 760 从「双休」里分出来。
+    /// 工作日：不在节假日表里、按休息模式要上班的日子 (含节假日数据缺失的年份)。设计稿 760 从「双休」里分出来。
+    /// 单休、小周里要上班的周六也是工作日。
     case workday
-    /// 双休：不在节假日表里的周六日，不应出勤。
+    /// 双休：休息模式为双休时不在节假日表里的周六日，不应出勤。
     case weekend
+    /// 单休：休息模式为单休时不在节假日表里的周日，不应出勤。
+    case sundayOnly
+    /// 大周：休息模式为大小周时，大周不在节假日表里的周六日，不应出勤。
+    case bigWeek
+    /// 小周：休息模式为大小周时，小周不在节假日表里的周日，不应出勤。
+    case smallWeek
     /// 法定节假日：不应出勤。
     case publicHoliday
     /// 调休上班：应出勤，即使落在周六日。
@@ -18,6 +25,9 @@ public enum AttendanceSource: Sendable, Equatable, CaseIterable {
         switch self {
         case .workday: "工作日"
         case .weekend: "双休"
+        case .sundayOnly: "单休"
+        case .bigWeek: "大周"
+        case .smallWeek: "小周"
         case .publicHoliday: "法定节假日"
         case .makeupDay: "调休上班"
         case .override: "单日覆盖"
@@ -26,13 +36,13 @@ public enum AttendanceSource: Sendable, Equatable, CaseIterable {
 }
 
 extension AttendanceRule {
-    /// 某天的判定来源，与 `isAttendanceDay` 同一判定顺序：单日覆盖 > 调休上班日 > 法定节假日 > 周六日 > 其余。
+    /// 某天的判定来源，与 `isAttendanceDay` 同一判定顺序：单日覆盖 > 调休上班日 > 法定节假日 > 休息模式 > 其余。
     func source(on date: LocalDate) -> AttendanceSource {
         if holidays.overrides[date] != nil { return .override }
         return switch holidays.kind(on: date) {
         case .makeupDay: .makeupDay
         case .holiday: .publicHoliday
-        case nil: date.isWeekend ? .weekend : .workday
+        case nil: holidays.restMode(for: date.yearMonth).restSource(on: date) ?? .workday
         }
     }
 }

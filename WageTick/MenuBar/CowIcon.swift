@@ -28,13 +28,12 @@ enum CowIcon {
     }
 
     /// 每个日状态对应的角标 (设计稿 F2，Phosphor Bold 图标)。
-    /// 设计稿里老板路过还有 `eyeSlash` 角标，但核心的老板路过只隐藏数字、姿势照常 (PRD 4.7.1 第 3 条)，暂不使用。
     private static func badgeName(for pose: CowPose) -> String {
         switch pose {
         case .sunbathing: "sun"        // 晒太阳：休息日
         case .yawning: "moon"          // 打哈欠：未上班
         case .grinding: "lightning"    // 埋头拉磨：上班中
-        case .sleeping: "bed"          // 趴着睡：午休中
+        case .sleeping: "bed"          // 趴着睡：干饭中
         case .lyingFlat: "armchair"    // 躺平：已下班
         case .sweating: "drop"         // 边拉磨边冒汗：白干计时中
         }

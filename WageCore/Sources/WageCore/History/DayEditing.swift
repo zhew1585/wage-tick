@@ -28,12 +28,24 @@ public struct DayEditing: Sendable, Equatable {
     public let deduction: EditEntry<DeductionEntry>
     /// 请假：可用时为这天的请假表单 (已有请假、汇总)。
     public let leave: EditEntry<LeaveForm>
-    /// 补记白干段：可用时为新补记一段的预填时段 (计划下班起 1 小时)。
+    /// 补记白干段：可用时为新补记一段的预填时段 (计划下班起 1 小时，可能跨过零点到次日)。
     public let unpaidWork: EditEntry<UnpaidWorkInput>
+    /// 白干段表单里结束日期的选项：当天、次日……直到这天的自动停止时刻那天 (PRD 4.4.3 #3)。补记与修改共用。
+    public let unpaidWorkEndDays: [UnpaidWorkEndDay]
     /// 这天已有的白干段，按开始时刻先后，可改删。
     public let unpaidWorkItems: [UnpaidWorkItem]
     /// 单日覆盖按钮：没有覆盖时改成相反的一种，有覆盖时撤销。任何日期都有。
     public let overrideButton: EditButton
+}
+
+/// 白干段表单里结束日期的一个选项。
+public struct UnpaidWorkEndDay: Sendable, Equatable, Identifiable {
+    /// 开始那天之后第几天，即 `UnpaidWorkInput.endDayOffset`。
+    public let offset: Int
+    /// 如「当天」「次日」「11月9日 周一」。
+    public let label: String
+
+    public var id: Int { offset }
 }
 
 /// 单日详情里的一段白干。
@@ -44,7 +56,7 @@ public struct UnpaidWorkItem: Sendable, Equatable, Identifiable {
     public let line: HistoryLine
     /// 修改表单的预填时段；计时中的那段不能改，为 nil。
     public let input: UnpaidWorkInput?
-    /// 这一段倒贴的钱 (时长 × 时薪，PRD 4.4.3 #4)，如「倒贴 ¥214.2857」；计时中的算到此刻。
+    /// 这一段倒贴的钱 (时长 × 时薪，PRD 4.4.3 #4)，如「倒贴 ¥214.29」；计时中的算到此刻。
     public let loss: String
 
     public var id: Int { index }
@@ -70,7 +82,7 @@ extension Snapshot {
 }
 
 extension HistoryLedger {
-    func editing(_ day: DayLedger, unpaidWorkLines: [HistoryLine], dailyWage: Decimal) -> DayEditing {
+    func editing(_ day: DayLedger, unpaidWorkLines: [HistoryLine]) -> DayEditing {
         let isFuture = day.date > today
         let restReason = CommandError.notAttendanceDay.message
         let futureReason = CommandError.futureDate.message
@@ -83,17 +95,18 @@ extension HistoryLedger {
         }
         let leave: EditEntry<LeaveForm> = day.settlement.map { .available(leaveForm(day, settlement: $0)) }
             ?? .unavailable(reason: restReason)
+        let items = zip(day.unpaidWork, unpaidWorkLines).enumerated().map { index, pair in
+            UnpaidWorkItem(
+                index: index, line: pair.1, input: unpaidWorkInput(pair.0.segment, on: day.date),
+                loss: "倒贴 \(Format.money(clock.owed(on: day.date, milliseconds: pair.0.milliseconds)))"
+            )
+        }
         return DayEditing(
             deduction: deduction,
             leave: leave,
             unpaidWork: isFuture ? .unavailable(reason: futureReason) : .available(unpaidWorkDraft(day.date)),
-            unpaidWorkItems: zip(day.unpaidWork, unpaidWorkLines).enumerated().map { index, pair in
-                let owed = inputs.profile.schedule(on: day.date).owed(dailyWage: dailyWage, milliseconds: pair.0.milliseconds)
-                return UnpaidWorkItem(
-                    index: index, line: pair.1, input: unpaidWorkInput(pair.0.segment, on: day.date),
-                    loss: "倒贴 \(Format.money(owed))"
-                )
-            },
+            unpaidWorkEndDays: isFuture ? [] : unpaidWorkEndDays(day.date, covering: items.compactMap(\.input)),
+            unpaidWorkItems: items,
             overrideButton: overrideButton(day)
         )
     }
@@ -102,24 +115,41 @@ extension HistoryLedger {
     private func leaveForm(_ day: DayLedger, settlement: DaySettlement) -> LeaveForm {
         let capTitle = incomeTitle(day.date)
         return LeaveForm(
-            leave: day.record?.leave, settlement: settlement, schedule: inputs.profile.schedule(on: day.date), on: day.date,
-            planTitle: LeaveForm.planTitle(day.date, today: today), capTitle: capTitle, now: inputs.now
+            leave: day.record?.leave, settlement: settlement, schedule: day.schedule,
+            planTitle: LeaveForm.planTitle(day.date, today: today), capTitle: capTitle
         )
     }
 
-    /// 新补记一段的预填：这天作息的计划下班起 1 小时，最晚 23:59。
+    /// 新补记一段的预填：这天作息的计划下班起 1 小时，过了零点就落到次日。
     private func unpaidWorkDraft(_ date: LocalDate) -> UnpaidWorkInput {
         let start = inputs.profile.schedule(on: date).end
-        let end = min(start.minutesSinceMidnight + 60, 23 * 60 + 59)
-        return UnpaidWorkInput(start: start, end: TimeOfDay(hour: end / 60, minute: end % 60))
+        let end = start.minutesSinceMidnight + 60
+        return UnpaidWorkInput(start: start, end: TimeOfDay(minutesSinceMidnight: end % 1440), endDayOffset: end / 1440)
     }
 
-    /// 已有一段的修改预填；计时中的不能改。该停没推进的那段按 23:59:59 停止预填。
+    /// 结束日期的选项：从当天到这天的自动停止时刻那天；已有的段结束得更晚 (如之后改了作息或请假) 时也覆盖到，修改表单能原样预填。
+    private func unpaidWorkEndDays(_ date: LocalDate, covering inputs: [UnpaidWorkInput]) -> [UnpaidWorkEndDay] {
+        let bound = Moment(date: clock.autoStop(after: date), timeZone: self.inputs.now.timeZone).localDate.days(since: date)
+        let last = ([bound] + inputs.map(\.endDayOffset)).max() ?? bound
+        return (0...max(0, last)).map { offset in
+            let label = switch offset {
+            case 0: "当天"
+            case 1: "次日"
+            default: Format.date(date.adding(days: offset), relativeTo: today)
+            }
+            return UnpaidWorkEndDay(offset: offset, label: label)
+        }
+    }
+
+    /// 已有一段的修改预填；计时中的不能改。该停没推进的那段按自动停止时刻预填。
     private func unpaidWorkInput(_ segment: UnpaidWorkSegment, on date: LocalDate) -> UnpaidWorkInput? {
+        guard !clock.isRunning(segment, on: date) else { return nil }
         let now = inputs.now
-        guard !segment.isRunning(on: date, now: now) else { return nil }
-        let end = segment.end ?? now.unpaidWorkCutoff(on: date)
-        return UnpaidWorkInput(start: now.timeOfDay(of: segment.start), end: now.timeOfDay(of: end))
+        let end = clock.end(of: segment, on: date)
+        let endDay = Moment(date: end, timeZone: now.timeZone).localDate
+        return UnpaidWorkInput(
+            start: now.timeOfDay(of: segment.start), end: now.timeOfDay(of: end), endDayOffset: max(0, endDay.days(since: date))
+        )
     }
 
     private func overrideButton(_ day: DayLedger) -> EditButton {

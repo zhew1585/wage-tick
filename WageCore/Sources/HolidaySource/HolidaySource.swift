@@ -6,7 +6,7 @@ import WageCore
 ///
 /// 数据来源优先级：安装包内置 > 本机缓存 > 联网获取。
 /// 某年内置或缓存已有时不联网；没有时 `update(today:)` 联网获取 (只下载不上传)，成功后写入缓存，
-/// 之后离线重启也能用；失败时该年记为缺失 (核心据此按双休计算并提示)，下次调用 `update` 再试。
+/// 之后离线重启也能用；失败时该年记为缺失 (核心据此只按休息模式计算并提示)，下次调用 `update` 再试。
 /// 外壳负责在启动、唤醒和定时器里调用 `update`，决定重试节奏；要哪几年由这里决定。
 @MainActor
 public final class HolidaySource {
@@ -65,7 +65,7 @@ public final class HolidaySource {
             missingYears.remove(year)
             save(data, year: year)
         } catch {
-            logger.error("\(year, privacy: .public) 年节假日数据获取失败，按双休计算，稍后重试：\(String(describing: error), privacy: .public)")
+            logger.error("\(year, privacy: .public) 年节假日数据获取失败，只按休息模式计算，稍后重试：\(String(describing: error), privacy: .public)")
             missingYears.insert(year)
         }
         rebuildTable()

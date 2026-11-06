@@ -19,19 +19,22 @@ struct DayLedger {
     let record: DayRecord?
     /// 应出勤日的结算推导；不应出勤的日子为 nil，没有收入。
     let settlement: DaySettlement?
-    /// 这天的白干段，连同各段时长，按开始时刻先后。
+    /// 这天开始的白干段，连同各段时长，按开始时刻先后。跨过零点的段整段算在开始这天。
     let unpaidWork: [TimedSegment]
+    /// 这天生效的作息 (未经请假调整)：请假的时段、天数据此推导。
+    let schedule: WorkSchedule
 
     var unpaidWorkMilliseconds: Int { unpaidWork.map(\.milliseconds).reduce(0, +) }
 
-    /// 请假天数：全天计 1，半天计 0.5 (PRD 4.6.1)；不应出勤的日子不算。
+    /// 请假天数 (PRD 4.6.1)：请掉的有效工时 ÷ 标准工时，四舍五入到 2 位，全天计 1；不应出勤的日子不算。
     var leaveDays: Decimal {
         guard isAttendanceDay, let leave = record?.leave else { return 0 }
-        return leave.period == .fullDay ? 1 : Decimal(string: "0.5")!
+        guard !leave.isFullDay(schedule) else { return 1 }
+        return Format.round(Decimal(schedule.leaveWorkMinutes(leave.range)) / Decimal(schedule.standardMinutes), scale: 2)
     }
 }
 
-/// 一段白干与它推导出的时长 (毫秒)，计时中的那段算到此刻。
+/// 一段白干与它推导出的时长 (毫秒)，计时中的那段算到此刻 (最晚到自动停止时刻)。
 struct TimedSegment {
     let segment: UnpaidWorkSegment
     let milliseconds: Int
@@ -51,8 +54,9 @@ extension HistoryLedger {
                 record: record,
                 settlement: isAttendance ? DaySettlement(dailyWage: wage, record: record) : nil,
                 unpaidWork: (record?.unpaidWork ?? []).map {
-                    TimedSegment(segment: $0, milliseconds: $0.milliseconds(on: date, now: inputs.now))
-                }
+                    TimedSegment(segment: $0, milliseconds: clock.milliseconds($0, on: date))
+                },
+                schedule: inputs.profile.schedule(on: date)
             )
         }
         return MonthLedger(month: month, dailyWage: wage, days: days)

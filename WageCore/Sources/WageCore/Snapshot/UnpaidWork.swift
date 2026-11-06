@@ -2,67 +2,65 @@ import Foundation
 
 /// 今天的白干情况 (PRD 4.4.3)。白干不改变日状态和任何收入 (PRD 4.3.3 不变量 2)。
 public struct UnpaidWorkToday: Sendable, Equatable {
-    /// 今日白干时长 (毫秒)：今天各段之和，计时中的那段算到此刻 (规则 2)。
+    /// 今日白干时长 (毫秒)：今天开始的各段之和，计时中的那段算到此刻 (规则 2)。前一天开始、跨过零点的段算在前一天。
     public let milliseconds: Int
     /// 今日已倒贴 = 白干时长 × 时薪，保留完整精度 (规则 4)。
     public let owed: Decimal
     /// 计时中今日已倒贴每秒的增量 = 时薪 ÷ 3600。
     public let perSecond: Decimal
-    /// 计时中那段的开始时刻；没在计时为 nil。
-    public let runningSince: Date?
-    /// 今天有白干段在 23:59:59 被自动停止 (疑似通宵，PRD 4.3.5 #12)。
-    public let suspectedAllNighter: Bool
+    /// 计时中的那段，可能是前一天 (或更早) 开始、跨过了零点的 (规则 3)；没在计时为 nil。
+    public let running: RunningUnpaidWork?
+    /// 今天开始的段里有被自动停止的 (可能忘了停，PRD 4.3.5 #12)。
+    public let autoStopped: Bool
     /// 今天有没有白干记录，决定已下班小字是「准点下班，赢」还是白干汇总 (规则 6)。
     public let hasRecords: Bool
-    /// 此刻能否开始计时：已下班或休息日、没在计时、还没到 23:59:59 (规则 1、2、3)。
+    /// 此刻能否开始计时：已下班或休息日，且没在计时 (规则 1、2)。
     public let canStart: Bool
 
-    public var isRunning: Bool { runningSince != nil }
+    public var isRunning: Bool { running != nil }
+    /// 计时中那段的开始时刻；没在计时为 nil。
+    public var runningSince: Date? { running?.since }
+}
+
+/// 计时中的那段白干，连同它所在那天 (开始那天) 的合计。跨过零点后仍按开始那天算 (规则 3)。
+public struct RunningUnpaidWork: Sendable, Equatable {
+    /// 开始那天，即这段记在哪天的日记录里。
+    public let date: LocalDate
+    /// 这段的开始时刻。
+    public let since: Date
+    /// 开始那天的白干时长 (毫秒)：那天各段之和，这段算到此刻。
+    public let milliseconds: Int
+    /// 开始那天已倒贴，保留完整精度。
+    public let owed: Decimal
 }
 
 extension UnpaidWorkToday {
-    /// `segments` 是今天的白干段。时薪按作息的标准工时计算，不受半天假影响 (规则 4)。
-    /// 计时中且已过 23:59:59 的段 (还没推进到此刻) 按已在 23:59:59 自动停止推导，与 `advance` 的结果一致。
-    init(segments: [UnpaidWorkSegment], status: DayStatus, dailyWage: Decimal, schedule: WorkSchedule, now: Moment) {
-        let day = now.localDate
-        let cutoff = now.unpaidWorkCutoff(on: day)
-        let running = segments.last { $0.isRunning(on: day, now: now) }
-        let total = segments.map { $0.milliseconds(on: day, now: now) }.reduce(0, +)
+    /// 计时中且已过自动停止时刻的段 (还没推进到此刻) 按已自动停止推导，与 `advance` 的结果一致。
+    init(dayRecords: [DayRecord], status: DayStatus, clock: UnpaidWorkClock) {
+        let day = clock.now.localDate
+        let segments = dayRecords.first { $0.date == day }?.unpaidWork ?? []
+        let total = clock.milliseconds(segments, on: day)
+        let running = RunningUnpaidWork(dayRecords: dayRecords, clock: clock)
         milliseconds = total
-        owed = schedule.owed(dailyWage: dailyWage, milliseconds: total)
-        perSecond = schedule.owed(dailyWage: dailyWage, milliseconds: 1000)
-        runningSince = running?.start
-        suspectedAllNighter = segments.contains { $0.isSuspectedAllNighter(on: day, now: now) }
+        owed = clock.owed(on: day, milliseconds: total)
+        perSecond = clock.owed(on: day, milliseconds: 1000)
+        self.running = running
+        autoStopped = segments.contains { clock.isAutoStopped($0, on: day) }
         hasRecords = !segments.isEmpty
-        canStart = (status == .offWork || status == .restDay) && running == nil && now.date < cutoff
+        canStart = (status == .offWork || status == .restDay) && running == nil
     }
 }
 
-extension UnpaidWorkSegment {
-    /// 这段白干的时长 (毫秒)，`day` 是它所在的日子。计时中的那段算到此刻，最晚到当天 23:59:59，
-    /// 与 `advance` 自动停止的结果一致 (规则 3)；结束早于开始的段按 0 计。
-    func milliseconds(on day: LocalDate, now: Moment) -> Int {
-        let end = end ?? min(now.date, now.unpaidWorkCutoff(on: day))
-        return max(0, Int((end.timeIntervalSince(start) * 1000).rounded(.down)))
-    }
-
-    /// 此刻是否还在计时：没结束，且还没到当天 23:59:59。
-    func isRunning(on day: LocalDate, now: Moment) -> Bool {
-        end == nil && now.date < now.unpaidWorkCutoff(on: day)
-    }
-
-    /// 疑似通宵 (PRD 4.3.5 #12)：已在 23:59:59 被自动停止，或该停了还没推进。
-    func isSuspectedAllNighter(on day: LocalDate, now: Moment) -> Bool {
-        suspectedAllNighter || (end == nil && !isRunning(on: day, now: now))
-    }
-}
-
-extension Moment {
-    /// 白干自动停止时刻：`day` 当天 23:59:59 (PRD 参数表「白干自动停止时刻」)，按此刻所在时区。
-    /// 计时中切换时区时按新时区推导、不追溯修正 (PRD 4.3.5 #11)：向东切可能让那段在开始时刻就结束，
-    /// 向西切到前一天时今天的快照看不到那段计时 (此时开始会被拒绝)。都属罕见边界，接受。
-    func unpaidWorkCutoff(on day: LocalDate) -> Date {
-        calendar.date(from: DateComponents(year: day.year, month: day.month, day: day.day, hour: 23, minute: 59, second: 59))!
+extension RunningUnpaidWork {
+    /// 找出计时中的那段 (同一时间最多一段)；没有时为 nil。只有没结束的段才需要推导自动停止时刻。
+    init?(dayRecords: [DayRecord], clock: UnpaidWorkClock) {
+        for record in dayRecords {
+            guard let segment = record.unpaidWork.last(where: { clock.isRunning($0, on: record.date) }) else { continue }
+            let total = clock.milliseconds(record.unpaidWork, on: record.date)
+            self.init(date: record.date, since: segment.start, milliseconds: total, owed: clock.owed(on: record.date, milliseconds: total))
+            return
+        }
+        return nil
     }
 }
 
@@ -72,7 +70,7 @@ extension WorkSchedule {
         dailyWage * Decimal(milliseconds) / Decimal(standardMilliseconds)
     }
 
-    /// 标准工时 (毫秒) = 计划下班 - 计划上班 - 午休时长 (PRD 4.2.3)，不受半天假影响。
+    /// 标准工时 (毫秒) = 计划下班 - 计划上班 - 饭点时长 (PRD 4.2.3)，不受请假影响。
     var standardMilliseconds: Int {
         let lunch = lunch.map { $0.end.minutesSinceMidnight - $0.start.minutesSinceMidnight } ?? 0
         return (end.minutesSinceMidnight - start.minutesSinceMidnight - lunch) * 60_000
