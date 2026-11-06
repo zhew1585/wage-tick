@@ -65,6 +65,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.install()
         if !model.isOnboarded {
             onboarding.show()
+        } else if !LaunchSource.isLoginItem {
+            // 牛马自己打开 (双击、Spotlight、清空数据后重启) 时直接给出今日概览；开机自启时只在菜单栏待着，不弹窗。
+            todayPanel.show()
         }
     }
 
