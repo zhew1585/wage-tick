@@ -10,9 +10,11 @@ public struct InterfaceSettings: Sendable, Equatable, Codable {
     public internal(set) var offWorkNotification: Bool
     /// 目标达成通知开关 (PRD 4.7.2)，默认开。
     public internal(set) var goalReachedNotification: Bool
+    /// 隐藏 Dock 图标 (ADR-0005 补充)：开了只在菜单栏常驻，不进 Dock 和 ⌘Tab，默认关。
+    public internal(set) var hidesDockIcon: Bool
 
     private enum CodingKeys: String, CodingKey {
-        case menuBarMode, goalQueueExpanded, offWorkNotification, goalReachedNotification
+        case menuBarMode, goalQueueExpanded, offWorkNotification, goalReachedNotification, hidesDockIcon
     }
 
     public init() {
@@ -20,6 +22,7 @@ public struct InterfaceSettings: Sendable, Equatable, Codable {
         goalQueueExpanded = false
         offWorkNotification = true
         goalReachedNotification = true
+        hidesDockIcon = false
     }
 
     /// 旧文件缺少的字段 (如 #5 写出的文件没有显示模式) 取默认值，不当作损坏文件；
@@ -33,5 +36,6 @@ public struct InterfaceSettings: Sendable, Equatable, Codable {
             ?? defaults.offWorkNotification
         goalReachedNotification = try container.decodeIfPresent(Bool.self, forKey: .goalReachedNotification)
             ?? defaults.goalReachedNotification
+        hidesDockIcon = try container.decodeIfPresent(Bool.self, forKey: .hidesDockIcon) ?? defaults.hidesDockIcon
     }
 }

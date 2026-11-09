@@ -146,7 +146,7 @@ struct UnpaidWorkAvailabilityTests {
 
 @Suite("白干计时：面板与菜单栏")
 struct UnpaidWorkPanelTests {
-    @Test("AC-HOME-10 18:00 点「我还没走」，19:05:12 打开：标签【白干中】、主数字 ¥155.2381、小字含【18:00 起 · 已白干 1:05:12】，统计行为今日结算、扣款、本月累计")
+    @Test("AC-HOME-10 18:00 点「我还没走」，19:05:12 打开：标签【白干中】、主数字 ¥155.2381、小字含【18:00 起 · 已白干 1:05:12】，统计行为今日结算、距离周末、本月累计")
     func runningPanel() throws {
         let state = try applied(.startUnpaidWork, to: try onboarded(), at: standardDay(18, 0))
         let panel = try #require(snapshot(of: state, at: standardDay(19, 5, 12)).panel)
@@ -159,7 +159,7 @@ struct UnpaidWorkPanelTests {
             caption: "18:00 起 · 已白干 1:05:12",
             stats: [
                 StatItem(title: "今日结算", value: "¥1000"),
-                StatItem(title: "今日扣款", value: "¥0"),
+                StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
                 StatItem(title: "本月累计", value: "¥8000"),
             ],
             isRestDay: false
@@ -193,6 +193,7 @@ struct UnpaidWorkPanelTests {
             caption: "10:00 起 · 已白干 0:30:00",
             stats: [
                 StatItem(title: "今日结算", value: "¥0"),
+                StatItem(title: "距离周末", value: "正在休息", isHighlighted: true),
                 StatItem(title: "本月累计", value: "¥10000"),
             ],
             isRestDay: true
@@ -276,7 +277,7 @@ struct UnpaidWorkWithDayRecordsTests {
             == UnpaidWorkButton(title: "我还没走", command: .startUnpaidWork))
     }
 
-    @Test("全天请假按休息日呈现，可以被迫营业；白干中统计行带今日结算、扣款、本月累计")
+    @Test("全天请假按休息日呈现，可以被迫营业；白干中统计行带今日结算、距离周末、本月累计")
     func forcedOnFullDayLeave() throws {
         let state = try onLeave(fullDayLeave(100))
 
@@ -291,14 +292,14 @@ struct UnpaidWorkWithDayRecordsTests {
             caption: "10:00 起 · 已白干 0:30:00",
             stats: [
                 StatItem(title: "今日结算", value: "¥0"),
-                StatItem(title: "今日扣款", value: "−¥1000"),
+                StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
                 StatItem(title: "本月累计", value: "¥7000"),
             ],
             isRestDay: true
         )))
     }
 
-    @Test("AC-HOME-10 有扣款时白干中统计行为今日结算、扣款、本月累计；白干不改变扣款后的结算")
+    @Test("AC-HOME-10 有扣款时白干中统计行为今日结算、距离周末、本月累计；白干不改变扣款后的结算")
     func runningStatsIncludeDeduction() throws {
         let fined = try recordingDeduction(.fixed(50), on: try onboarded(), at: standardDay(15, 0))
         let running = try applied(.startUnpaidWork, to: fined, at: standardDay(18, 0))
@@ -309,7 +310,7 @@ struct UnpaidWorkWithDayRecordsTests {
 
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥950"),
-            StatItem(title: "今日扣款", value: "−¥50"),
+            StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
             StatItem(title: "本月累计", value: "¥7950"),
         ])
     }
@@ -319,7 +320,8 @@ struct UnpaidWorkWithDayRecordsTests {
         let worked = try unpaidWork(try onLeave(firstHalfLeave(50)), from: standardDay(18, 0), to: standardDay(19, 0))
         let cancelled = try applied(.cancelLeave, to: worked, at: standardDay(19, 10))
 
-        #expect(try attendancePanel(worked, at: standardDay(19, 5)).caption == "今日白干 1:00 · 倒贴 ¥142.86")
+        // 请了半天，扣款并在小字末尾。
+        #expect(try attendancePanel(worked, at: standardDay(19, 5)).caption.hasPrefix("今日白干 1:00 · 倒贴 ¥142.86 · 扣款 "))
         #expect(try attendancePanel(cancelled, at: standardDay(19, 30)).caption == "今日白干 1:00 · 倒贴 ¥142.86")
     }
 

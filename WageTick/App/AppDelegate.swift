@@ -3,6 +3,7 @@ import WageCore
 
 /// 组装外壳各部件：状态存储、菜单栏条目、主菜单、引导窗口、今日概览面板、设置窗口、目标管理、历史窗口、系统通知。
 /// 普通 App + 菜单栏常驻 (ADR-0005)：点 Dock 图标找回窗口，关掉所有窗口不退出，小牛继续在菜单栏跑。
+/// 设置里可以隐藏 Dock 图标 (`DockIcon`)，这时只从菜单栏小牛找回窗口。
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var model: AppModel!
@@ -21,6 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = NSAppearance(named: .aqua)
         FieldEditorTheme.install()
         model = AppModel(store: StateStore(), widgets: WidgetBridge())
+        // 牛马在设置里隐藏了 Dock 图标时，先切成只在菜单栏常驻，再开窗口。
+        DockIcon.apply(hidden: model.currentSnapshot().settings.hidesDockIcon)
         // 菜单栏第一次刷新就会推进到此刻，事件出口要先接好。
         notifier = SystemNotifier { [weak self] in self?.todayPanel.show() }
         model.onEvents = { [weak self] events in self?.notifier.post(events) }

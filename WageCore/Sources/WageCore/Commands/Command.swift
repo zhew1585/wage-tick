@@ -14,6 +14,8 @@ public enum Command: Sendable, Equatable {
     case setMenuBarMode(MenuBarMode)
     /// 开关开机自动启动 (PRD 4.7.2)。
     case setLaunchAtLogin(Bool)
+    /// 开关隐藏 Dock 图标，引导前也能改。
+    case setHidesDockIcon(Bool)
     /// 给今天记一笔扣钱 (PRD 4.4.1、F5)。
     case addDeduction(DeductionInput)
     /// 修改今天的一笔扣钱记录。
@@ -171,6 +173,10 @@ public func apply(
         return (setMenuBarMode(mode, state: state), [])
     case .setLaunchAtLogin(let enabled):
         return (try setLaunchAtLogin(enabled, state: state), [])
+    case .setHidesDockIcon(let hidden):
+        var next = state
+        next.settings.hidesDockIcon = hidden
+        return (next, [])
     // 面板上的扣钱、请假只作用于今天 (#7、#8)，与历史编辑走同一套逻辑；不检查历史范围，
     // 系统时间被拨回到安装当月之前时 (PRD 4.3.5 #11) 今天的操作照旧。
     case .addDeduction(let input):

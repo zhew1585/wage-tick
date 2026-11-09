@@ -30,7 +30,7 @@ struct Panel760HeroTests {
     func wageCaptionIgnoresLeave() throws {
         let state = try sending([.setLeave(secondHalfLeave(50))], to: try onboarded(), at: standardDay(9, 0))
 
-        #expect(try attendancePanel(state, at: standardDay(11, 0)).caption == "满勤日薪 ¥1000 · 时薪 ¥142.86")
+        #expect(try attendancePanel(state, at: standardDay(11, 0)).caption.hasPrefix("满勤日薪 ¥1000 · 时薪 ¥142.86 · 扣款 "))
     }
 
     @Test("白干计时中主数字下方为开始时刻与已白干时长")
@@ -64,17 +64,17 @@ struct Panel760ProgressTests {
         #expect([progress.startText, progress.endText] == ["上班 10:00", "下班 12:00"])
     }
 
-    @Test("统计行的扣款叫「今日扣款」")
-    func deductionStatTitle() throws {
+    @Test("统计行中间一项是距离周末 (V1.13 起替代今日扣款)")
+    func middleStatIsWeekend() throws {
         let stats = try attendancePanel(try onboarded(), at: standardDay(15, 0)).stats
 
-        #expect(stats.map(\.title) == ["距离下班", "今日扣款", "本月累计"])
+        #expect(stats.map(\.title) == ["距离下班", "距离周末", "本月累计"])
     }
 }
 
 @Suite("今日概览 760：休息日")
 struct Panel760RestTests {
-    @Test("周六：统计行为本月已上班 (已上班 / 应出勤) 与本月累计，标题下两行小字为说明与下一个上班日")
+    @Test("周六：统计行为本月已上班 (已上班 / 应出勤)、本月累计与距离周末，标题下两行小字为说明与下一个上班日")
     func saturday() throws {
         let body = try panel(try onboarded(), at: moment(2026, 2, 14, 11, 0)).body
 
@@ -85,6 +85,7 @@ struct Panel760RestTests {
             stats: [
                 StatItem(title: "本月已上班", value: "10/20 天"),
                 StatItem(title: "本月累计", value: "¥10000"),
+                StatItem(title: "距离周末", value: "正在休息", isHighlighted: true),
             ]
         )))
     }

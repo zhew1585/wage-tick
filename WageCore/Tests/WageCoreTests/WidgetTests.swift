@@ -27,7 +27,7 @@ private func applied(_ command: Command, to state: AppState, at now: Moment) thr
 
 @Suite("小组件内容")
 struct WidgetSnapshotTests {
-    @Test("上班中：主数字 2 位小数，倒计时到计划下班，中号右栏为距离下班与本月累计")
+    @Test("上班中：主数字 2 位小数，倒计时到计划下班，中号右栏为距离下班与距离周末")
     func working() throws {
         let now = standardDay(15, 0)
         let widget = try widget(try onboarded(), at: now)
@@ -46,10 +46,10 @@ struct WidgetSnapshotTests {
         #expect(abs(progress.ratio - 4.0 / 7.0) < 1e-9)
         #expect(progress.segments.count == 2)
         #expect([progress.startTime, progress.endTime, progress.startText, progress.endText] == ["10:00", "18:00", "上班 10:00", "下班 18:00"])
-        #expect(widget.stats.map(\.title) == ["距离下班", "今日扣款", "本月累计"])
+        #expect(widget.stats.map(\.title) == ["距离下班", "距离周末", "本月累计"])
         #expect(widget.stats[0].value == .countdown(to: end))
-        #expect(widget.stats[1].value == .text("¥0"))
-        #expect(widget.sideStats.map(\.title) == ["距离下班", "本月累计"])
+        #expect(widget.stats[1] == WidgetStat(title: "距离周末", value: .text("3 天"), isHighlighted: true))
+        #expect(widget.sideStats.map(\.title) == ["距离下班", "距离周末"])
     }
 
     @Test("未上班：主数字 0.00，距离下班同面板显示「-」")
@@ -77,8 +77,8 @@ struct WidgetSnapshotTests {
         #expect(main.amount == "1000.00")
         #expect(main.progress == nil)
         #expect(main.footer == WidgetStat(title: "准点下班，赢", value: nil))
-        #expect(widget.stats.map(\.title) == ["今日结算", "今日扣款", "本月累计"])
-        #expect(widget.sideStats.map(\.title) == ["今日扣款", "本月累计"])
+        #expect(widget.stats.map(\.title) == ["今日结算", "距离周末", "本月累计"])
+        #expect(widget.sideStats.map(\.title) == ["距离周末", "本月累计"])
     }
 
     @Test("白干中：主数字为今日已倒贴，计时从 18:00 起正计时")
@@ -95,7 +95,7 @@ struct WidgetSnapshotTests {
         #expect(main.footer == WidgetStat(title: "18:00 起", value: timer))
         #expect(main.caption == "18:00 起 · 已白干")
         #expect(main.captionTimer == timer)
-        #expect(widget.sideStats.map(\.title) == ["今日结算", "本月累计"])
+        #expect(widget.sideStats.map(\.title) == ["距离周末", "本月累计"])
     }
 
     @Test("白干第二段：计时从开始那天已白干的总时长接着走")
@@ -108,7 +108,7 @@ struct WidgetSnapshotTests {
         #expect(main.footer.value == .elapsed(since: standardDay(19, 30).date))
     }
 
-    @Test("白干跨过零点：标签与起点带「昨天」，主数字是开始那天的，中号右栏是今天的距离下班与本月累计")
+    @Test("白干跨过零点：标签与起点带「昨天」，主数字是开始那天的，中号右栏是今天的距离周末与本月累计")
     func unpaidWorkPastMidnight() throws {
         let state = try applied(.startUnpaidWork, to: try onboarded(), at: standardDay(18, 0))
         let widget = try widget(state, at: moment(2026, 2, 12, 0, 30))
@@ -118,7 +118,7 @@ struct WidgetSnapshotTests {
         #expect(main.amount == "928.57")
         #expect(main.footer == WidgetStat(title: "昨天 18:00 起", value: .elapsed(since: standardDay(18, 0).date)))
         #expect(widget.sideStats == [
-            WidgetStat(title: "距离下班", value: .text("-")),
+            WidgetStat(title: "距离周末", value: .text("2 天"), isHighlighted: true),
             WidgetStat(title: "本月累计", value: .text("¥8000")),
         ])
     }
@@ -129,7 +129,7 @@ struct WidgetSnapshotTests {
         #expect(widget.statusLabel == "休息日")
         #expect(widget.tone == .rest)
         #expect(widget.main == .rest(WidgetRest(headline: "今天休息", nextAttendanceText: "下个上班日 2月16日 周一")))
-        #expect(widget.sideStats.map(\.title) == ["本月已上班", "本月累计"])
+        #expect(widget.sideStats.map(\.title) == ["距离周末", "本月累计"])
     }
 
     @Test("未完成引导：提示打开 App")

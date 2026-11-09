@@ -100,7 +100,8 @@ struct PanelHero: View {
 
     private var amount: some View {
         let (currency, number) = Self.split(headline)
-        return HStack(alignment: .bottom, spacing: Spacing.s4) {
+        // ¥ 与数字按基线对齐，底边齐平 (按 .bottom 对齐时字框底下的留白不同，¥ 会偏低)。
+        return HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
             if let currency {
                 Text(currency).font(AppFont.num(26, .semibold))
             }
@@ -205,8 +206,8 @@ struct PanelStatsRow: View {
         VStack(alignment: .leading, spacing: Spacing.s4) {
             Text(item.title).font(AppFont.small).foregroundStyle(Palette.muted)
             Text(item.value)
-                .font(AppFont.num(valueSize, .semibold))
-                .foregroundStyle(item.value.hasPrefix("−") ? Palette.loss : Palette.ink)
+                .font(StatStyle.font(item.value, numSize: valueSize))
+                .foregroundStyle(StatStyle.color(item.value, isHighlighted: item.isHighlighted))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }

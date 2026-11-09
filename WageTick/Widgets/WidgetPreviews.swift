@@ -6,6 +6,7 @@ import WageCore
 /// 离屏渲染桌面小组件三种尺寸的各个状态，存成 PNG，和设计稿 (uRf1y) 对照用。只在 Debug 构建的 App 里，不进小组件扩展。
 /// 状态与面板预览相同，全部在内存里用核心命令造出来 (2026 年 11 月，月薪 21000、10:00 至 18:00、饭点 12:00 至 13:00，日薪 1000)，
 /// 不读写 state.json 与 widget.json。计时文字停在条目时刻。
+/// 和真机小组件一样不注册打包的字体，用系统字体渲染。
 ///
 /// 入口是 C 符号 `wagetick_render_widget_previews(目录)`，用法见 `scripts/render-widget-previews.sh`。
 @_cdecl("wagetick_render_widget_previews")
@@ -14,7 +15,7 @@ public func renderWidgetPreviews(_ directory: UnsafePointer<CChar>) {
     MainActor.assumeIsolated {
         _ = NSApplication.shared
         NSApp.appearance = NSAppearance(named: .aqua)
-        AppFont.register()
+        // 不注册打包的字体：真机小组件用系统字体 (见 `WageTickWidgets`)，预览跟它一致。
         WidgetPreviews.renderAll(to: url)
     }
 }
