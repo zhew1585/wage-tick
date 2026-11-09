@@ -28,7 +28,9 @@ private enum OnboardingPreviews {
             ("P1-1-salary-empty", OnboardingView(model: model) {}),
             ("P1-1-salary-filled", OnboardingView(model: model, salaryText: "20000") {}),
             ("P1-1-rest-alternating", OnboardingView(model: model, salaryText: "20000", restMode: .bigWeekNow) {}),
+            ("P1-1-salary-daily", OnboardingView(model: model, salaryText: "200", payBasis: .daily) {}),
             ("P1-2-schedule", OnboardingView(model: model, step: .schedule, salaryText: "20000") {}),
+            ("P1-2-schedule-daily", OnboardingView(model: model, step: .schedule, salaryText: "200", payBasis: .daily) {}),
             ("P1-2-schedule-alternating", OnboardingView(model: model, step: .schedule, salaryText: "20000", restMode: .bigWeekNow) {}),
         ]
         do {

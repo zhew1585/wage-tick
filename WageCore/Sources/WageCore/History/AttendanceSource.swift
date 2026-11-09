@@ -48,10 +48,13 @@ extension AttendanceRule {
 }
 
 extension AttendanceRule {
-    /// 当月日薪 = 当月月薪 ÷ 当月应出勤日数 (PRD 4.2.4)，今天与历史同用。
+    /// 当月日薪 (PRD 4.2.4)，今天与历史同用：按月为当月月薪 ÷ 当月应出勤日数；按天就是填的日薪 (issue #16)。
+    /// 按天时只有应出勤日结算，周末与法定节假日不计，所以本月累计 = 日薪 × 实际上班天数。
     /// 应出勤日数为 0 时没有日薪，记 0，结算与本月累计随之为 0；面板提示见 `TodayPanel.notices` (PRD 4.3.5 #19)。
     func dailyWage(in month: YearMonth, profile: Profile) -> Decimal {
         let count = attendanceDayCount(in: month)
-        return count > 0 ? profile.salary(for: month) / Decimal(count) : 0
+        guard count > 0 else { return 0 }
+        let pay = profile.pay(for: month)
+        return pay.basis == .daily ? pay.amount : pay.amount / Decimal(count)
     }
 }

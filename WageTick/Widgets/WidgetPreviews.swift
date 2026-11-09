@@ -78,7 +78,7 @@ private enum WidgetPreviews {
             end: TimeOfDay(hour: 18, minute: 0),
             lunch: LunchBreak(start: TimeOfDay(hour: 12, minute: 0), end: TimeOfDay(hour: 13, minute: 0))
         )
-        let input = OnboardingInput(monthlySalary: 21000, schedule: schedule, launchAtLogin: false)
+        let input = OnboardingInput(salary: 21000, schedule: schedule, launchAtLogin: false)
         return try apply(.completeOnboarding(input), to: AppState(), at: moment(day: 2, 9, 0)).state
     }
 

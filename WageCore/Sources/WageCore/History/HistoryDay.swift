@@ -8,11 +8,13 @@ public struct HistoryMonth: Sendable, Equatable {
     public let leadingBlanks: Int
     /// 当月每一天，按日期升序。
     public let days: [HistoryDay]
-    /// 该月月薪的数值，改月薪表单据此预填；任意月份可在月薪条改 (PRD 4.2.1 #2、4.6.1)。
-    public let monthlySalary: Decimal
-    /// 月薪条的小标题，如「本月月薪 · 应出勤 20 天」；往月写「2月月薪 · 应出勤 20 天」。
+    /// 该月工资的数值 (月薪或日薪)，改工资表单据此预填；任意月份可在工资条改 (PRD 4.2.1 #2、4.6.1)。
+    public let salary: Decimal
+    /// 该月工资按月还是按天，改工资表单据此预先选中。
+    public let payBasis: PayBasis
+    /// 工资条的小标题，如「本月月薪 · 应出勤 20 天」「本月日薪 · 应出勤 21 天」；往月写「2月月薪 · 应出勤 20 天」。
     public let salaryCaption: String
-    /// 月薪条的数值，如「¥20000 → 日薪 ¥1000」。
+    /// 工资条的数值：按月如「¥20000 → 日薪 ¥1000」，按天如「¥200 · 满勤 ¥4200」(满勤 = 应出勤天数 × 日薪，方便对工资条)。
     public let salaryText: String
 
     /// 日历底部的月小结：已结算 (同结算总额) 与扣款、请假、白干。
@@ -129,16 +131,21 @@ extension Snapshot {
 extension HistoryLedger {
     func month(_ month: YearMonth) -> HistoryMonth {
         let monthLedger = monthLedger(for: month)
-        let salary = inputs.profile.salary(for: month)
-        let salaryTitle = month == today.yearMonth ? "本月月薪" : "\(month.month)月月薪"
+        let pay = inputs.profile.pay(for: month)
+        let salaryTitle = (month == today.yearMonth ? "本月" : "\(month.month)月") + pay.basis.label
+        let salaryText = switch pay.basis {
+        case .monthly: "\(Format.money(pay.amount)) → 日薪 \(Format.money(monthLedger.dailyWage))"
+        case .daily: "\(Format.money(pay.amount)) · 满勤 \(Format.money(pay.amount * Decimal(monthLedger.attendanceDayCount)))"
+        }
         return HistoryMonth(
             summary: summary(monthLedger),
             // weekday 1 为周日、2 为周一：换成从周一起数的 0 至 6。
             leadingBlanks: (monthLedger.days[0].date.weekday + 5) % 7,
             days: monthLedger.days.map { day($0, dailyWage: monthLedger.dailyWage) },
-            monthlySalary: salary,
+            salary: pay.amount,
+            payBasis: pay.basis,
             salaryCaption: "\(salaryTitle) · 应出勤 \(monthLedger.attendanceDayCount) 天",
-            salaryText: "\(Format.money(salary)) → 日薪 \(Format.money(monthLedger.dailyWage))"
+            salaryText: salaryText
         )
     }
 

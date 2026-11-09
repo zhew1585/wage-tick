@@ -1,12 +1,12 @@
 import Foundation
 
-// 设置页发出的命令 (PRD F12)：月薪、休息模式、作息、菜单栏显示模式、开机自启。
+// 设置页发出的命令 (PRD F12)：工资 (月薪或日薪)、休息模式、作息、菜单栏显示模式、开机自启。
 // 校验规则与引导共用 `Validation` (PRD 4.3.5 #1 至 #3)。
 
-/// 修改当月月薪，当月整月生效。
-func changeMonthlySalary(_ amount: Decimal, state: AppState, now: Moment) throws(CommandError) -> AppState {
-    if let error = Validation.monthlySalary(amount) { throw error }
-    return try updatingProfile(state) { $0.setSalary(amount, for: now.localDate.yearMonth) }
+/// 修改当月工资 (金额与按月 / 按天)，当月整月生效。
+func changeSalary(_ amount: Decimal, basis: PayBasis, state: AppState, now: Moment) throws(CommandError) -> AppState {
+    if let error = Validation.salary(amount, basis: basis) { throw error }
+    return try updatingProfile(state) { $0.setPay(MonthlySalary(month: now.localDate.yearMonth, amount: amount, basis: basis)) }
 }
 
 /// 修改休息模式，当月整月生效 (本月已过去的日子跟着重算)，过去的月份保留当时的模式。
@@ -43,10 +43,9 @@ func updatingProfile(_ state: AppState, _ change: (inout Profile) -> Void) throw
 }
 
 extension Profile {
-    /// 设置 `month` 的月薪，该月整月生效；其他月份的记录不动 (PRD 4.2.1 #1、#2)。
-    mutating func setSalary(_ amount: Decimal, for month: YearMonth) {
-        salaries = (salaries.filter { $0.month != month } + [MonthlySalary(month: month, amount: amount)])
-            .sorted { $0.month < $1.month }
+    /// 设置 `month` 的工资 (金额与算法)，该月整月生效；其他月份的记录不动 (PRD 4.2.1 #1、#2)。
+    mutating func setPay(_ pay: MonthlySalary) {
+        salaries = (salaries.filter { $0.month != pay.month } + [pay]).sorted { $0.month < $1.month }
     }
 
     /// 设置 `month` 的休息模式，该月整月生效；其他月份的记录不动。

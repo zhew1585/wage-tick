@@ -14,10 +14,14 @@ enum FormMessage: Equatable {
 @MainActor
 @Observable
 final class SettingsFormModel {
-    /// 已保存的当月月薪，截掉末尾 0，如「20000」；打开月薪表单时填进输入框。
+    /// 已保存的当月工资 (月薪或日薪)，截掉末尾 0，如「20000」「200」；打开工资表单时填进输入框。
     private(set) var savedSalaryText = ""
-    /// 已保存的当月月薪，带 ¥、按金额格式，如「¥20000.50」；设置页列表里展示。
+    /// 已保存的当月工资，如「月薪 ¥20000」「日薪 ¥200」；设置页「本月工资」一行展示。
     private(set) var savedSalaryDisplay = ""
+    /// 已保存的当月工资按月还是按天；打开工资表单时预先选中。
+    private(set) var savedPayBasis = PayBasis.monthly
+    /// 工资表单里「月薪 | 日薪」的选择 (issue #16)。
+    var payBasisDraft = PayBasis.monthly
     /// 已保存的休息模式，如「双休」「大小周 · 这周休两天」；设置页列表里展示。
     private(set) var savedRestModeText = ""
     /// 已保存的休息模式对应的选项 (大小周按今天所在的周)；打开休息模式表单时预先选中。
@@ -26,7 +30,7 @@ final class SettingsFormModel {
     var restModeDraft = RestModeChoice.twoDaysOff
     /// 已保存的作息 (今天生效的)；设置页列表里展示。
     private(set) var schedule = WorkSchedule.default
-    /// 月薪表单里的输入，打开表单时按已保存的填好。
+    /// 工资表单里的输入，打开表单时按已保存的填好。
     var salaryText = ""
     /// 作息表单里的草稿，打开表单时按已保存的填好。
     var scheduleDraft = ScheduleDraft(.default)
@@ -69,8 +73,7 @@ final class SettingsFormModel {
     func reload() {
         let snap = model.currentSnapshot()
         if let form = snap.settingsForm {
-            savedSalaryText = form.monthlySalaryText
-            savedSalaryDisplay = form.monthlySalaryDisplay
+            updateSalary(from: form)
             updateRestMode(from: form)
             schedule = form.schedule
             launchAtLogin = form.launchAtLogin
@@ -97,9 +100,10 @@ final class SettingsFormModel {
         menuBarPreviews = Dictionary(uniqueKeysWithValues: MenuBarMode.allCases.map { ($0, form.menuBarPreview($0)) })
     }
 
-    /// 打开月薪表单：按已保存的填好，清掉上次的提示。
+    /// 打开工资表单：按已保存的金额与月薪 / 日薪填好，清掉上次的提示。
     func beginEditingSalary() {
         salaryText = savedSalaryText
+        payBasisDraft = savedPayBasis
         salaryMessage = nil
     }
 
@@ -115,13 +119,13 @@ final class SettingsFormModel {
         scheduleMessage = nil
     }
 
-    /// 改月薪，对当月整月生效。输入不是数字时按 0 交给核心，得到「月薪得是个正数」。返回是否保存成功。
+    /// 改工资 (月薪或日薪)，对当月整月生效。输入不是数字时按 0 交给核心，得到「月薪得是个正数」或「日薪得是个正数」。
+    /// 返回是否保存成功。
     func saveSalary() -> Bool {
-        salaryMessage = send(.changeMonthlySalary(SalaryText.parse(salaryText) ?? 0))
+        salaryMessage = send(.changeSalary(SalaryText.parse(salaryText) ?? 0, basis: payBasisDraft))
         guard salaryMessage == .saved else { return false }
         if let form = model.currentSnapshot().settingsForm {
-            savedSalaryText = form.monthlySalaryText
-            savedSalaryDisplay = form.monthlySalaryDisplay
+            updateSalary(from: form)
         }
         return true
     }
@@ -134,6 +138,12 @@ final class SettingsFormModel {
             updateRestMode(from: form)
         }
         return true
+    }
+
+    private func updateSalary(from form: SettingsForm) {
+        savedSalaryText = form.salaryText
+        savedSalaryDisplay = form.salaryDisplay
+        savedPayBasis = form.payBasis
     }
 
     private func updateRestMode(from form: SettingsForm) {

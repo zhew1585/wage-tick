@@ -301,22 +301,22 @@ struct HistorySalaryTests {
     @Test("AC-CAL-05 把上个月月薪从 20000 改为 22000：上个月重算，本月不变")
     func changeLastMonth() throws {
         let january = YearMonth(year: 2026, month: 1)
-        let state = try apply(.setMonthlySalary(january, 22000), to: try installedJanuary(), at: standardDay(15, 0)).state
+        let state = try apply(.setSalary(january, 22000), to: try installedJanuary(), at: standardDay(15, 0)).state
         let snap = snapshot(of: state, at: standardDay(15, 0))
 
         #expect(try monthSummary(state, january).total == "¥22000")
         #expect(try monthSummary(try installedJanuary(), january).total == "¥20000")
         #expect(snap.today?.dailyWage == 1000)
-        #expect(try #require(snap.historyMonth(january)).monthlySalary == 22000)
-        #expect(try #require(snap.historyMonth(february)).monthlySalary == 20000)
+        #expect(try #require(snap.historyMonth(january)).salary == 22000)
+        #expect(try #require(snap.historyMonth(february)).salary == 20000)
         // 3 月起沿用最近一次设置的月薪 (本月的 20000)。
         #expect(snapshot(of: state, at: moment(2026, 3, 10, 15, 0)).today?.dailyWage == Decimal(20000) / 22)
     }
 
     @Test("在历史里改本月月薪与设置页一样，未来月份沿用")
     func changeCurrentMonth() throws {
-        let viaHistory = try apply(.setMonthlySalary(february, 30000), to: try installedJanuary(), at: standardDay(15, 0)).state
-        let viaSettings = try apply(.changeMonthlySalary(30000), to: try installedJanuary(), at: standardDay(15, 0)).state
+        let viaHistory = try apply(.setSalary(february, 30000), to: try installedJanuary(), at: standardDay(15, 0)).state
+        let viaSettings = try apply(.changeSalary(30000), to: try installedJanuary(), at: standardDay(15, 0)).state
 
         #expect(viaHistory == viaSettings)
         #expect(snapshot(of: viaHistory, at: moment(2026, 3, 10, 15, 0)).today?.dailyWage == Decimal(30000) / 22)
@@ -327,9 +327,9 @@ struct HistorySalaryTests {
         let state = try installedJanuary()
         let now = standardDay(15, 0)
 
-        #expect(throws: CommandError.salaryNotPositive) { try apply(.setMonthlySalary(february, 0), to: state, at: now) }
-        #expect(throws: CommandError.dateOutOfRange) { try apply(.setMonthlySalary(YearMonth(year: 2025, month: 12), 1), to: state, at: now) }
-        #expect(throws: CommandError.dateOutOfRange) { try apply(.setMonthlySalary(YearMonth(year: 2026, month: 3), 1), to: state, at: now) }
+        #expect(throws: CommandError.salaryNotPositive) { try apply(.setSalary(february, 0), to: state, at: now) }
+        #expect(throws: CommandError.dateOutOfRange) { try apply(.setSalary(YearMonth(year: 2025, month: 12), 1), to: state, at: now) }
+        #expect(throws: CommandError.dateOutOfRange) { try apply(.setSalary(YearMonth(year: 2026, month: 3), 1), to: state, at: now) }
     }
 }
 
@@ -408,7 +408,7 @@ struct HistoryEditGoalTests {
         var state = try creatingGoal("键盘", 1500, in: try installedFebruary2(), at: moment(2026, 2, 2, 9, 0))
         let now = moment(2026, 2, 3, 9, 0)
         state = try apply(.advance, to: state, at: now).state
-        let result = try apply(.setMonthlySalary(february, 40000), to: state, at: now)
+        let result = try apply(.setSalary(february, 40000), to: state, at: now)
 
         #expect(result.events == [.goalReached(message: "🎉 目标「键盘」达成")])
         #expect(try #require(snapshot(of: result.state, at: now).goals) == GoalList(

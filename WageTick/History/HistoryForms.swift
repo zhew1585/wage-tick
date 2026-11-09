@@ -122,7 +122,8 @@ private struct EndDayInput: View {
     }
 }
 
-/// 改某个月的月薪 (PRD 4.2.1 #2、4.6.1)：只影响该月。校验与提示与设置页同一套 (`Validation.monthlySalary`)。
+/// 改某个月的工资 (PRD 4.2.1 #2、4.6.1)：上方「月薪 | 日薪」切换 (issue #16)，下面金额，只影响该月。
+/// 校验与提示与设置页同一套 (`Validation.salary`)。
 struct SalaryFormView: View {
     let month: YearMonth
     /// 如「2026年1月」。
@@ -133,10 +134,11 @@ struct SalaryFormView: View {
     let dismiss: () -> Void
 
     @State private var text: String
+    @State private var basis: PayBasis
     @State private var errorMessage: String?
 
     init(
-        month: YearMonth, title: String, isCurrentMonth: Bool, current: Decimal, actions: PanelActions,
+        month: YearMonth, title: String, isCurrentMonth: Bool, current: Decimal, basis: PayBasis, actions: PanelActions,
         dismiss: @escaping () -> Void
     ) {
         self.month = month
@@ -145,14 +147,18 @@ struct SalaryFormView: View {
         self.actions = actions
         self.dismiss = dismiss
         _text = State(initialValue: NSDecimalNumber(decimal: current).stringValue)
+        _basis = State(initialValue: basis)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s14) {
-            Text("\(title)的月薪").font(AppFont.sheetTitle).foregroundStyle(Palette.ink)
+            Text("\(title)的工资").font(AppFont.sheetTitle).foregroundStyle(Palette.ink)
             Text(hint).font(AppFont.caption).foregroundStyle(Palette.muted)
-            Field("月薪", text: $text, suffix: "元")
-                .onSubmit(save)
+            VStack(alignment: .leading, spacing: Spacing.s6) {
+                PayBasisSwitch(selection: basis) { basis = $0 }
+                Field(nil, text: $text, suffix: basis.unit)
+                    .onSubmit(save)
+            }
             if let errorMessage {
                 Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
             }
@@ -169,16 +175,18 @@ struct SalaryFormView: View {
         .frame(width: 280)
         .background(Palette.bg)
         .onChange(of: text) { errorMessage = nil }
+        .onChange(of: basis) { errorMessage = nil }
     }
 
     private var hint: String {
-        isCurrentMonth ? "整月生效，之后的月份也沿用" : "只改这个月，其他月份不受影响"
+        let scope = isCurrentMonth ? "整月生效，之后的月份也沿用" : "只改这个月，其他月份不受影响"
+        return basis == .daily ? scope + "。按天算时周末和法定节假日都是 0" : scope
     }
 
-    /// 不是数字的写法按 0 交给核心，得到「月薪得是个正数」。
+    /// 不是数字的写法按 0 交给核心，得到「月薪得是个正数」或「日薪得是个正数」。
     private func save() {
         do {
-            try actions.send(.setMonthlySalary(month, SalaryText.parse(text) ?? 0))
+            try actions.send(.setSalary(month, SalaryText.parse(text) ?? 0, basis: basis))
             dismiss()
         } catch {
             errorMessage = error.message

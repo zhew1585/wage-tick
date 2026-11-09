@@ -36,6 +36,9 @@ public struct DayEditing: Sendable, Equatable {
     public let unpaidWorkItems: [UnpaidWorkItem]
     /// 单日覆盖按钮：没有覆盖时改成相反的一种，有覆盖时撤销。任何日期都有。
     public let overrideButton: EditButton
+    /// 「这天上不上班」下面的说明：按月为「改了会影响本月应出勤天数，整月日薪跟着重算。」，
+    /// 按天为「按天算：改成不上班，这一天就没有工资，其他日子不受影响。」(issue #16)。
+    public let overrideNote: String
 }
 
 /// 白干段表单里结束日期的一个选项。
@@ -107,7 +110,10 @@ extension HistoryLedger {
             unpaidWork: isFuture ? .unavailable(reason: futureReason) : .available(unpaidWorkDraft(day.date)),
             unpaidWorkEndDays: isFuture ? [] : unpaidWorkEndDays(day.date, covering: items.compactMap(\.input)),
             unpaidWorkItems: items,
-            overrideButton: overrideButton(day)
+            overrideButton: overrideButton(day),
+            overrideNote: inputs.profile.pay(for: day.date.yearMonth).basis == .daily
+                ? "按天算：改成不上班，这一天就没有工资，其他日子不受影响。"
+                : "改了会影响本月应出勤天数，整月日薪跟着重算。"
         )
     }
 

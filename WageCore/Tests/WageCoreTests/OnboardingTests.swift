@@ -16,7 +16,7 @@ struct OnboardingTests {
 @Suite("首次引导：校验与完成")
 struct OnboardingValidationTests {
     private func complete(salary: Decimal = 20000, schedule: WorkSchedule = standardSchedule) -> CommandError? {
-        let input = OnboardingInput(monthlySalary: salary, schedule: schedule, launchAtLogin: true)
+        let input = OnboardingInput(salary: salary, schedule: schedule, launchAtLogin: true)
         do {
             _ = try apply(.completeOnboarding(input), to: AppState(), at: standardDay(9, 0))
             return nil
@@ -72,8 +72,8 @@ struct OnboardingValidationTests {
 
     @Test("PRD 4.3.5 #1 至 #3 分步校验：外壳单独校验月薪与作息，结果与命令一致")
     func stepValidationMatchesCommand() {
-        #expect(Validation.monthlySalary(0) == .salaryNotPositive)
-        #expect(Validation.monthlySalary(Decimal(string: "0.01")!) == nil)
+        #expect(Validation.salary(0, basis: .monthly) == .salaryNotPositive)
+        #expect(Validation.salary(Decimal(string: "0.01")!, basis: .monthly) == nil)
         #expect(Validation.schedule(schedule(9, 8, lunch: nil)) == .endNotAfterStart)
         #expect(Validation.schedule(schedule(9, 18, lunch: (8, 13))) == .lunchOutsideWorkHours)
         #expect(Validation.schedule(.default) == nil)
@@ -101,7 +101,7 @@ struct OnboardingValidationTests {
     @Test("PRD 4.1.1 引导只能完成一次")
     func cannotOnboardTwice() throws {
         let state = try onboarded()
-        let input = OnboardingInput(monthlySalary: 30000, schedule: .default, launchAtLogin: false)
+        let input = OnboardingInput(salary: 30000, schedule: .default, launchAtLogin: false)
 
         #expect(throws: CommandError.alreadyOnboarded) {
             try apply(.completeOnboarding(input), to: state, at: standardDay(10, 0))
@@ -110,7 +110,7 @@ struct OnboardingValidationTests {
 
     @Test("PRD 4.7.2 开机自启默认开：引导不再询问，不传时按默认值保存")
     func launchAtLoginDefaultsOn() throws {
-        let input = OnboardingInput(monthlySalary: 20000, schedule: .default)
+        let input = OnboardingInput(salary: 20000, schedule: .default)
         let state = try apply(.completeOnboarding(input), to: AppState(), at: standardDay(9, 0)).state
 
         #expect(input.launchAtLogin == true)
@@ -119,7 +119,7 @@ struct OnboardingValidationTests {
 
     @Test("开机自启：命令里显式传入的值原样保存在状态里")
     func launchAtLoginIsStored() throws {
-        let input = OnboardingInput(monthlySalary: 20000, schedule: .default, launchAtLogin: false)
+        let input = OnboardingInput(salary: 20000, schedule: .default, launchAtLogin: false)
         let state = try apply(.completeOnboarding(input), to: AppState(), at: standardDay(9, 0)).state
 
         #expect(state.profile?.launchAtLogin == false)

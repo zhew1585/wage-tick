@@ -142,11 +142,15 @@ public struct Profile: Sendable, Equatable, Codable {
         (schedules.last { $0.effectiveFrom <= day } ?? schedules[0]).schedule
     }
 
-    /// 某月适用的月薪：该月及之前最近一次设置的月薪。
+    /// 某月适用的工资记录 (金额与算法)：该月及之前最近一次设置的那条。
     /// 系统时间被拨回到安装月之前时 (PRD 4.3.5 #11)，退回最早一条。
+    func pay(for month: YearMonth) -> MonthlySalary {
+        salaries.last { $0.month <= month } ?? salaries[0]
+    }
+
+    /// 某月适用的工资金额 (月薪或日薪，看 `pay(for:).basis`)。
     func salary(for month: YearMonth) -> Decimal {
-        let entry = salaries.last { $0.month <= month } ?? salaries[0]
-        return entry.amount
+        pay(for: month).amount
     }
 
     /// 某月采用的休息模式，查找规则同 `salary(for:)`。
@@ -155,26 +159,29 @@ public struct Profile: Sendable, Equatable, Codable {
     }
 }
 
-/// 某个月的月薪。
-/// 金额编码为字符串，避免 JSON 数字经二进制浮点往返丢精度。
+/// 某个月的工资：金额与算法 (按月的月薪或按天的日薪，`PayBasis`)。
+/// 金额编码为字符串，避免 JSON 数字经二进制浮点往返丢精度；V1.16 之前的记录没有 `basis`，读回为按月。
 public struct MonthlySalary: Sendable, Equatable, Codable {
     public let month: YearMonth
     public let amount: Decimal
+    public let basis: PayBasis
 
-    private enum CodingKeys: String, CodingKey { case month, amount }
+    private enum CodingKeys: String, CodingKey { case month, amount, basis }
 
-    init(month: YearMonth, amount: Decimal) {
+    init(month: YearMonth, amount: Decimal, basis: PayBasis = .monthly) {
         self.month = month
         self.amount = amount
+        self.basis = basis
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         month = try container.decode(YearMonth.self, forKey: .month)
         let text = try container.decode(String.self, forKey: .amount)
+        basis = try container.decodeIfPresent(PayBasis.self, forKey: .basis) ?? .monthly
         guard let amount = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")),
-              Validation.monthlySalary(amount) == nil else {
-            throw DecodingError.dataCorruptedError(forKey: .amount, in: container, debugDescription: "月薪不是正数：\(text)")
+              Validation.salary(amount, basis: basis) == nil else {
+            throw DecodingError.dataCorruptedError(forKey: .amount, in: container, debugDescription: "工资不是正数：\(text)")
         }
         self.amount = amount
     }
@@ -183,6 +190,7 @@ public struct MonthlySalary: Sendable, Equatable, Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(month, forKey: .month)
         try container.encode(NSDecimalNumber(decimal: amount).stringValue, forKey: .amount)
+        try container.encode(basis, forKey: .basis)
     }
 }
 

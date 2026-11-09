@@ -2,12 +2,14 @@ import AppKit
 import SwiftUI
 import WageCore
 
-/// 第 1 步 · 月薪 (设计稿 P1 引导 · 1 月薪 · 双休 / 大小周 · 760)：大小牛、标题、月薪大号输入框，
-/// 下面「怎么休」选休息模式 (默认双休)。小牛照设计稿实例框画满 104，等比缩放。
+/// 第 1 步 · 工资 (设计稿 P1 引导 · 1 月薪 · 双休 / 大小周 · 760，按天见「按天算工资」方案 A)：大小牛、标题、
+/// 「月薪 | 日薪」小切换 + 工资大号输入框 (单位跟着变「元/月」「元/日」)，下面「怎么休」选休息模式 (默认双休)。
+/// 小牛照设计稿实例框画满 104，等比缩放。
 struct OnboardingSalaryStep: View {
     private static let mascotSize: CGFloat = 104
 
     @Binding var salaryText: String
+    @Binding var payBasis: PayBasis
     @Binding var restMode: RestModeChoice
     let errorMessage: String?
     let onSubmit: () -> Void
@@ -21,13 +23,16 @@ struct OnboardingSalaryStep: View {
                 .padding(.top, OnboardingLayout.firstTop)
                 .padding(.horizontal, OnboardingLayout.side)
             OnboardingIntro(
-                title: "嗨，牛马。\n一个月赚多少？", subtitle: "税前还是到手，你说了算。只存在这台电脑上，谁也看不到。",
+                title: payBasis == .daily ? "嗨，牛马。\n一天赚多少？" : "嗨，牛马。\n一个月赚多少？", subtitle: "税前还是到手，你说了算。只存在这台电脑上，谁也看不到。",
                 top: OnboardingLayout.introAfterMascot
             )
             OnboardingBody(spacing: Spacing.s16, errorMessage: errorMessage) {
-                Field("月薪", text: $salaryText, suffix: "元", size: .large)
-                    .onSubmit(onSubmit)
-                // 「怎么休」13/500 muted，与月薪标签同款。
+                VStack(alignment: .leading, spacing: Spacing.s6) {
+                    PayBasisSwitch(selection: payBasis) { payBasis = $0 }
+                    Field(nil, text: $salaryText, suffix: payBasis.unit, size: .large)
+                        .onSubmit(onSubmit)
+                }
+                // 「怎么休」13/500 muted。
                 VStack(alignment: .leading, spacing: Spacing.s8) {
                     Text("怎么休").font(AppFont.bodyMedium).foregroundStyle(Palette.muted)
                     RestModePicker(selection: restMode) { restMode = $0 }

@@ -11,19 +11,21 @@ struct OnboardingView: View {
 
     @State private var step: OnboardingStep
     @State private var salaryText: String
+    @State private var payBasis: PayBasis
     @State private var restMode: RestModeChoice
     @State private var scheduleDraft = ScheduleDraft(.default)
     @State private var errorMessage: String?
 
-    /// `step`、`salaryText`、`restMode` 只在离屏截图时指定，App 里从第 1 步、空月薪、双休开始。
+    /// `step`、`salaryText`、`payBasis`、`restMode` 只在离屏截图时指定，App 里从第 1 步、空工资、按月、双休开始。
     init(
-        model: AppModel, step: OnboardingStep = .salary, salaryText: String = "", restMode: RestModeChoice = .twoDaysOff,
-        onFinish: @escaping () -> Void
+        model: AppModel, step: OnboardingStep = .salary, salaryText: String = "", payBasis: PayBasis = .monthly,
+        restMode: RestModeChoice = .twoDaysOff, onFinish: @escaping () -> Void
     ) {
         self.model = model
         self.onFinish = onFinish
         _step = State(initialValue: step)
         _salaryText = State(initialValue: salaryText)
+        _payBasis = State(initialValue: payBasis)
         _restMode = State(initialValue: restMode)
     }
 
@@ -44,7 +46,7 @@ struct OnboardingView: View {
     private var content: some View {
         switch step {
         case .salary:
-            OnboardingSalaryStep(salaryText: $salaryText, restMode: $restMode, errorMessage: errorMessage, onSubmit: next)
+            OnboardingSalaryStep(salaryText: $salaryText, payBasis: $payBasis, restMode: $restMode, errorMessage: errorMessage, onSubmit: next)
         case .schedule:
             OnboardingScheduleStep(draft: $scheduleDraft, rates: rates, errorMessage: errorMessage)
         }
@@ -79,7 +81,7 @@ struct OnboardingView: View {
 
     private func next() {
         let error: CommandError? = switch step {
-        case .salary: Validation.monthlySalary(parsedSalary ?? 0)
+        case .salary: Validation.salary(parsedSalary ?? 0, basis: payBasis)
         case .schedule: Validation.schedule(scheduleDraft.schedule)
         }
         if let error {
@@ -112,7 +114,7 @@ struct OnboardingView: View {
 
     /// 开机自启不传，取核心的默认值 (PRD 4.7.2：开)。
     private var input: OnboardingInput {
-        OnboardingInput(monthlySalary: parsedSalary ?? 0, schedule: scheduleDraft.schedule, restMode: restMode)
+        OnboardingInput(salary: parsedSalary ?? 0, payBasis: payBasis, schedule: scheduleDraft.schedule, restMode: restMode)
     }
 }
 

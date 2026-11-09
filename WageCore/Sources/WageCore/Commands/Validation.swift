@@ -3,10 +3,12 @@ import Foundation
 /// 录入校验规则 (PRD 4.3.5 #1 至 #3；扣钱 #5 见 `DeductionCommands.swift`)，`apply` 执行命令前用它们拦截，读回状态文件时也用它们把关。
 /// 外壳的分步表单 (如引导第 1 步只填了月薪) 也直接调用，保证提示与命令一致。
 public enum Validation {
-    /// 月薪必须大于 0 (#1)，最多 2 位小数 (PRD 4.2.1)。
+    /// 月薪或日薪必须大于 0 (#1)，最多 2 位小数 (PRD 4.2.1)，提示按 `basis` 说月薪或日薪。
     /// PRD 只给了"非正数"的提示文案，小数位过多暂用同一条提示。
-    public static func monthlySalary(_ amount: Decimal) -> CommandError? {
-        guard amount > 0, hasAtMostTwoDecimals(amount) else { return .salaryNotPositive }
+    public static func salary(_ amount: Decimal, basis: PayBasis) -> CommandError? {
+        guard amount > 0, hasAtMostTwoDecimals(amount) else {
+            return basis == .daily ? .dailyWageNotPositive : .salaryNotPositive
+        }
         return nil
     }
 

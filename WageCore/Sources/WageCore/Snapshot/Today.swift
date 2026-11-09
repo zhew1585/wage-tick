@@ -14,8 +14,10 @@ public enum DayStatus: Sendable, Equatable {
 public struct Today: Sendable, Equatable {
     public let date: LocalDate
     public let status: DayStatus
-    /// 当月日薪 = 当月月薪 ÷ 当月应出勤日数，保留完整精度 (PRD 4.2.4)。
+    /// 当月日薪：按月为当月月薪 ÷ 当月应出勤日数，保留完整精度 (PRD 4.2.4)；按天就是填的日薪。
     public let dailyWage: Decimal
+    /// 当月工资按月还是按天：按天时面板小字不说「满勤」。
+    public let payBasis: PayBasis
     /// 应出勤日的收入数字；不应出勤的休息日为 nil。全天请假也有 (按休息日呈现，但收入为今日上限)。
     public let earnings: Earnings?
     /// 本月累计 = 本月今天之前各应出勤日的结算之和 + 今日已赚 (PRD 4.3.4)。
@@ -83,6 +85,7 @@ extension Today {
         }
         date = day
         dailyWage = wage
+        payBasis = profile.pay(for: month).basis
         schedule = profile.schedule(on: day)
         attendedDays = pastDays.count
         nextAttendanceDay = rule.nextAttendanceDay(after: day)

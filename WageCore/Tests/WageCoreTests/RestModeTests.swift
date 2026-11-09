@@ -214,7 +214,7 @@ struct RestModeChangeTests {
 struct RestModeFormTests {
     @Test("引导不选时默认双休")
     func onboardingDefaultsToTwoDaysOff() throws {
-        let input = OnboardingInput(monthlySalary: 20000, schedule: standardSchedule)
+        let input = OnboardingInput(salary: 20000, schedule: standardSchedule)
         let state = try applied(.completeOnboarding(input), to: AppState(), at: friday(9))
 
         #expect(input.restMode == .twoDaysOff)

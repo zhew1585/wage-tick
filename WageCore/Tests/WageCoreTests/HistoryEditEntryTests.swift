@@ -121,7 +121,7 @@ struct HistoryEditEntryTests {
         let month = try #require(snapshot(of: try onboarded(), at: standardDay(15, 0)).historyMonth(YearMonth(year: 2026, month: 2)))
 
         #expect(month.salaryText == "¥20000 → 日薪 ¥1000")
-        #expect(month.monthlySalary == 20000)
+        #expect(month.salary == 20000)
     }
 }
 
