@@ -8,12 +8,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private static let refreshInterval: TimeInterval = 1
 
     private let form: SettingsFormModel
+    private let updater: AppUpdater
     private lazy var window: NSWindow = makeWindow()
     private lazy var placement = WindowPlacement(window: window, name: "Settings")
     private var timer: Timer?
 
-    init(form: SettingsFormModel) {
+    init(form: SettingsFormModel, updater: AppUpdater) {
         self.form = form
+        self.updater = updater
     }
 
     func show() {
@@ -47,7 +49,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow() -> NSWindow {
-        let view = SettingsView(form: form, close: { [weak self] in self?.window.close() })
+        let view = SettingsView(form: form, updater: updater, close: { [weak self] in self?.window.close() })
         return PageWindow.make(title: "设置", rootView: view, delegate: self)
     }
 }

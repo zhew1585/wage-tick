@@ -1,0 +1,30 @@
+# 每个 PR 与 main 的提交：跑核心测试，编一次 App (Debug)，确保能发布。
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: 测试与编译
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: 选 Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: 核心测试
+        run: swift test --package-path WageCore
+      - name: 编译 App
+        run: |
+          xcodebuild -project WageTick.xcodeproj -scheme WageTick -configuration Debug \
+            -derivedDataPath build/ci -destination "generic/platform=macOS" build -quiet

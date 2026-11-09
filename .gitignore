@@ -6,3 +6,5 @@ DerivedData/
 build/panel-previews/
 build/page-previews/
 build/dd/
+build/release/
+build/ci/

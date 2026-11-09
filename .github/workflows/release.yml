@@ -1,0 +1,145 @@
+# 发布 (ADR-0007)：nightly 定时自动发，正式版手动发；发完更新 gh-pages 上的 appcast.xml，App 里的 Sparkle 据此自动更新。
+# 要不要发、发哪个提交、版本号由 .github/scripts/release-plan.cjs 决定 (照搬 pingdotgg/t3code 的规则)。
+# 需要的 secret：SPARKLE_PRIVATE_KEY (Sparkle 的 EdDSA 私钥，对应 Config/WageTick-Info.plist 里的 SUPublicEDKey)。
+name: Release
+
+on:
+  schedule:
+    # 避开整点 (GitHub 定时任务最忙的时候)。
+    - cron: "8,38 * * * *"
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "发布渠道：nightly 打包 main 最新提交；stable 把最新一个 nightly 转正"
+        required: true
+        default: nightly
+        type: choice
+        options:
+          - nightly
+          - stable
+      version:
+        description: "正式版版本号 (如 0.2.0)，留空则用最新 nightly 的基础版本"
+        required: false
+        type: string
+
+# 发布排队执行，不并发、不取消，免得同一个提交发两次或乱序。
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  plan:
+    name: 发布计划
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      release: ${{ steps.plan.outputs.release }}
+      channel: ${{ steps.plan.outputs.channel }}
+      ref: ${{ steps.plan.outputs.ref }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      title: ${{ steps.plan.outputs.title }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
+      previous_tag: ${{ steps.plan.outputs.previous_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/scripts
+            WageTick.xcodeproj
+      - id: plan
+        uses: actions/github-script@v7
+        with:
+          retries: 3
+          script: |
+            const plan = require('./.github/scripts/release-plan.cjs');
+            await plan({ github, context, core });
+
+  build:
+    name: 编译并发布 ${{ needs.plan.outputs.tag }}
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      CHANNEL: ${{ needs.plan.outputs.channel }}
+      REF: ${{ needs.plan.outputs.ref }}
+      VERSION: ${{ needs.plan.outputs.version }}
+      TAG: ${{ needs.plan.outputs.tag }}
+      TITLE: ${{ needs.plan.outputs.title }}
+      PRERELEASE: ${{ needs.plan.outputs.prerelease }}
+      PREVIOUS_TAG: ${{ needs.plan.outputs.previous_tag }}
+      # Sparkle 用它比较新旧，必须一直递增；用本工作流的运行序号。
+      BUILD_NUMBER: ${{ github.run_number }}
+      SPARKLE_VERSION: 2.10.1
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.ref }}
+
+      - name: 选 Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+
+      - name: 核心测试
+        run: swift test --package-path WageCore
+
+      - name: 编译 Release
+        run: |
+          xcodebuild -project WageTick.xcodeproj -scheme WageTick -configuration Release \
+            -derivedDataPath build/release -destination "generic/platform=macOS" \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" build -quiet
+
+      - name: 打包
+        run: scripts/ci/package.sh "build/release/Build/Products/Release/牛马鼓励器.app" "$VERSION" dist
+
+      - name: 给更新包签名
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz" -o sparkle.tar.xz
+          mkdir sparkle && tar -xf sparkle.tar.xz -C sparkle
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | sparkle/bin/sign_update --ed-key-file - "dist/WageTick-$VERSION.zip" > dist/signature.txt
+          cat dist/signature.txt
+
+      - name: 写发布说明
+        run: |
+          {
+            echo "**首次安装**：下载 \`WageTick-$VERSION.dmg\`，把牛马鼓励器拖进「应用程序」。App 没有苹果开发者签名，第一次打开要在「应用程序」里右键它 → 打开。"
+            if [[ "$CHANNEL" == "nightly" ]]; then
+              echo
+              echo "这是尝鲜版 (nightly)。在 App 的设置里打开「接收尝鲜版」后，会自动更新到最新的尝鲜版。"
+            else
+              echo "之后有新的正式版时，App 会自动更新并重启。"
+            fi
+            echo
+          } > notes.md
+          args=(-f tag_name="$TAG" -f target_commitish="$REF")
+          [[ -n "$PREVIOUS_TAG" ]] && args+=(-f previous_tag_name="$PREVIOUS_TAG")
+          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" "${args[@]}" --jq .body >> notes.md
+
+      - name: 发布到 GitHub Release
+        run: |
+          flags=(--prerelease)
+          [[ "$PRERELEASE" == "false" ]] && flags=(--latest)
+          gh release create "$TAG" "dist/WageTick-$VERSION.dmg" "dist/WageTick-$VERSION.zip" \
+            --target "$REF" --title "$TITLE" --notes-file notes.md "${flags[@]}"
+
+      - name: 更新 appcast
+        run: |
+          git fetch origin gh-pages
+          git worktree add pages origin/gh-pages
+          python3 scripts/ci/update-appcast.py --appcast pages/appcast.xml \
+            --version "$VERSION" --build "$BUILD_NUMBER" --channel "$CHANNEL" \
+            --url "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/WageTick-$VERSION.zip" \
+            --signature "$(cat dist/signature.txt)" \
+            --link "https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          cd pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add appcast.xml
+          git commit -m "appcast: $TAG"
+          git push origin HEAD:gh-pages

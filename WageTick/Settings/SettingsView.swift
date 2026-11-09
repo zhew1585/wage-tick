@@ -2,10 +2,11 @@ import SwiftUI
 import WageCore
 
 /// 设置页 (PRD F12，设计稿 P6 设置 · 休息模式 · 760)：钱与作息 (月薪、休息模式、作息，点开弹表单改；作息一行同时显示上下班与饭点，二者在同一个表单里改)，菜单栏 (显示模式与各模式预览、隐藏 Dock 图标)，
-/// 通知与启动 (下班通知、目标达成通知、开机自启)，系统拒绝通知时的提示条，数据 (清空数据并重启)。一屏放得下，放不下时滚动。
+/// 通知与启动 (下班通知、目标达成通知、开机自启)，系统拒绝通知时的提示条，更新 (版本、自动更新、接收尝鲜版、检查更新)，数据 (清空数据并重启)。一屏放得下，放不下时滚动。
 /// 只管排版，动作与提示都在 `SettingsFormModel`。
 struct SettingsView: View {
     @Bindable var form: SettingsFormModel
+    let updater: AppUpdater
     let close: () -> Void
 
     @State private var sheet: Sheet?
@@ -27,6 +28,7 @@ struct SettingsView: View {
                     if form.notificationDenied {
                         notificationWarning
                     }
+                    updateSection
                     dataSection
                 }
                 .padding(Spacing.screen)
@@ -100,6 +102,32 @@ struct SettingsView: View {
                 toggle("开机自动启动", isOn: Binding(get: { form.launchAtLogin }, set: { form.setLaunchAtLogin($0) }))
             }
             message(form.launchMessage)
+        }
+    }
+
+    // MARK: 更新
+
+    /// 版本与更新 (ADR-0007)：当前版本、自动更新与接收尝鲜版 (nightly) 开关、检查更新按钮。开发版不检查更新，全部置灰。
+    private var updateSection: some View {
+        SettingsGroup("更新") {
+            CardBox {
+                HStack {
+                    Text("当前版本").font(AppFont.body).foregroundStyle(Palette.ink)
+                    Spacer()
+                    Text(updater.isEnabled ? updater.versionText : "开发版").font(AppFont.numCaption).foregroundStyle(Palette.muted)
+                }
+                .padding(.horizontal, Spacing.s14)
+                .padding(.vertical, Spacing.s10 + 1)
+                CardDivider()
+                toggle("自动更新", isOn: Binding(get: { updater.automaticallyUpdates }, set: { updater.setAutomaticallyUpdates($0) }))
+                    .disabled(!updater.isEnabled)
+                CardDivider()
+                toggle("接收尝鲜版", isOn: Binding(get: { updater.receivesNightly }, set: { updater.setReceivesNightly($0) }))
+                    .disabled(!updater.isEnabled)
+            }
+            Button("检查更新", action: updater.checkForUpdates)
+                .buttonStyle(.secondary(fullWidth: true, height: ControlHeight.wideButton))
+                .disabled(!updater.isEnabled)
         }
     }
 

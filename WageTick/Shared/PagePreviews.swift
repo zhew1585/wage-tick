@@ -60,7 +60,7 @@ private enum PagePreviews {
             ("P5-day-detail-overnight", history(overnight, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 3))),
             ("P5-day-detail-auto-stopped", history(overnight, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 2))),
             ("P5-unpaid-work-form-overnight", try unpaidWorkForm(overnight, day: LocalDate(year: 2026, month: 11, day: 3))),
-            ("P6-settings", page(SettingsView(form: try settingsForm(), close: {}))),
+            ("P6-settings", page(SettingsView(form: try settingsForm(), updater: AppUpdater(), close: {}))),
             ("P6-settings-rest-mode-sheet", try restModeSheet()),
         ]
     }
