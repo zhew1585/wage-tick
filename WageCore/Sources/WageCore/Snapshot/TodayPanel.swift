@@ -136,7 +136,18 @@ extension TodayPanel {
     }
 }
 
-private extension TodayPanel.Body {
+extension TodayPanel {
+    /// 菜单栏菜单最上面的今日信息 (issue #18)：同统计行的三项；菜单栏是「仅图标」、今天还没下班时，最前面多一行今日已赚
+    /// (菜单栏上看不到这个数；已下班的统计行里已有今日结算)。
+    func menuInfo(today: Today, menuBarMode: MenuBarMode) -> [StatItem] {
+        guard menuBarMode == .iconOnly, case .attendance = body, today.status != .offWork, let earnings = today.earnings else {
+            return body.stats
+        }
+        return [StatItem(title: "今日已赚", value: Format.money(earnings.earned))] + body.stats
+    }
+}
+
+extension TodayPanel.Body {
     var stats: [StatItem] {
         switch self {
         case .attendance(let panel): panel.stats

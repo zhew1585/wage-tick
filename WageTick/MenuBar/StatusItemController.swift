@@ -17,8 +17,11 @@ final class StatusItemController: NSObject {
     private let openGoals: () -> Void
     private let openHistory: () -> Void
     private let installUpdate: () -> Void
-    /// 更新已下载好、用户选了稍后时挂在菜单最上面的「重启以完成更新」及其分隔线 (ADR-0007)。
+    /// 更新已下载好、用户选了稍后时挂在今日信息下面的「重启以完成更新」及其分隔线 (ADR-0007)。
     private var updateItems: [NSMenuItem] = []
+    /// 菜单最上面的今日信息 (issue #18)：每行一个 `MenuInfoRow`，最后一条分隔线。
+    private var infoRows: [MenuInfoRow] = []
+    private var infoItems: [NSMenuItem] = []
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
     private var timer: Timer?
@@ -49,7 +52,7 @@ final class StatusItemController: NSObject {
 
     /// 左键菜单：macOS 原生菜单，系统画标题、快捷键、勾选与分隔线，跟随系统深浅色，不放图标。
     /// 项目与快捷键按 PRD F2：今日概览 ⌘1、目标 ⌘2、历史 ⌘3 | 设置… ⌘, | 退出 ⌘Q。
-    /// 有等重启的更新时最上面多一项「重启以完成更新」(`setPendingUpdate`)。
+    /// 最上面是今日信息 (`renderInfo`，issue #18)；有等重启的更新时其下多一项「重启以完成更新」(`setPendingUpdate`)。
     private func buildMenu() {
         addRow("今日概览", key: "1", action: #selector(todayPanelClicked))
         addRow("目标", key: "2", action: #selector(goalsClicked))
@@ -60,7 +63,7 @@ final class StatusItemController: NSObject {
         addRow("退出", key: "q", action: #selector(NSApplication.terminate(_:)), target: NSApp)
     }
 
-    /// 有下载好、等重启的更新时在菜单最上面加「重启以完成更新（0.1.1）」，装完或没有时去掉。
+    /// 有下载好、等重启的更新时在今日信息下面加「重启以完成更新（0.1.1）」，装完或没有时去掉。
     func setPendingUpdate(_ version: String?) {
         updateItems.forEach(menu.removeItem)
         updateItems = []
@@ -68,8 +71,28 @@ final class StatusItemController: NSObject {
         let install = NSMenuItem(title: "重启以完成更新（\(version)）", action: #selector(installUpdateClicked), keyEquivalent: "")
         install.target = self
         updateItems = [install, .separator()]
-        for (index, item) in updateItems.enumerated() {
-            menu.insertItem(item, at: index)
+        for (offset, item) in updateItems.enumerated() {
+            menu.insertItem(item, at: infoItems.count + offset)
+        }
+    }
+
+    /// 刷新菜单最上面的今日信息：行数不变时原地改字 (菜单展开时也跟着 `refresh` 每秒走)，行数变了重建。
+    private func renderInfo(_ info: [StatItem]) {
+        if infoRows.count != info.count {
+            infoItems.forEach(menu.removeItem)
+            infoRows = info.map { _ in MenuInfoRow() }
+            infoItems = infoRows.map { row in
+                let item = NSMenuItem()
+                item.view = row
+                return item
+            }
+            if !infoItems.isEmpty { infoItems.append(.separator()) }
+            for (index, item) in infoItems.enumerated() {
+                menu.insertItem(item, at: index)
+            }
+        }
+        for (row, item) in zip(infoRows, info) {
+            row.show(item)
         }
     }
 
@@ -85,6 +108,7 @@ final class StatusItemController: NSObject {
         // 引导完成前没有菜单，点击直接走 `buttonClicked`。
         item.menu = model.isOnboarded ? menu : nil
         render(snap.menuBar)
+        renderInfo(snap.menuInfo)
         scheduleNextRefresh(rolling: snap.today?.isRolling == true)
     }
 

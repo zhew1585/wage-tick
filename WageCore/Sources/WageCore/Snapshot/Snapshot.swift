@@ -18,6 +18,8 @@ public struct Snapshot: Sendable, Equatable {
     public let goals: GoalList?
     /// 面板该播放的目标达成庆祝动画 (PRD F9)，开始播放时发 `.acknowledgeCelebration` 确认；没有时为 nil。
     public let celebration: GoalCelebration?
+    /// 菜单栏菜单最上面的今日信息 (issue #18)，见 `TodayPanel.menuInfo`；未完成引导时为空。
+    public let menuInfo: [StatItem]
     /// 历史 (PRD 4.6.1) 的推导输入；未完成引导时为 nil。只带输入不推导，见 `historyMonths()`。
     var history: HistoryInputs? = nil
 }
@@ -53,24 +55,26 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
     guard let profile = state.profile else {
         return Snapshot(
             menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil,
-            settingsForm: nil, leaveForm: nil, goals: nil, celebration: nil
+            settingsForm: nil, leaveForm: nil, goals: nil, celebration: nil, menuInfo: []
         )
     }
     let today = Today(profile: profile, dayRecords: state.dayRecords, now: now, holidays: holidays)
     let activeGoal = ActiveGoalCard(state: state, profile: profile, today: today, holidays: holidays)
+    let panel = TodayPanel(
+        today: today, now: now, holidays: holidays, goal: GoalCard(active: activeGoal),
+        goalQueue: GoalQueueSection(state: state, active: activeGoal, today: today, holidays: holidays),
+        goalCount: state.goals.filter { !$0.status.isCompleted }.count
+    )
     return Snapshot(
         menuBar: MenuBarDisplay(today: today, settings: state.settings),
         today: today,
         settings: state.settings,
-        panel: TodayPanel(
-            today: today, now: now, holidays: holidays, goal: GoalCard(active: activeGoal),
-            goalQueue: GoalQueueSection(state: state, active: activeGoal, today: today, holidays: holidays),
-            goalCount: state.goals.filter { !$0.status.isCompleted }.count
-        ),
+        panel: panel,
         settingsForm: SettingsForm(profile: profile, today: today, settings: state.settings),
         leaveForm: LeaveForm(today: today),
         goals: GoalList(state: state, profile: profile, today: today, now: now, holidays: holidays),
         celebration: GoalCelebration(state: state),
+        menuInfo: panel.menuInfo(today: today, menuBarMode: state.settings.menuBarMode),
         history: HistoryInputs(profile: profile, dayRecords: state.dayRecords, today: today, now: now, holidays: holidays)
     )
 }
