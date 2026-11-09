@@ -3,6 +3,20 @@
   <channel>
     <title>牛马鼓励器</title>
     <item>
+      <title>0.1.0-nightly.20261109.2</title>
+      <pubDate>Mon, 09 Nov 2026 10:57:25 GMT</pubDate>
+      <sparkle:version>2</sparkle:version>
+      <sparkle:shortVersionString>0.1.0-nightly.20261109.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <sparkle:channel>nightly</sparkle:channel>
+      <link>https://github.com/zhew1585/wage-tick/releases/tag/v0.1.0-nightly.20261109.2</link>
+      <description sparkle:format="plain-text">按天算工资 (#16)
+菜单栏菜单最上面显示今日信息 (#18)
+目标、历史、设置的首页去掉返回箭头，只留标题 (#17)
+自绘更新窗口，下载好后先问立即重启还是稍后</description>
+      <enclosure url="https://github.com/zhew1585/wage-tick/releases/download/v0.1.0-nightly.20261109.2/WageTick-0.1.0-nightly.20261109.2.zip" type="application/octet-stream" sparkle:edSignature="7GrN+JT/U2YqNy767b8nWrcFkcx4wr6m8TGk0xy0DkLNwvixbBgsNq8IkvbLlmuWyMglIvCQr8ikfKK8PWgxDg==" length="8774642" />
+    </item>
+    <item>
       <title>0.1.0-nightly.20261109.1</title>
       <pubDate>Mon, 09 Nov 2026 07:30:56 GMT</pubDate>
       <sparkle:version>1</sparkle:version>
