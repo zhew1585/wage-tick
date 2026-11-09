@@ -87,6 +87,16 @@ jobs:
       - name: 核心测试
         run: swift test --package-path WageCore
 
+      - name: 拉取依赖
+        # SwiftPM 下载 Sparkle 二进制包偶尔会撞上 runner 缓存里的残留 (「already exists in file system」)，清掉缓存重试。
+        run: |
+          for attempt in 1 2 3; do
+            rm -rf ~/Library/Caches/org.swift.swiftpm/artifacts
+            xcodebuild -resolvePackageDependencies -project WageTick.xcodeproj -scheme WageTick -derivedDataPath build/release && break
+            [[ $attempt == 3 ]] && exit 1
+            sleep 10
+          done
+
       - name: 编译 Release
         run: |
           xcodebuild -project WageTick.xcodeproj -scheme WageTick -configuration Release \
