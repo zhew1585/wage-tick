@@ -49,7 +49,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow() -> NSWindow {
-        let view = SettingsView(form: form, updater: updater, close: { [weak self] in self?.window.close() })
+        let view = SettingsView(form: form, updater: updater)
         return PageWindow.make(title: "设置", rootView: view, delegate: self)
     }
 }

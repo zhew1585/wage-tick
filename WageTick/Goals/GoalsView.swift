@@ -10,7 +10,6 @@ struct GoalsView: View {
     let content: GoalsContent
     /// 执行命令并刷新列表，校验失败时抛出。
     let send: (Command) throws(CommandError) -> Void
-    let close: () -> Void
 
     /// 列表操作 (删除、拖动) 被核心拒绝时的提示，如列表过期时目标已不在。
     @State private var listError: String?
@@ -19,7 +18,7 @@ struct GoalsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader("目标", back: close)
+            PageHeader("目标")
             if content.list.isEmpty {
                 emptyState
             } else {

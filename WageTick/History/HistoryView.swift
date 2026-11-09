@@ -7,7 +7,6 @@ struct HistoryView: View {
     let content: HistoryContent
     /// 单日编辑、改月薪发命令的口子 (#15)。
     let actions: PanelActions
-    let close: () -> Void
 
     var body: some View {
         Group {
@@ -36,7 +35,7 @@ struct HistoryView: View {
             // 换月时丢掉上个月的表单。
             .id(month.summary.month)
         } else {
-            MonthListView(months: snapshot.historyMonths(), open: { content.selectedMonth = $0 }, back: close)
+            MonthListView(months: snapshot.historyMonths(), open: { content.selectedMonth = $0 })
         }
     }
 }
@@ -45,11 +44,10 @@ struct HistoryView: View {
 private struct MonthListView: View {
     let months: [HistoryMonthSummary]
     let open: (YearMonth) -> Void
-    let back: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader("历史", back: back) {
+            PageHeader("历史") {
                 Text("按月倒序").font(AppFont.caption).foregroundStyle(Palette.muted)
             }
             ScrollBody {

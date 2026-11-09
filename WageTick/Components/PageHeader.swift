@@ -1,22 +1,24 @@
 import SwiftUI
 
-/// 设计稿子页面 (P3 至 P6 · 760) 的页头：左边返回箭头 (Phosphor caret-left 18) + 标题 (17/700)，右边可放说明或操作，
+/// 设计稿子页面 (P3 至 P6 · 760) 的页头：标题 (17/700)，右边可放说明或操作，
 /// 高 52 (与 `.tall` 标题栏同高，红绿灯正好垂直居中)，下沿一条分隔线。
-/// 页头和系统红绿灯排在同一行 (见 `PageWindow`)，左边让出红绿灯的位置，返回箭头在红绿灯右边。
-/// 顶层页面的返回就是关窗，下一级页面的返回回到上一级；esc 等同返回。返回按钮悬停、按下时外扩一圈圆角底。
+/// 页头和系统红绿灯排在同一行 (见 `PageWindow`)，左边让出红绿灯的位置。
+/// 窗口的首页 (目标、历史、设置) 只有标题，关窗用系统红绿灯 (issue #17：返回箭头其实是关窗，容易误导)；
+/// 下一级页面 (月日历、单日详情) 标题前带返回箭头 (Phosphor caret-left 18)，回到上一级，esc 等同返回。返回按钮悬停、按下时外扩一圈圆角底。
 ///
 /// 用法：
-/// - `PageHeader("目标", back: close)`
-/// - 右侧放东西：`PageHeader("历史", back: close) { Text("按月倒序") }`
+/// - 首页：`PageHeader("目标")`、右侧放东西：`PageHeader("历史") { Text("按月倒序") }`
+/// - 下一级：`PageHeader("10月", back: { selected = nil })`
 struct PageHeader<Trailing: View>: View {
     let title: String
-    let back: () -> Void
+    /// 回到上一级；nil 表示窗口首页，不显示返回箭头。
+    let back: (() -> Void)?
     @ViewBuilder let trailing: () -> Trailing
 
     private static var height: CGFloat { WindowChrome.Titlebar.tall.height }
     private static var iconSize: CGFloat { 18 }
 
-    init(_ title: String, back: @escaping () -> Void, @ViewBuilder trailing: @escaping () -> Trailing) {
+    init(_ title: String, back: (() -> Void)? = nil, @ViewBuilder trailing: @escaping () -> Trailing) {
         self.title = title
         self.back = back
         self.trailing = trailing
@@ -24,17 +26,20 @@ struct PageHeader<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: Spacing.s8) {
-            Button(action: back) {
-                HStack(spacing: Spacing.s8) {
-                    PhosphorIcon(.caretLeft, size: Self.iconSize)
-                    Text(title).font(AppFont.pageTitle).lineLimit(1)
+            if let back {
+                Button(action: back) {
+                    HStack(spacing: Spacing.s8) {
+                        PhosphorIcon(.caretLeft, size: Self.iconSize)
+                        titleText
+                    }
+                    .contentShape(Rectangle())
                 }
-                .foregroundStyle(Palette.ink)
-                .contentShape(Rectangle())
+                .buttonStyle(.highlight(radius: Radius.r6, outset: Spacing.s4))
+                .keyboardShortcut(.cancelAction)
+                .help("返回")
+            } else {
+                titleText
             }
-            .buttonStyle(.highlight(radius: Radius.r6, outset: Spacing.s4))
-            .keyboardShortcut(.cancelAction)
-            .help("返回")
             Spacer(minLength: Spacing.s8)
             trailing()
         }
@@ -43,10 +48,14 @@ struct PageHeader<Trailing: View>: View {
         .frame(height: Self.height)
         .overlay(alignment: .bottom) { Palette.line.frame(height: 1) }
     }
+
+    private var titleText: some View {
+        Text(title).font(AppFont.pageTitle).lineLimit(1).foregroundStyle(Palette.ink)
+    }
 }
 
 extension PageHeader where Trailing == EmptyView {
-    init(_ title: String, back: @escaping () -> Void) {
+    init(_ title: String, back: (() -> Void)? = nil) {
         self.init(title, back: back) { EmptyView() }
     }
 }
