@@ -1,6 +1,6 @@
 import AppKit
 
-/// 屏幕顶部的主菜单 (普通 App 必备，见 ADR-0005)：「牛马鼓励器」「编辑」「窗口」三组。
+/// 屏幕顶部的主菜单 (普通 App 必备，见 ADR-0005)：「牛马鼓励器」(含「检查更新…」，ADR-0007)「编辑」「窗口」三组。
 /// 菜单栏小牛的左键菜单是另一份 (`StatusItemController`)，两边同一入口用同一个快捷键。
 /// 编辑菜单的撤销、剪切、复制、粘贴、全选走响应链，输入框里的 ⌘V 等才有用。
 /// 引导完成前今日概览、目标、历史、设置置灰 (还没有月薪与作息，打开也是空的)。
@@ -14,6 +14,7 @@ final class MainMenu: NSObject, NSMenuItemValidation {
         let openGoals: () -> Void
         let openHistory: () -> Void
         let openSettings: () -> Void
+        let checkForUpdates: () -> Void
     }
 
     private static let appName = AppIdentity.displayName
@@ -51,6 +52,7 @@ final class MainMenu: NSObject, NSMenuItemValidation {
     private func makeAppMenu() -> NSMenu {
         let menu = NSMenu(title: Self.appName)
         menu.addItem(item("关于\(Self.appName)", #selector(aboutClicked)))
+        menu.addItem(item("检查更新…", #selector(checkForUpdatesClicked)))
         menu.addItem(.separator())
         menu.addItem(item("设置…", #selector(settingsClicked), key: ","))
         menu.addItem(.separator())
@@ -118,6 +120,7 @@ final class MainMenu: NSObject, NSMenuItemValidation {
     }
 
     @objc private func settingsClicked() { actions.openSettings() }
+    @objc private func checkForUpdatesClicked() { actions.checkForUpdates() }
     @objc private func todayPanelClicked() { actions.openTodayPanel() }
     @objc private func goalsClicked() { actions.openGoals() }
     @objc private func historyClicked() { actions.openHistory() }

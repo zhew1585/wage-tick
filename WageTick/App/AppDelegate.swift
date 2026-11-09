@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var notifier: SystemNotifier!
     private var history: HistoryWindowController!
     private var mainMenu: MainMenu!
+    private var updater: AppUpdater!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 设计稿只有浅色一套 token (`Palette`)，App 窗口固定浅色外观；菜单都是原生菜单，跟随系统深浅 (ADR-0004)。
@@ -57,13 +58,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         history = HistoryWindowController(model: model) { [weak self] in
             self?.statusItem.refresh()
         }
-        settings = SettingsWindowController(form: SettingsFormModel(model: model, menuBar: statusItem, notifier: notifier))
+        updater = AppUpdater()
+        settings = SettingsWindowController(
+            form: SettingsFormModel(model: model, menuBar: statusItem, notifier: notifier),
+            updater: updater
+        )
         mainMenu = MainMenu(actions: MainMenu.Actions(
             isOnboarded: { [weak self] in self?.model.isOnboarded == true },
             openTodayPanel: { [weak self] in self?.todayPanel.show() },
             openGoals: { [weak self] in self?.goals.show() },
             openHistory: { [weak self] in self?.history.show() },
-            openSettings: { [weak self] in self?.settings.show() }
+            openSettings: { [weak self] in self?.settings.show() },
+            checkForUpdates: { [weak self] in self?.updater.checkForUpdates() }
         ))
         mainMenu.install()
         if !model.isOnboarded {
