@@ -60,7 +60,7 @@ private enum PagePreviews {
             ("P5-day-detail-overnight", history(overnight, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 3))),
             ("P5-day-detail-auto-stopped", history(overnight, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 2))),
             ("P5-unpaid-work-form-overnight", try unpaidWorkForm(overnight, day: LocalDate(year: 2026, month: 11, day: 3))),
-            ("P6-settings", page(SettingsView(form: try settingsForm(), updater: AppUpdater(), close: {}))),
+            ("P6-settings", page(SettingsView(form: try settingsForm(), updater: AppUpdater()))),
             ("P6-settings-rest-mode-sheet", try restModeSheet()),
             ("U1-update-found", update(.found(version: "0.1.1", current: "0.1.0", notes: updateNotes, later: {}, download: {}))),
             ("U2-update-downloading", update(.downloading(version: "0.1.1", received: 3_200_000, expected: 8_600_000, cancel: {}))),
@@ -148,7 +148,7 @@ private enum PagePreviews {
     private static func goals(_ snap: Snapshot) -> AnyView {
         let content = GoalsContent()
         content.update(from: snap)
-        return page(GoalsView(content: content, send: { _ throws(CommandError) in }, close: {}))
+        return page(GoalsView(content: content, send: { _ throws(CommandError) in }))
     }
 
     private static func history(_ snap: Snapshot, month: YearMonth? = nil, day: LocalDate? = nil) -> AnyView {
@@ -157,7 +157,7 @@ private enum PagePreviews {
         content.selectedMonth = month
         content.selectedDay = day
         let actions = PanelActions(dryRun: { _ in .success(snap) }, send: { _ throws(CommandError) in })
-        return page(HistoryView(content: content, actions: actions, close: {}))
+        return page(HistoryView(content: content, actions: actions))
     }
 
     /// 白干段的修改表单 (单独画，不是从详情里弹出的 sheet)：`day` 这天最后一段，带结束日期。

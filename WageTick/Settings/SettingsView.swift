@@ -7,7 +7,6 @@ import WageCore
 struct SettingsView: View {
     @Bindable var form: SettingsFormModel
     let updater: AppUpdater
-    let close: () -> Void
 
     @State private var sheet: Sheet?
     @State private var confirmingReset = false
@@ -19,7 +18,7 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader("设置", back: close)
+            PageHeader("设置")
             ScrollBody {
                 VStack(alignment: .leading, spacing: Spacing.s22) {
                     moneySection

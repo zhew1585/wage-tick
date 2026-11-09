@@ -73,7 +73,7 @@ final class HistoryWindowController: NSObject, NSWindowDelegate {
                 onStateChange()
             }
         )
-        let view = HistoryView(content: content, actions: actions, close: { [weak self] in self?.window.close() })
+        let view = HistoryView(content: content, actions: actions)
         return PageWindow.make(title: "历史", rootView: view, delegate: self)
     }
 }

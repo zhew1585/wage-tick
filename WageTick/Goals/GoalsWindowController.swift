@@ -69,8 +69,7 @@ final class GoalsWindowController: NSObject, NSWindowDelegate {
     private func makeWindow() -> NSWindow {
         let view = GoalsView(
             content: content,
-            send: { [weak self] (command: Command) throws(CommandError) in try self?.send(command) },
-            close: { [weak self] in self?.window.close() }
+            send: { [weak self] (command: Command) throws(CommandError) in try self?.send(command) }
         )
         return PageWindow.make(title: "目标", rootView: view, delegate: self)
     }
