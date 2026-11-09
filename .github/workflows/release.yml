@@ -87,14 +87,20 @@ jobs:
       - name: 核心测试
         run: swift test --package-path WageCore
 
+      - name: 缓存依赖
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm/artifacts
+          key: spm-artifacts-${{ hashFiles('WageTick.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+
       - name: 拉取依赖
-        # SwiftPM 下载 Sparkle 二进制包偶尔会撞上 runner 缓存里的残留 (「already exists in file system」)，清掉缓存重试。
+        # Sparkle 是二进制包，要从 GitHub Release 下载；GitHub 下载超时 (504) 时 xcodebuild 会误报「already exists in file system」。
+        # 成功下载过一次后由上一步的缓存提供，不再依赖 GitHub 下载；没命中缓存时隔 30、60 秒重试。
         run: |
-          for attempt in 1 2 3; do
-            rm -rf ~/Library/Caches/org.swift.swiftpm/artifacts
+          for wait in 30 60 0; do
             xcodebuild -resolvePackageDependencies -project WageTick.xcodeproj -scheme WageTick -derivedDataPath build/release && break
-            [[ $attempt == 3 ]] && exit 1
-            sleep 10
+            [[ $wait == 0 ]] && exit 1
+            sleep $wait
           done
 
       - name: 编译 Release
@@ -106,12 +112,24 @@ jobs:
       - name: 打包
         run: scripts/ci/package.sh "build/release/Build/Products/Release/牛马鼓励器.app" "$VERSION" dist
 
+      - name: 缓存 Sparkle 工具
+        id: sparkle-tools
+        uses: actions/cache@v4
+        with:
+          path: sparkle
+          key: sparkle-tools-${{ env.SPARKLE_VERSION }}
+
+      - name: 下载 Sparkle 工具
+        if: steps.sparkle-tools.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL --retry 5 --retry-delay 20 --retry-all-errors \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz" -o sparkle.tar.xz
+          mkdir -p sparkle && tar -xf sparkle.tar.xz -C sparkle
+
       - name: 给更新包签名
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
-          curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz" -o sparkle.tar.xz
-          mkdir sparkle && tar -xf sparkle.tar.xz -C sparkle
           printf '%s' "$SPARKLE_PRIVATE_KEY" | sparkle/bin/sign_update --ed-key-file - "dist/WageTick-$VERSION.zip" > dist/signature.txt
           cat dist/signature.txt
 
