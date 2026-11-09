@@ -10,9 +10,12 @@ Allen 想要和 pingdotgg/t3code 一样的发布方式：合进 main 的改动�
   - 构建号 (`CFBundleVersion`) 用 Release 工作流的运行序号，一直递增，Sparkle 靠它比较新旧。
 - 产物：GitHub Release 上一个 dmg (首次安装) 和一个 zip (Sparkle 下载)，发布说明由 GitHub 按上一个同渠道 tag 自动列出合进来的 PR。
 - 更新清单：gh-pages 分支上的 `appcast.xml`，经 GitHub Pages 发布在 `https://zhew1585.github.io/wage-tick/appcast.xml`。nightly 条目带 `nightly` 渠道。
-- App 内 (`AppUpdater`)：Sparkle 2，默认只收正式版，设置里打开「接收尝鲜版」后也收 nightly 渠道；默认每 6 小时检查一次、静默下载，下载完立即安装并重启 App，不等退出。
+- App 内 (`AppUpdater`)：Sparkle 2，默认只收正式版，设置里打开「接收尝鲜版」后也收 nightly 渠道；默认每 6 小时检查一次、静默下载。
+  下载好后弹「新版本准备好了」，由用户选立即重启或稍后自行重启；选了稍后，退出时自动装好，菜单栏菜单最上面挂一项「重启以完成更新」。
   设置页「更新」一组有当前版本、自动更新与接收尝鲜版两个开关和「检查更新」；主菜单有「检查更新…」。Debug 构建不检查更新，免得开发版被正式版覆盖。
   关掉接收尝鲜版不会降级：正式版是后来把某个 nightly 重新编译转正的，构建号更大，等它发出来自然升上去。
+- 更新界面全部是自己画的 (`UpdateUserDriver` + `UpdateWindowController`，设计稿「App 内更新 · 4 个界面」)，不用 Sparkle 自带的系统样式窗口：
+  发现新版本、下载中 (进度条)、已准备好、已是最新版。更新内容取自 appcast 条目的纯文本说明，由 CI 按上一个同渠道版本以来改到 App 代码的提交标题生成 (`scripts/ci/release-notes.sh`)。
 - 更新包用 Sparkle 的 EdDSA 密钥签名：私钥在 Allen 的钥匙串 (账户 wage-tick) 和仓库 secret `SPARKLE_PRIVATE_KEY`，公钥写在 `Config/WageTick-Info.plist`。
   私钥丢了就再也发不出旧版本能接受的更新，只能让大家手动重装。
 

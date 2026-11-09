@@ -7,7 +7,9 @@ nightly 只留最近 10 个，正式版全部保留。Sparkle 按 <sparkle:versi
 用法：
   update-appcast.py --appcast appcast.xml --version 0.1.1 --build 42 --channel stable \
       --url https://.../WageTick-0.1.1.zip --signature 'sparkle:edSignature="..." length="123"' \
-      --link https://github.com/.../releases/tag/v0.1.1
+      --link https://github.com/.../releases/tag/v0.1.1 --notes notes.txt
+
+更新内容 (--notes，可选) 写进 <description sparkle:format="plain-text">，一行一条；App 的更新窗口按行显示。
 """
 import argparse
 import re
@@ -46,6 +48,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     for name in ("appcast", "version", "build", "channel", "url", "signature", "link"):
         parser.add_argument(f"--{name}", required=True)
+    parser.add_argument("--notes", help="更新内容文件，一行一条")
     args = parser.parse_args()
 
     path = Path(args.appcast)
@@ -61,6 +64,10 @@ def main() -> None:
     if args.channel == "nightly":
         ET.SubElement(item, sparkle("channel")).text = "nightly"
     ET.SubElement(item, "link").text = args.link
+    if args.notes:
+        notes = Path(args.notes).read_text(encoding="utf-8").strip()
+        if notes:
+            ET.SubElement(item, "description", {sparkle("format"): "plain-text"}).text = notes
     ET.SubElement(item, "enclosure", {"url": args.url, "type": "application/octet-stream", **parse_signature(args.signature)})
 
     # 新版本放在最前面；nightly 只留最近几个。
