@@ -80,6 +80,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.plan.outputs.ref }}
+          # 更新内容要拿上一个 tag 以来的提交。
+          fetch-depth: 0
 
       - name: 选 Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.4.app
@@ -135,14 +137,19 @@ jobs:
 
       - name: 写发布说明
         run: |
+          scripts/ci/release-notes.sh "$PREVIOUS_TAG" "$REF" > dist/notes.txt
           {
             echo "**首次安装**：下载 \`WageTick-$VERSION.dmg\`，把牛马鼓励器拖进「应用程序」。App 没有苹果开发者签名，第一次打开要在「应用程序」里右键它 → 打开。"
             if [[ "$CHANNEL" == "nightly" ]]; then
               echo
               echo "这是尝鲜版 (nightly)。在 App 的设置里打开「接收尝鲜版」后，会自动更新到最新的尝鲜版。"
             else
-              echo "之后有新的正式版时，App 会自动更新并重启。"
+              echo "之后有新的正式版时，App 会提示你重启完成更新。"
             fi
+            echo
+            echo "## 更新内容"
+            echo
+            sed 's/^/- /' dist/notes.txt
             echo
           } > notes.md
           args=(-f tag_name="$TAG" -f target_commitish="$REF")
@@ -164,7 +171,8 @@ jobs:
             --version "$VERSION" --build "$BUILD_NUMBER" --channel "$CHANNEL" \
             --url "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/WageTick-$VERSION.zip" \
             --signature "$(cat dist/signature.txt)" \
-            --link "https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+            --link "https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" \
+            --notes dist/notes.txt
           cd pages
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

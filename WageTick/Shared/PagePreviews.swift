@@ -62,6 +62,10 @@ private enum PagePreviews {
             ("P5-unpaid-work-form-overnight", try unpaidWorkForm(overnight, day: LocalDate(year: 2026, month: 11, day: 3))),
             ("P6-settings", page(SettingsView(form: try settingsForm(), updater: AppUpdater(), close: {}))),
             ("P6-settings-rest-mode-sheet", try restModeSheet()),
+            ("U1-update-found", update(.found(version: "0.1.1", current: "0.1.0", notes: updateNotes, later: {}, download: {}))),
+            ("U2-update-downloading", update(.downloading(version: "0.1.1", received: 3_200_000, expected: 8_600_000, cancel: {}))),
+            ("U3-update-ready", update(.ready(version: "0.1.1", notes: updateNotes, later: {}, restart: {}))),
+            ("U4-update-up-to-date", update(.upToDate(current: "0.1.1", ok: {}))),
         ]
     }
 
@@ -190,6 +194,25 @@ private enum PagePreviews {
         form.beginEditingRestMode()
         return AnyView(
             RestModeSettingSheet(form: form, dismiss: {})
+                .clipShape(RoundedRectangle(cornerRadius: Radius.r14))
+                .overlay(RoundedRectangle(cornerRadius: Radius.r14).strokeBorder(Palette.line, lineWidth: 1))
+                .padding(24)
+                .background(Color.white)
+        )
+    }
+
+    private static let updateNotes = [
+        "统计行加上距离周末，下一个休息日是法定节假日时叫距离放假",
+        "扣款并到主数字下方的小字里",
+        "大号小组件休息日、已下班时主内容放大",
+    ]
+
+    /// 更新窗口 (设计稿「App 内更新 · 4 个界面」)：宽 360、高随内容。红绿灯是系统画的，这里不画。
+    private static func update(_ screen: UpdateScreen) -> AnyView {
+        let model = UpdateWindowController.Model()
+        model.screen = screen
+        return AnyView(
+            UpdateView(model: model) { _ in }
                 .clipShape(RoundedRectangle(cornerRadius: Radius.r14))
                 .overlay(RoundedRectangle(cornerRadius: Radius.r14).strokeBorder(Palette.line, lineWidth: 1))
                 .padding(24)

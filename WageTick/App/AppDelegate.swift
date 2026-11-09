@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 先交出内置与缓存的节假日数据，菜单栏第一次刷新就按它计算。
         holidayUpdater = HolidayUpdater(model: model)
         holidayUpdater.start()
+        updater = AppUpdater()
         goals = GoalsWindowController(model: model)
         todayPanel = TodayPanelWindowController(
             model: model,
@@ -53,12 +54,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             openTodayPanel: { [weak self] in self?.todayPanel.show() },
             openSettings: { [weak self] in self?.settings.show() },
             openGoals: { [weak self] in self?.goals.show() },
-            openHistory: { [weak self] in self?.history.show() }
+            openHistory: { [weak self] in self?.history.show() },
+            installUpdate: { [weak self] in self?.updater.installPendingUpdate() }
         )
+        updater.onPendingVersionChange = { [weak self] version in self?.statusItem.setPendingUpdate(version) }
         history = HistoryWindowController(model: model) { [weak self] in
             self?.statusItem.refresh()
         }
-        updater = AppUpdater()
         settings = SettingsWindowController(
             form: SettingsFormModel(model: model, menuBar: statusItem, notifier: notifier),
             updater: updater

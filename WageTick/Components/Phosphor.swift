@@ -8,6 +8,7 @@ import SwiftUI
 /// 用法：`PhosphorIcon(.flagBanner, size: 13).foregroundStyle(Palette.accent)`；
 /// 放进按钮 `Label` 的 icon 里时不用给尺寸，按钮样式会把它框成 14pt。
 enum Phosphor: String {
+    case arrowClockwise = "arrow-clockwise"
     case arrowRight = "arrow-right"
     case briefcase
     case calendarBlank = "calendar-blank"
@@ -16,6 +17,8 @@ enum Phosphor: String {
     case caretRight = "caret-right"
     case caretUp = "caret-up"
     case check
+    case clock
+    case downloadSimple = "download-simple"
     case flagBanner = "flag-banner"
     case gearSix = "gear-six"
     case hourglassSimple = "hourglass-simple"
@@ -34,6 +37,7 @@ enum Phosphor: String {
     case list
     case plus
     case swap
+    case x
 
     var image: Image {
         Image("Phosphor/\(rawValue)").renderingMode(.template)

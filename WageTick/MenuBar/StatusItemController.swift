@@ -16,6 +16,9 @@ final class StatusItemController: NSObject {
     private let openSettings: () -> Void
     private let openGoals: () -> Void
     private let openHistory: () -> Void
+    private let installUpdate: () -> Void
+    /// 更新已下载好、用户选了稍后时挂在菜单最上面的「重启以完成更新」及其分隔线 (ADR-0007)。
+    private var updateItems: [NSMenuItem] = []
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
     private var timer: Timer?
@@ -27,7 +30,8 @@ final class StatusItemController: NSObject {
         openTodayPanel: @escaping () -> Void,
         openSettings: @escaping () -> Void,
         openGoals: @escaping () -> Void,
-        openHistory: @escaping () -> Void
+        openHistory: @escaping () -> Void,
+        installUpdate: @escaping () -> Void
     ) {
         self.model = model
         self.openOnboarding = openOnboarding
@@ -35,6 +39,7 @@ final class StatusItemController: NSObject {
         self.openSettings = openSettings
         self.openGoals = openGoals
         self.openHistory = openHistory
+        self.installUpdate = installUpdate
         super.init()
         configureButton()
         buildMenu()
@@ -44,6 +49,7 @@ final class StatusItemController: NSObject {
 
     /// 左键菜单：macOS 原生菜单，系统画标题、快捷键、勾选与分隔线，跟随系统深浅色，不放图标。
     /// 项目与快捷键按 PRD F2：今日概览 ⌘1、目标 ⌘2、历史 ⌘3 | 设置… ⌘, | 退出 ⌘Q。
+    /// 有等重启的更新时最上面多一项「重启以完成更新」(`setPendingUpdate`)。
     private func buildMenu() {
         addRow("今日概览", key: "1", action: #selector(todayPanelClicked))
         addRow("目标", key: "2", action: #selector(goalsClicked))
@@ -52,6 +58,19 @@ final class StatusItemController: NSObject {
         addRow("设置…", key: ",", action: #selector(settingsClicked))
         menu.addItem(.separator())
         addRow("退出", key: "q", action: #selector(NSApplication.terminate(_:)), target: NSApp)
+    }
+
+    /// 有下载好、等重启的更新时在菜单最上面加「重启以完成更新（0.1.1）」，装完或没有时去掉。
+    func setPendingUpdate(_ version: String?) {
+        updateItems.forEach(menu.removeItem)
+        updateItems = []
+        guard let version else { return }
+        let install = NSMenuItem(title: "重启以完成更新（\(version)）", action: #selector(installUpdateClicked), keyEquivalent: "")
+        install.target = self
+        updateItems = [install, .separator()]
+        for (index, item) in updateItems.enumerated() {
+            menu.insertItem(item, at: index)
+        }
     }
 
     private func addRow(_ title: String, key: String, action: Selector, target: AnyObject? = nil) {
@@ -129,5 +148,9 @@ final class StatusItemController: NSObject {
 
     @objc private func historyClicked() {
         openHistory()
+    }
+
+    @objc private func installUpdateClicked() {
+        installUpdate()
     }
 }
