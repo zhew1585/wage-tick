@@ -186,7 +186,7 @@ struct DayDetailView: View {
             ) { choice in
                 if let command = choices.command(for: choice) { send(command) }
             }
-            Text("改了会影响本月应出勤天数，整月日薪跟着重算。").font(AppFont.caption).foregroundStyle(Palette.muted)
+            Text(editing.overrideNote).font(AppFont.caption).foregroundStyle(Palette.muted)
         }
     }
 

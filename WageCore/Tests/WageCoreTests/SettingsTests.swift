@@ -34,7 +34,7 @@ private func attendancePanel(_ snap: Snapshot) throws -> AttendancePanel {
 struct ChangeSalaryTests {
     @Test("AC-SET-01 本月中旬把月薪从 20000 改为 22000：本月已过日子全部按 1100 重算")
     func wholeMonthRecomputed() throws {
-        let state = try applied(.changeMonthlySalary(22000), to: try onboarded(), at: standardDay(15, 0))
+        let state = try applied(.changeSalary(22000), to: try onboarded(), at: standardDay(15, 0))
         let snap = snapshot(of: state, at: standardDay(18, 30))
 
         // 2 月 11 日之前 7 个应出勤日 + 今天已下班，共 8 天 × 1100。
@@ -47,7 +47,7 @@ struct ChangeSalaryTests {
     @Test("PRD 4.2.1 #2 已经过去的月份保留当时的月薪")
     func pastMonthKeepsOldSalary() throws {
         // 3 月 2 日 (周一) 改月薪，2 月仍按 20000 ÷ 20 = 1000。
-        let state = try applied(.changeMonthlySalary(33000), to: try onboarded(), at: moment(2026, 3, 2, 11, 0))
+        let state = try applied(.changeSalary(33000), to: try onboarded(), at: moment(2026, 3, 2, 11, 0))
 
         #expect(snapshot(of: state, at: moment(2026, 2, 27, 18, 30)).today?.dailyWage == 1000)
         #expect(snapshot(of: state, at: moment(2026, 3, 2, 18, 30)).today?.dailyWage == 1500)
@@ -55,7 +55,7 @@ struct ChangeSalaryTests {
 
     @Test("PRD 4.2.1 #3 未来月份沿用最近一次设置的月薪")
     func futureMonthFollowsLatest() throws {
-        let state = try applied(.changeMonthlySalary(22000), to: try onboarded(), at: standardDay(15, 0))
+        let state = try applied(.changeSalary(22000), to: try onboarded(), at: standardDay(15, 0))
 
         // 2026 年 3 月只按双休有 22 个应出勤日：22000 ÷ 22 = 1000。
         #expect(snapshot(of: state, at: moment(2026, 3, 2, 18, 30)).today?.dailyWage == 1000)
@@ -63,8 +63,8 @@ struct ChangeSalaryTests {
 
     @Test("同一个月改两次：以最后一次为准")
     func lastChangeInMonthWins() throws {
-        let once = try applied(.changeMonthlySalary(22000), to: try onboarded(), at: standardDay(11, 0))
-        let twice = try applied(.changeMonthlySalary(24000), to: once, at: standardDay(15, 0))
+        let once = try applied(.changeSalary(22000), to: try onboarded(), at: standardDay(11, 0))
+        let twice = try applied(.changeSalary(24000), to: once, at: standardDay(15, 0))
 
         #expect(snapshot(of: twice, at: standardDay(18, 30)).today?.dailyWage == 1200)
     }
@@ -75,16 +75,16 @@ struct ChangeSalaryTests {
     )
     func invalidSalaryIsRejected(text: String) throws {
         let state = try onboarded()
-        let error = rejection(.changeMonthlySalary(Decimal(string: text)!), to: state)
+        let error = rejection(.changeSalary(Decimal(string: text)!), to: state)
 
         #expect(error == .salaryNotPositive)
         #expect(error?.message == "月薪得是个正数")
-        #expect(error == Validation.monthlySalary(Decimal(string: text)!))
+        #expect(error == Validation.salary(Decimal(string: text)!, basis: .monthly))
     }
 
     @Test("未完成引导时不能改月薪")
     func requiresOnboarding() {
-        #expect(rejection(.changeMonthlySalary(22000), to: AppState()) == .notOnboarded)
+        #expect(rejection(.changeSalary(22000), to: AppState()) == .notOnboarded)
     }
 }
 
@@ -320,17 +320,17 @@ struct SettingsFormTests {
         let state = try applied(.changeSchedule(scheduleEnding(at: 19)), to: try onboarded(salary: Decimal(string: "20000.50")!), at: standardDay(15, 0))
         let form = try #require(snapshot(of: state, at: standardDay(15, 0)).settingsForm)
 
-        #expect(form.monthlySalaryText == "20000.5")
+        #expect(form.salaryText == "20000.5")
         #expect(form.schedule == scheduleEnding(at: 19))
         #expect(form.launchAtLogin == true)
     }
 
     @Test("改月薪后设置页显示新月薪；下个月沿用")
     func formFollowsSalaryChange() throws {
-        let state = try applied(.changeMonthlySalary(22000), to: try onboarded(), at: standardDay(15, 0))
+        let state = try applied(.changeSalary(22000), to: try onboarded(), at: standardDay(15, 0))
 
-        #expect(snapshot(of: state, at: standardDay(15, 0)).settingsForm?.monthlySalaryText == "22000")
-        #expect(snapshot(of: state, at: moment(2026, 3, 2, 9, 0)).settingsForm?.monthlySalaryText == "22000")
+        #expect(snapshot(of: state, at: standardDay(15, 0)).settingsForm?.salaryText == "22000")
+        #expect(snapshot(of: state, at: moment(2026, 3, 2, 9, 0)).settingsForm?.salaryText == "22000")
     }
 
     @Test("显示模式各段下面的预览 (设计稿 P6 · 760)：15:00 金额 571.4286、进度 57.14%、仅图标「—」，与当前模式无关")

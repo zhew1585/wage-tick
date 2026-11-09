@@ -65,19 +65,20 @@ func completingGoalsAfterEdit(_ state: AppState, now: Moment, holidays: HolidayT
     completingReachedGoals(state, now: now, holidays: holidays.overlaying(state))
 }
 
-/// 改 `month` 的月薪，该月整月生效 (PRD 4.2.1)，限安装当月至本月。改本月时未来月份沿用 (4.2.1 #3)。
-/// 改过去的月份时，下个月若没有单独设置过月薪，先把它钉在原来的值上：
+/// 改 `month` 的工资 (金额与按月 / 按天)，该月整月生效 (PRD 4.2.1)，限安装当月至本月。改本月时未来月份沿用 (4.2.1 #3)。
+/// 改过去的月份时，下个月若没有单独设置过工资，先把它钉在原来的金额与算法上：
 /// 否则「未来月份沿用最近一次设置」会让之后的月份 (含本月) 跟着变 (AC-CAL-05 本月不变)。
-func setMonthlySalary(_ amount: Decimal, for month: YearMonth, state: AppState, now: Moment) throws(CommandError) -> AppState {
+func setSalary(_ amount: Decimal, basis: PayBasis, for month: YearMonth, state: AppState, now: Moment) throws(CommandError) -> AppState {
     guard let installMonth = state.profile?.installDate.yearMonth else { throw .notOnboarded }
-    if let error = Validation.monthlySalary(amount) { throw error }
+    if let error = Validation.salary(amount, basis: basis) { throw error }
     let current = now.localDate.yearMonth
     guard month >= installMonth, month <= current else { throw .dateOutOfRange }
     return try updatingProfile(state) { profile in
         if month < current, !profile.salaries.contains(where: { $0.month == month.next }) {
-            profile.setSalary(profile.salary(for: month.next), for: month.next)
+            let kept = profile.pay(for: month.next)
+            profile.setPay(MonthlySalary(month: month.next, amount: kept.amount, basis: kept.basis))
         }
-        profile.setSalary(amount, for: month)
+        profile.setPay(MonthlySalary(month: month, amount: amount, basis: basis))
     }
 }
 

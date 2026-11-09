@@ -4,8 +4,8 @@ import Foundation
 public enum Command: Sendable, Equatable {
     /// 完成引导 (PRD 4.1.1)：设计稿 760 版只有月薪 (含休息模式)、作息两步，开机自启不再询问。
     case completeOnboarding(OnboardingInput)
-    /// 修改当月月薪，对当月整月生效 (PRD 4.2.1 #1)。
-    case changeMonthlySalary(Decimal)
+    /// 修改当月工资 (月薪或日薪)，对当月整月生效 (PRD 4.2.1 #1，按天见 issue #16)。
+    case changeSalary(Decimal, basis: PayBasis = .monthly)
     /// 修改作息，从今天起生效 (PRD 4.2.3 #2)。
     case changeSchedule(WorkSchedule)
     /// 修改休息模式，与月薪一样对当月整月生效，过去的月份不变 (PRD 4.2.2)。
@@ -54,21 +54,28 @@ public enum Command: Sendable, Equatable {
     /// 历史编辑 (PRD 4.6.1、F11)：在单日详情里改某一天，可编辑范围见 `DayEdit`。
     case editDay(LocalDate, DayEdit)
     /// 在历史里改某个月的月薪 (PRD 4.2.1、4.6.1)，限安装当月至本月：过去的月份只影响该月；
-    /// 本月与 `changeMonthlySalary` 相同，未来月份沿用。
-    case setMonthlySalary(YearMonth, Decimal)
+    /// 本月与 `changeSalary` 相同，未来月份沿用。
+    case setSalary(YearMonth, Decimal, basis: PayBasis = .monthly)
 }
 
 /// 引导里牛马填写的内容，未经校验。
 public struct OnboardingInput: Sendable, Equatable {
-    public let monthlySalary: Decimal
+    /// 第 1 步填的工资：月薪或日薪，看 `payBasis`。
+    public let salary: Decimal
+    /// 第 1 步「月薪 | 日薪」的选择，默认按月。
+    public let payBasis: PayBasis
     public let schedule: WorkSchedule
     /// 第 1 步「怎么休」选的休息模式，默认双休 (PRD 4.7.2)；大小周按完成引导那天所在的周定下大小。
     public let restMode: RestModeChoice
     /// 引导不再询问开机自启 (设计稿 760 版)，外壳不传，按 PRD 4.7.2 的默认值开；之后可在设置里改。
     public let launchAtLogin: Bool
 
-    public init(monthlySalary: Decimal, schedule: WorkSchedule, restMode: RestModeChoice = .twoDaysOff, launchAtLogin: Bool = true) {
-        self.monthlySalary = monthlySalary
+    public init(
+        salary: Decimal, payBasis: PayBasis = .monthly, schedule: WorkSchedule,
+        restMode: RestModeChoice = .twoDaysOff, launchAtLogin: Bool = true
+    ) {
+        self.salary = salary
+        self.payBasis = payBasis
         self.schedule = schedule
         self.restMode = restMode
         self.launchAtLogin = launchAtLogin
@@ -86,6 +93,7 @@ public enum DomainEvent: Sendable, Equatable {
 /// 命令被拒绝的原因，`message` 是直接展示给牛马的提示文案 (PRD 4.3.5)。
 public enum CommandError: Error, Sendable, Equatable {
     case salaryNotPositive
+    case dailyWageNotPositive
     case endNotAfterStart
     case lunchOutsideWorkHours
     case alreadyOnboarded
@@ -115,6 +123,7 @@ public enum CommandError: Error, Sendable, Equatable {
     public var message: String {
         switch self {
         case .salaryNotPositive: "月薪得是个正数"
+        case .dailyWageNotPositive: "日薪得是个正数"
         case .endNotAfterStart: "下班时间要晚于上班时间"
         case .lunchOutsideWorkHours: "饭点要在上下班时间之内"
         case .alreadyOnboarded: "已经完成过引导了"
@@ -163,8 +172,8 @@ public func apply(
     switch command {
     case .completeOnboarding(let input):
         return (try completeOnboarding(input, state: state, now: now), [])
-    case .changeMonthlySalary(let amount):
-        return (try changeMonthlySalary(amount, state: state, now: now), [])
+    case .changeSalary(let amount, let basis):
+        return (try changeSalary(amount, basis: basis, state: state, now: now), [])
     case .changeSchedule(let schedule):
         return (try changeSchedule(schedule, state: state, now: now), [])
     case .changeRestMode(let choice):
@@ -215,21 +224,21 @@ public func apply(
         return (acknowledgeCelebration(goalID: goalID, state: state), [])
     case .editDay(let date, let edit):
         return completingGoalsAfterEdit(try editDay(date, edit, state: state, now: now, holidays: holidays), now: now, holidays: holidays)
-    case .setMonthlySalary(let month, let amount):
-        return completingGoalsAfterEdit(try setMonthlySalary(amount, for: month, state: state, now: now), now: now, holidays: holidays)
+    case .setSalary(let month, let amount, let basis):
+        return completingGoalsAfterEdit(try setSalary(amount, basis: basis, for: month, state: state, now: now), now: now, holidays: holidays)
     }
 }
 
 private func completeOnboarding(_ input: OnboardingInput, state: AppState, now: Moment) throws(CommandError) -> AppState {
     guard state.profile == nil else { throw .alreadyOnboarded }
-    if let error = Validation.monthlySalary(input.monthlySalary) ?? Validation.schedule(input.schedule) {
+    if let error = Validation.salary(input.salary, basis: input.payBasis) ?? Validation.schedule(input.schedule) {
         throw error
     }
     let today = now.localDate
     var next = state
     next.profile = Profile(
         installDate: today,
-        salaries: [MonthlySalary(month: today.yearMonth, amount: input.monthlySalary)],
+        salaries: [MonthlySalary(month: today.yearMonth, amount: input.salary, basis: input.payBasis)],
         schedule: input.schedule,
         restMode: input.restMode.mode(on: today),
         launchAtLogin: input.launchAtLogin

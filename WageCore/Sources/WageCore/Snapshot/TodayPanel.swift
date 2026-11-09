@@ -168,7 +168,9 @@ extension AttendancePanel {
             progress = nil
             stats = Self.offWorkStats(today: today, earnings: earnings, settlement: settlement)
         } else {
-            caption = "满勤日薪 \(Format.money(today.dailyWage)) · 时薪 \(Format.money(today.hourlyWage))" + deduction
+            // 按天算没有「满勤」一说，只写日薪。
+            let wageTitle = today.payBasis == .daily ? "日薪" : "满勤日薪"
+            caption = "\(wageTitle) \(Format.money(today.dailyWage)) · 时薪 \(Format.money(today.hourlyWage))" + deduction
             progress = WorkProgress(plan: plan, progress: earnings.progress, now: now)
             stats = [
                 StatItem(title: "距离下班", value: Self.countdownText(today: today, plan: plan, now: now)),

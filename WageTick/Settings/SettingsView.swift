@@ -1,7 +1,7 @@
 import SwiftUI
 import WageCore
 
-/// 设置页 (PRD F12，设计稿 P6 设置 · 休息模式 · 760)：钱与作息 (月薪、休息模式、作息，点开弹表单改；作息一行同时显示上下班与饭点，二者在同一个表单里改)，菜单栏 (显示模式与各模式预览、隐藏 Dock 图标)，
+/// 设置页 (PRD F12，设计稿 P6 设置 · 休息模式 · 760)：钱与作息 (本月工资 (月薪或日薪)、休息模式、作息，点开弹表单改；作息一行同时显示上下班与饭点，二者在同一个表单里改)，菜单栏 (显示模式与各模式预览、隐藏 Dock 图标)，
 /// 通知与启动 (下班通知、目标达成通知、开机自启)，系统拒绝通知时的提示条，更新 (版本、自动更新、接收尝鲜版、检查更新)，数据 (清空数据并重启)。一屏放得下，放不下时滚动。
 /// 只管排版，动作与提示都在 `SettingsFormModel`。
 struct SettingsView: View {
@@ -48,7 +48,7 @@ struct SettingsView: View {
     private var moneySection: some View {
         SettingsGroup("钱与作息") {
             CardBox {
-                NavigationRow(title: "本月月薪", value: form.savedSalaryDisplay, emphasized: true) {
+                NavigationRow(title: "本月工资", value: form.savedSalaryDisplay, emphasized: true) {
                     form.beginEditingSalary()
                     sheet = .salary
                 }
@@ -227,14 +227,24 @@ private struct NavigationRow: View {
     }
 }
 
-/// 改当月月薪的表单 (PRD 4.2.1 #1)。
+/// 改当月工资的表单 (PRD 4.2.1 #1)：「月薪 | 日薪」小切换 + 金额 (单位跟着变)，设计稿「按天算工资」⑥。
 private struct SalarySettingSheet: View {
     @Bindable var form: SettingsFormModel
     let dismiss: () -> Void
 
     var body: some View {
-        SettingSheet(title: "本月月薪", footnote: "对当月整月生效，本月已经过去的日子也按新月薪算", message: form.salaryMessage, save: save, dismiss: dismiss) {
-            Field(nil, text: $form.salaryText, suffix: "元").onSubmit(save)
+        SettingSheet(title: "本月工资", footnote: footnote, message: form.salaryMessage, save: save, dismiss: dismiss) {
+            VStack(alignment: .leading, spacing: Spacing.s6) {
+                PayBasisSwitch(selection: form.payBasisDraft) { form.payBasisDraft = $0 }
+                Field(nil, text: $form.salaryText, suffix: form.payBasisDraft.unit).onSubmit(save)
+            }
+        }
+    }
+
+    private var footnote: String {
+        switch form.payBasisDraft {
+        case .monthly: "对当月整月生效，本月已经过去的日子也按新月薪算"
+        case .daily: "对本月整月生效。按天算时只有要上班的日子有钱，周末和法定节假日都是 0"
         }
     }
 

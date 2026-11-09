@@ -67,7 +67,7 @@ struct MonthCalendarView: View {
         .opacity(target == nil ? 0.35 : 1)
     }
 
-    /// 该月月薪与日薪 (「¥20000 → 日薪 ¥1000」)，点整条或铅笔改该月月薪 (PRD 4.2.1 #2)，surface 底。
+    /// 该月工资：按月为「¥20000 → 日薪 ¥1000」，按天为「¥200 · 满勤 ¥4200」；点整条或铅笔改该月工资 (PRD 4.2.1 #2)，surface 底。
     private var salaryRow: some View {
         HStack(spacing: Spacing.s8) {
             VStack(alignment: .leading, spacing: Spacing.s2) {
@@ -83,11 +83,11 @@ struct MonthCalendarView: View {
         .contentShape(Rectangle())
         .onTapGesture { editingSalary = true }
         .hoverFeedback()
-        .help("改这个月的月薪")
+        .help("改这个月的工资")
         .sheet(isPresented: $editingSalary) {
             SalaryFormView(
                 month: month.summary.month, title: month.summary.title, isCurrentMonth: month.summary.isCurrentMonth,
-                current: month.monthlySalary, actions: actions,
+                current: month.salary, basis: month.payBasis, actions: actions,
                 dismiss: { editingSalary = false }
             )
         }

@@ -36,7 +36,7 @@ func onboarded(
     at now: Moment = moment(2026, 2, 11, 9, 0)
 ) throws -> AppState {
     let command = Command.completeOnboarding(
-        OnboardingInput(monthlySalary: salary, schedule: schedule, restMode: restMode, launchAtLogin: true)
+        OnboardingInput(salary: salary, schedule: schedule, restMode: restMode, launchAtLogin: true)
     )
     return try apply(command, to: AppState(), at: now).state
 }

@@ -73,7 +73,7 @@ private enum PagePreviews {
 
     /// 10 月 15 日 (周四) 早上完成引导，月薪 20000。
     private static func onboarded() throws -> AppState {
-        let input = OnboardingInput(monthlySalary: 20000, schedule: schedule, launchAtLogin: false)
+        let input = OnboardingInput(salary: 20000, schedule: schedule, launchAtLogin: false)
         return try apply(.completeOnboarding(input), to: AppState(), at: moment(month: 10, day: 15, 9, 0)).state
     }
 
@@ -181,7 +181,7 @@ private enum PagePreviews {
         let directory = FileManager.default.temporaryDirectory.appending(path: "wagetick-page-previews-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
         let model = AppModel(store: StateStore(directory: directory))
-        let input = OnboardingInput(monthlySalary: 20000, schedule: schedule, restMode: .bigWeekNow, launchAtLogin: true)
+        let input = OnboardingInput(salary: 20000, schedule: schedule, restMode: .bigWeekNow, launchAtLogin: true)
         try model.send(.completeOnboarding(input))
         let form = SettingsFormModel(model: model, menuBar: nil, notifier: SystemNotifier(openPanel: {}))
         form.reload()
