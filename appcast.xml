@@ -2,5 +2,15 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <title>牛马鼓励器</title>
+    <item>
+      <title>0.1.0-nightly.20261109.1</title>
+      <pubDate>Mon, 09 Nov 2026 07:30:56 GMT</pubDate>
+      <sparkle:version>1</sparkle:version>
+      <sparkle:shortVersionString>0.1.0-nightly.20261109.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <sparkle:channel>nightly</sparkle:channel>
+      <link>https://github.com/zhew1585/wage-tick/releases/tag/v0.1.0-nightly.20261109.1</link>
+      <enclosure url="https://github.com/zhew1585/wage-tick/releases/download/v0.1.0-nightly.20261109.1/WageTick-0.1.0-nightly.20261109.1.zip" type="application/octet-stream" sparkle:edSignature="j6fSBXzESWmpW/Mt983t7bfpbHvjSDi7jBvK3fMjmW9TGlnP8Yx83TwqjHuZffA+X8La8YpwMItQMmS2suqWBA==" length="8564111" />
+    </item>
   </channel>
 </rss>
