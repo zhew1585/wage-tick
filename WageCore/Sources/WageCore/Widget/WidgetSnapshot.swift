@@ -29,7 +29,7 @@ public struct WidgetToday: Sendable, Equatable {
     /// 状态的色调，外壳据此着色，与面板顶部状态一致。
     public let tone: WidgetTone
     public let main: WidgetMain
-    /// 中号右栏的两项，如距离下班、本月累计。
+    /// 中号右栏的两项：上班的状态 (未上班、上班中、干饭中、请假中) 为距离下班、距离周末，其余为距离周末、本月累计。
     public let sideStats: [WidgetStat]
     /// 大号的统计行，同面板统计行；距离下班换成实时倒计时。
     public let stats: [WidgetStat]
@@ -82,10 +82,13 @@ public struct WidgetStat: Sendable, Equatable {
     public let title: String
     /// 没有值时只显示标题 (如已下班的「准点下班，赢」)。
     public let value: WidgetValue?
+    /// 醒目显示 (accent 色)：距离周末，同面板。
+    public let isHighlighted: Bool
 
-    public init(title: String, value: WidgetValue?) {
+    public init(title: String, value: WidgetValue?, isHighlighted: Bool = false) {
         self.title = title
         self.value = value
+        self.isHighlighted = isHighlighted
     }
 }
 
@@ -142,7 +145,8 @@ extension WidgetToday {
                 nextAttendanceText: today.nextAttendanceDay.map { "下个上班日 \(Format.date($0, relativeTo: today.date))" }
             ))
             stats = rest.stats.map(WidgetStat.init)
-            sideStats = stats
+            // 统计行为 [本月已上班, 本月累计, 距离周末]，右栏先放距离周末。
+            sideStats = stats.count == 3 ? [stats[2], stats[1]] : stats
         case .unpaidWork(let unpaidWork):
             tone = .unpaidWork
             (main, stats, sideStats) = Self.unpaidWork(unpaidWork, today: today, now: now)
@@ -151,7 +155,7 @@ extension WidgetToday {
 
     private typealias Parts = (main: WidgetMain, stats: [WidgetStat], sideStats: [WidgetStat])
 
-    /// 应出勤日。面板统计行未下班为 [距离下班, 今日扣款, 本月累计]，已下班为 [今日结算, 今日扣款, 本月累计]。
+    /// 应出勤日。面板统计行未下班为 [距离下班, 距离周末, 本月累计]，已下班为 [今日结算, 距离周末, 本月累计]。
     private static func attendance(_ panel: AttendancePanel, today: Today, now: Moment) -> Parts {
         let earned = today.earnings.map { Format.cents($0.earned) } ?? Format.cents(0)
         let stats = panel.stats.map(WidgetStat.init)
@@ -173,7 +177,7 @@ extension WidgetToday {
             label: "今日已赚", amount: earned, caption: panel.caption, captionTimer: nil,
             progress: WidgetProgress(progress: progress, plan: plan, today: today, now: now), footer: countdown
         )
-        return (.amount(amount), liveStats, [countdown, liveStats.last!])
+        return (.amount(amount), liveStats, Array(liveStats.prefix(2)))
     }
 
     /// 白干中 (含前一天开始、跨过零点还在计时)：主数字为开始那天已倒贴，计时为开始那天的白干总时长。
@@ -194,15 +198,15 @@ extension WidgetToday {
             label: panel.label, amount: Format.cents(running.owed), caption: "\(since) · 已白干", captionTimer: timer,
             progress: nil, footer: WidgetStat(title: since, value: timer)
         )
-        let side = stats.count > 2 ? [stats[0], stats[stats.count - 1]] : stats
-        return (.amount(amount), stats, side)
+        // 统计行为 [今日结算, 距离周末, 本月累计]，主数字已是倒贴，右栏放后两项。
+        return (.amount(amount), stats, Array(stats.dropFirst()))
     }
 }
 
 extension WidgetStat {
     /// 面板统计行的一项，值原样作为文字。
     init(_ item: StatItem) {
-        self.init(title: item.title, value: .text(item.value))
+        self.init(title: item.title, value: .text(item.value), isHighlighted: item.isHighlighted)
     }
 }
 

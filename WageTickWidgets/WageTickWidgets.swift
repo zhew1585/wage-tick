@@ -5,13 +5,11 @@ import WidgetKit
 /// 桌面小组件扩展入口 (PRD F14)。只有一个小组件「今日概览」，小号、中号、大号三种尺寸。
 /// 数据来自 App 写的 widget.json (`WidgetPayload`)，时间线由核心的 `widgetTimeline` 推导，与 App 用同一套算法。
 /// 扩展必须开沙盒，读 widget.json 靠 entitlements 里的只读临时例外，见 `WageTickWidgets.entitlements`。
+/// 小组件用系统字体 (扩展不打包、不注册 Noto Sans SC 与 JetBrains Mono，`AppFont` 自动退回 SF、苹方、SF Mono)：
+/// 桌面上的画面由系统的小组件服务按扩展排好的位置另画，它用不上扩展里的字体，会换成更宽的系统字体，
+/// 刚好放满的文字 (如顶部日期) 就被截成省略号。两边都用系统字体，量的和画的才一致。
 @main
 struct WageTickWidgets: WidgetBundle {
-    init() {
-        // 先注册打包的字体 (同 App 的 `Main`)，视图才取得到 Noto Sans SC 与 JetBrains Mono；失败时退回系统字体。
-        AppFont.register()
-    }
-
     var body: some Widget {
         TodayWidget()
     }

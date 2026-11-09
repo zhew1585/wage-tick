@@ -57,12 +57,11 @@
 				App/AppIdentity.swift,
 				Assets.xcassets,
 				Components/Phosphor.swift,
-				Resources/Fonts/JetBrainsMono.ttf,
-				"Resources/Fonts/NotoSansSC-GB2312.ttf",
 				Shared/WidgetPayload.swift,
 				Theme/AppFont.swift,
 				Theme/Metrics.swift,
 				Theme/Palette.swift,
+				Theme/StatStyle.swift,
 				Widgets/WidgetParts.swift,
 				Widgets/WidgetViews.swift,
 			);

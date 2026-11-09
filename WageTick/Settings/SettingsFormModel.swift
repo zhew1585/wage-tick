@@ -10,7 +10,7 @@ enum FormMessage: Equatable {
 
 /// 设置页的表单状态与动作 (PRD F12)。
 /// 每一项都发命令给核心，校验与提示文案来自核心的 `CommandError`，与引导一致 (PRD 4.3.5 #1 至 #3)。
-/// 月薪、休息模式、作息在弹出的表单里改，点「保存」才生效；显示模式、开机自启、两类通知开关改了立即生效。
+/// 月薪、休息模式、作息在弹出的表单里改，点「保存」才生效；显示模式、隐藏 Dock 图标、开机自启、两类通知开关改了立即生效。
 @MainActor
 @Observable
 final class SettingsFormModel {
@@ -36,6 +36,7 @@ final class SettingsFormModel {
     private(set) var launchAtLogin = true
     private(set) var offWorkNotification = true
     private(set) var goalReachedNotification = true
+    private(set) var hidesDockIcon = false
     /// 系统拒绝了通知权限：通知区显示提示 (AC-SET-05)。
     private(set) var notificationDenied = false
 
@@ -78,6 +79,7 @@ final class SettingsFormModel {
         updatePreviews(from: snap)
         offWorkNotification = snap.settings.offWorkNotification
         goalReachedNotification = snap.settings.goalReachedNotification
+        hidesDockIcon = snap.settings.hidesDockIcon
         refreshNotificationPermission()
         salaryMessage = nil
         restModeMessage = nil
@@ -172,6 +174,13 @@ final class SettingsFormModel {
     func setGoalReachedNotification(_ enabled: Bool) {
         guard send(.setGoalReachedNotification(enabled)) == .saved else { return }
         goalReachedNotification = enabled
+    }
+
+    /// 记进状态后立即切换 Dock 图标。
+    func setHidesDockIcon(_ hidden: Bool) {
+        guard send(.setHidesDockIcon(hidden)) == .saved else { return }
+        hidesDockIcon = hidden
+        DockIcon.apply(hidden: hidden)
     }
 
     func openNotificationSettings() {

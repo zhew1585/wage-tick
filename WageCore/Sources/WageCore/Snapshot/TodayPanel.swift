@@ -40,7 +40,7 @@ public struct RestPanel: Sendable, Equatable {
     public let tagline: String?
     /// 标题下方的下一个应出勤日，如「下一个上班日 11月10日 周一」；一年内都没有时为 nil。
     public let nextAttendanceText: String?
-    /// 统计行：本月已上班 (如「5/20 天」)、本月累计。
+    /// 统计行：本月已上班 (如「5/20 天」)、本月累计、距离周末。
     public let stats: [StatItem]
 
     public init(headline: String, tagline: String?, nextAttendanceText: String?, stats: [StatItem]) {
@@ -55,10 +55,13 @@ public struct RestPanel: Sendable, Equatable {
 public struct StatItem: Sendable, Equatable {
     public let title: String
     public let value: String
+    /// 醒目显示 (accent 色)：距离周末。
+    public let isHighlighted: Bool
 
-    public init(title: String, value: String) {
+    public init(title: String, value: String, isHighlighted: Bool = false) {
         self.title = title
         self.value = value
+        self.isHighlighted = isHighlighted
     }
 }
 
@@ -66,7 +69,8 @@ public struct StatItem: Sendable, Equatable {
 public struct AttendancePanel: Sendable, Equatable {
     /// 主数字，带 ¥，4 位小数：今日已赚。
     public let headline: String
-    /// 主数字下方一行小字：上班中等为「满勤日薪 ¥1000 · 时薪 ¥142.86」，已下班见 `UnpaidWorkToday.offWorkCaption`。
+    /// 主数字下方一行小字：上班中等为「满勤日薪 ¥1000 · 时薪 ¥142.86」，已下班见 `UnpaidWorkToday.offWorkCaption`；
+    /// 有扣款时末尾接「 · 扣款 −¥50」(统计行里不再有今日扣款)。
     public let caption: String
     public let progress: WorkProgress?
     /// 统计行，如距离下班倒计时、本月累计。
@@ -147,16 +151,17 @@ extension AttendancePanel {
         let monthToDate = StatItem(title: "本月累计", value: Format.money(today.monthToDate))
         // 已下班时今日已赚 = 今日上限 = 今日结算 (PRD 4.3.4)。
         headline = Format.rollingMoney(earnings.earned)
+        let deduction = Self.deductionCaption(today: today, settlement: settlement)
         if today.status == .offWork {
-            caption = today.unpaidWork.offWorkCaption
+            caption = today.unpaidWork.offWorkCaption + deduction
             progress = nil
             stats = Self.offWorkStats(today: today, earnings: earnings, settlement: settlement)
         } else {
-            caption = "满勤日薪 \(Format.money(today.dailyWage)) · 时薪 \(Format.money(today.hourlyWage))"
+            caption = "满勤日薪 \(Format.money(today.dailyWage)) · 时薪 \(Format.money(today.hourlyWage))" + deduction
             progress = WorkProgress(plan: plan, progress: earnings.progress, now: now)
             stats = [
                 StatItem(title: "距离下班", value: Self.countdownText(today: today, plan: plan, now: now)),
-                Self.deductionStat(settlement),
+                Self.middleStat(today: today, settlement: settlement),
                 monthToDate,
             ]
         }
@@ -169,11 +174,22 @@ extension AttendancePanel {
         today.status == .notStarted ? "-" : Format.countdown(from: now.date, to: plan.end)
     }
 
-    /// 已下班的统计行：今日结算、今日扣款 (没有时 ¥0)、本月累计。白干计时中的统计行与它相同 (F4 第 5 条)。
+    /// 已下班的统计行：今日结算、距离周末、本月累计。白干计时中的统计行与它相同 (F4 第 5 条)。
     static func offWorkStats(today: Today, earnings: Earnings, settlement: DaySettlement) -> [StatItem] {
         let settled = StatItem(title: "今日结算", value: Format.money(earnings.cap))
         let monthToDate = StatItem(title: "本月累计", value: Format.money(today.monthToDate))
-        return [settled, deductionStat(settlement), monthToDate]
+        return [settled, middleStat(today: today, settlement: settlement), monthToDate]
+    }
+
+    /// 统计行中间一项：距离周末 (V1.13 起替代今日扣款)；一年内都没有休息日时退回今日扣款。
+    private static func middleStat(today: Today, settlement: DaySettlement) -> StatItem {
+        today.restCountdown.map(StatItem.restCountdown) ?? deductionStat(settlement)
+    }
+
+    /// 主数字下方小字末尾的扣款，如「 · 扣款 −¥50」：只在有扣款、且统计行里放的是距离周末时出现。
+    private static func deductionCaption(today: Today, settlement: DaySettlement) -> String {
+        guard today.restCountdown != nil, settlement.deductionTotal > 0 else { return "" }
+        return " · 扣款 \(Format.deduction(settlement.deductionTotal))"
     }
 }
 
@@ -189,7 +205,7 @@ extension RestPanel {
             stats: [
                 StatItem(title: "本月已上班", value: "\(today.attendedDays)/\(monthDays) 天"),
                 StatItem(title: "本月累计", value: Format.money(today.monthToDate)),
-            ]
+            ] + [today.restCountdown.map(StatItem.restCountdown)].compactMap { $0 }
         )
     }
 }

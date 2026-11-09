@@ -4,29 +4,29 @@ import WageCore
 
 @Suite("今天扣钱了：面板展示")
 struct DeductionPanelTests {
-    @Test("AC-HOME-04 有扣钱 50 元，18:30 打开：主数字 ¥950.0000，统计行扣款 −¥50，无倒计时")
+    @Test("AC-HOME-04 有扣钱 50 元，18:30 打开：主数字 ¥950.0000，小字末尾扣款 −¥50，无倒计时")
     func offWorkWithDeduction() throws {
         // 2026-02-11 是 2 月第 8 个应出勤日：前 7 天 7000 + 今日结算 950。
         let fined = try recordingDeduction(.fixed(50), on: try onboarded(), at: standardDay(15, 0))
         let body = try attendancePanel(fined, at: standardDay(18, 30))
 
         #expect(body.headline == "¥950.0000")
+        #expect(body.caption == "准点下班，赢 · 扣款 −¥50")
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥950"),
-            StatItem(title: "今日扣款", value: "−¥50"),
+            StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
             StatItem(title: "本月累计", value: "¥7950"),
         ])
     }
 
-    @Test("PRD 4.3.4 上班中有扣钱：小字今日上限按扣款后的数显示，统计行为倒计时、扣款合计与本月累计")
+    @Test("PRD 4.3.4 上班中有扣钱：小字末尾带扣款合计，统计行为倒计时、距离周末与本月累计")
     func workingWithDeduction() throws {
         let fined = try recordingDeduction(.fixed(50), on: try onboarded(), at: standardDay(15, 0))
         let body = try attendancePanel(fined, at: standardDay(15, 0))
 
         #expect(body.headline == "¥542.8571")
-        #expect(body.caption == "满勤日薪 ¥1000 · 时薪 ¥142.86")
-        #expect(body.stats.map(\.title) == ["距离下班", "今日扣款", "本月累计"])
-        #expect(body.stats[1].value == "−¥50")
+        #expect(body.caption == "满勤日薪 ¥1000 · 时薪 ¥142.86 · 扣款 −¥50")
+        #expect(body.stats.map(\.title) == ["距离下班", "距离周末", "本月累计"])
     }
 
     @Test("AC-FINE-04 同一天记 2 笔：明细分别展示原因、金额与说明")
@@ -54,13 +54,14 @@ struct DeductionPanelTests {
         #expect(item.detail == "日薪 12.50% · 提前走")
     }
 
-    @Test("没有扣钱时：无明细、无提示，统计行扣款显示 ¥0")
+    @Test("没有扣钱时：无明细、无提示，小字不带扣款，统计行没有今日扣款")
     func noDeduction() throws {
         let body = try attendancePanel(try onboarded(), at: standardDay(18, 30))
 
         #expect(body.deductions.isEmpty)
         #expect(body.notice == nil)
-        #expect(body.stats.contains(StatItem(title: "今日扣款", value: "¥0")))
+        #expect(body.caption == "准点下班，赢")
+        #expect(!body.stats.contains { $0.title == "今日扣款" })
     }
 
     @Test("AC-FINE-05 记 1200 元：提示【今天已经白干了，再扣就倒贴了】，今日上限 ¥0")

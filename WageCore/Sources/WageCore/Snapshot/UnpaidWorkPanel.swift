@@ -58,8 +58,9 @@ extension UnpaidWorkPanel {
             // 不应出勤的休息日被迫营业：没有收入，今日结算为 0 (AC-OT-04)。
             stats = [
                 StatItem(title: "今日结算", value: Format.money(0)),
+                today.restCountdown.map(StatItem.restCountdown),
                 StatItem(title: "本月累计", value: Format.money(today.monthToDate)),
-            ]
+            ].compactMap { $0 }
         }
     }
 }

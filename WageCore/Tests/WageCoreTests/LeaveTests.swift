@@ -58,10 +58,11 @@ struct HalfDayLeaveTests {
 
         #expect(panel.statusLabel == "已下班")
         #expect(body.headline == "¥500.0000")
-        // 2 月 11 日前 7 个应出勤日满勤 7000，加今日结算 500；请假扣薪计入当日扣款。
+        // 2 月 11 日前 7 个应出勤日满勤 7000，加今日结算 500；请假扣薪计入当日扣款，并在小字末尾。
+        #expect(body.caption == "准点下班，赢 · 扣款 −¥500")
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥500"),
-            StatItem(title: "今日扣款", value: "−¥500"),
+            StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
             StatItem(title: "本月累计", value: "¥7500"),
         ])
     }
@@ -220,6 +221,7 @@ struct FullDayLeaveTests {
                 StatItem(title: "本月已上班", value: "7/20 天"),
                 // 默认扣 100%，今日结算 0。
                 StatItem(title: "本月累计", value: "¥7000"),
+                StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
             ]
         )))
     }
@@ -283,16 +285,17 @@ struct LeaveMonthToDateTests {
 struct LeaveWithDeductionTests {
     private let fifty = Command.addDeduction(DeductionInput(amount: .fixed(50), reason: .late, note: ""))
 
-    @Test("GLOSSARY 当日扣款 = 扣钱记录合计 + 请假扣薪：后半天 50% 再扣 50，今日上限 450，已下班统计行扣款 −¥550")
+    @Test("GLOSSARY 当日扣款 = 扣钱记录合计 + 请假扣薪：后半天 50% 再扣 50，今日上限 450，已下班小字末尾扣款 −¥550")
     func deductionAndLeaveAddUp() throws {
         let state = try sending(fifty, to: try onLeave(secondHalfLeave(50)))
         let body = try attendancePanel(state, at: standardDay(12, 30))
 
         #expect(snapshot(of: state, at: standardDay(11, 0)).today?.earnings?.cap == 450)
         #expect(snapshot(of: state, at: standardDay(11, 0)).today?.earnings?.deductionTotal == 550)
+        #expect(body.caption == "准点下班，赢 · 扣款 −¥550")
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥450"),
-            StatItem(title: "今日扣款", value: "−¥550"),
+            StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
             StatItem(title: "本月累计", value: "¥7450"),
         ])
         // 次日本月累计里，这一天按结算 450 计入。

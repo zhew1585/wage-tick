@@ -69,12 +69,13 @@ struct WidgetHeader: View {
         HStack(spacing: Spacing.s6) {
             WidgetCowGlyph(size: glyphSize)
             if let dateText {
-                Text(dateText).font(AppFont.ui(dateSize)).foregroundStyle(Palette.muted).lineLimit(1)
+                // 日期与状态都不省略 (fixedSize)，挤的时候只压中间的空白。
+                Text(dateText).font(AppFont.ui(dateSize)).foregroundStyle(Palette.muted).fixedSize()
             }
-            Spacer(minLength: Spacing.s4)
+            Spacer(minLength: Spacing.s2)
             HStack(spacing: 5) {
                 Circle().fill(tone.color).frame(width: 7, height: 7)
-                Text(statusLabel).font(AppFont.ui(11, .bold)).foregroundStyle(tone.color).lineLimit(1)
+                Text(statusLabel).font(AppFont.ui(11, .bold)).foregroundStyle(tone.color).fixedSize()
             }
         }
     }
@@ -110,9 +111,10 @@ struct WidgetAmountView: View {
     var amountSize: CGFloat = 30
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s2) {
+        VStack(alignment: .leading, spacing: Spacing.s6) {
             Text(label).font(AppFont.ui(labelSize)).foregroundStyle(Palette.muted).lineLimit(1)
-            HStack(alignment: .bottom, spacing: 3) {
+            // ¥ 与数字按基线对齐，底边齐平 (按 .bottom 对齐时字框底下的留白不同，¥ 会偏低)。
+            HStack(alignment: .lastTextBaseline, spacing: 3) {
                 Text("¥").font(AppFont.num(currencySize, .semibold))
                 Text(amount)
                     .font(AppFont.num(amountSize, .bold))
@@ -161,8 +163,8 @@ struct WidgetStatView: View {
             Text(stat.title).font(AppFont.ui(10)).foregroundStyle(Palette.muted).lineLimit(1)
             if let value = stat.value {
                 clock.text(value)
-                    .font(AppFont.num(valueSize, .semibold))
-                    .foregroundStyle(Self.isDeduction(value) ? Palette.loss : Palette.ink)
+                    .font(StatStyle.font(Self.text(value), numSize: valueSize))
+                    .foregroundStyle(StatStyle.color(Self.text(value), isHighlighted: stat.isHighlighted))
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                     .multilineTextAlignment(.leading)
@@ -171,10 +173,10 @@ struct WidgetStatView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 扣款 (以「−」开头的金额) 用 loss 色，同面板统计行。
-    private static func isDeduction(_ value: WidgetValue) -> Bool {
-        if case .text(let text) = value { return text.hasPrefix("−") }
-        return false
+    /// 定字体与颜色用的文字；计时一律按数字处理。
+    private static func text(_ value: WidgetValue) -> String {
+        if case .text(let text) = value { return text }
+        return "0"
     }
 }
 

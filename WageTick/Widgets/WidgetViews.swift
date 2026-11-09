@@ -41,12 +41,12 @@ private struct SmallWidgetView: View {
             VStack(alignment: .leading, spacing: 0) {
                 WidgetHeader(glyphSize: 18, statusLabel: today.statusLabel, tone: today.tone)
                 Spacer(minLength: 0)
-                WidgetAmountView(label: amount.label, amount: amount.amount)
+                WidgetAmountView(label: amount.label, amount: amount.amount, amountSize: amount.amountSize)
                 if let progress = amount.progress {
-                    WidgetBar(ratio: progress.ratio).padding(.top, Spacing.s10)
-                    WidgetFootRow(stat: amount.footer, clock: clock).padding(.top, Spacing.s8)
+                    WidgetBar(ratio: progress.ratio).padding(.top, Spacing.s14)
+                    WidgetFootRow(stat: amount.footer, clock: clock).padding(.top, Spacing.s10)
                 } else {
-                    WidgetFootRow(stat: amount.footer, clock: clock, valueColor: today.tone.color).padding(.top, Spacing.s10)
+                    WidgetFootRow(stat: amount.footer, clock: clock, valueColor: today.tone.color).padding(.top, Spacing.s16)
                 }
             }
         case .rest(let rest):
@@ -75,6 +75,10 @@ private struct MediumWidgetView: View {
                 WidgetHeader(glyphSize: 18, dateText: today.dateText, statusLabel: today.statusLabel, tone: today.tone)
                 Spacer(minLength: 0)
                 left
+                // 休息日、请假全天只有小牛与两行字，放在标题下方的剩余空间正中，不沉底，免得上面空出一大块。
+                if case .rest = today.main {
+                    Spacer(minLength: 0)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             Rectangle().fill(Palette.line).frame(width: 1)
@@ -93,18 +97,18 @@ private struct MediumWidgetView: View {
     private var left: some View {
         switch today.main {
         case .amount(let amount):
-            WidgetAmountView(label: amount.label, amount: amount.amount)
+            WidgetAmountView(label: amount.label, amount: amount.amount, amountSize: amount.amountSize)
             if let progress = amount.progress {
-                WidgetBar(ratio: progress.ratio).padding(.top, Spacing.s10)
-                WidgetTicks(start: progress.startTime, percent: progress.percent, end: progress.endTime).padding(.top, Spacing.s6)
+                WidgetBar(ratio: progress.ratio).padding(.top, Spacing.s14)
+                WidgetTicks(start: progress.startTime, percent: progress.percent, end: progress.endTime).padding(.top, Spacing.s8)
             } else {
-                WidgetFootRow(stat: amount.footer, clock: clock, valueColor: today.tone.color).padding(.top, Spacing.s10)
+                WidgetFootRow(stat: amount.footer, clock: clock, valueColor: today.tone.color).padding(.top, Spacing.s16)
             }
         case .rest(let rest):
             // 左栏只有 160 宽，下个上班日放不进小牛右边，单独一行。
             VStack(alignment: .leading, spacing: Spacing.s6) {
                 HStack(spacing: Spacing.s8) {
-                    WidgetMascot(size: 48)
+                    WidgetMascot(size: 56)
                     Text(rest.headline).font(AppFont.ui(17, .bold)).foregroundStyle(Palette.ink)
                 }
                 if let next = rest.nextAttendanceText {
@@ -140,7 +144,7 @@ private struct MediumGoalView: View {
 // MARK: 大号
 
 /// 大号：顶部牛头、日期与状态；主数字与小字；分段进度条与上下班、百分比；三项统计；底部攒钱队列 (累计中卡片 + 最多 2 个排队中)。
-/// 休息日主数字换成小牛与下个上班日；已下班、白干中没有进度条。
+/// 休息日主数字换成小牛与下个上班日；已下班、白干中没有进度条，主数字放大。统计行中间一项是距离周末。
 private struct LargeWidgetView: View {
     let today: WidgetToday
     let clock: WidgetClock
@@ -148,8 +152,11 @@ private struct LargeWidgetView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             WidgetHeader(glyphSize: 20, dateText: today.dateText, dateSize: 11, statusLabel: today.statusLabel, tone: today.tone)
-            main.padding(.top, Spacing.s10)
-            stats.padding(.top, Spacing.s10)
+            // 剩余高度平分到三处间距：休息日、没有进度条、排队中目标少时内容变矮，空白不全堆在统计与目标之间。
+            Spacer(minLength: Spacing.s10)
+            main
+            Spacer(minLength: Spacing.s10)
+            stats
             Spacer(minLength: Spacing.s8)
             LargeGoalsView(goal: today.goal, queued: today.queued)
         }
@@ -160,7 +167,12 @@ private struct LargeWidgetView: View {
         switch today.main {
         case .amount(let amount):
             VStack(alignment: .leading, spacing: 0) {
-                WidgetAmountView(label: amount.label, amount: amount.amount, labelSize: 12, currencySize: 16, amountSize: 36)
+                // 没有进度条 (已下班、白干中) 时少两行，主数字放大到 46，免得统计行下面空出一大块 (设计稿「距离周末 · 方案 B」)。
+                let large = amount.progress == nil
+                WidgetAmountView(
+                    label: amount.label, amount: amount.amount,
+                    labelSize: 12, currencySize: large ? 20 : 16, amountSize: large ? 46 : 36
+                )
                 caption(amount)
                 if let progress = amount.progress {
                     WidgetSegmentedBar(segments: progress.segments).padding(.top, Spacing.s10)
@@ -168,16 +180,16 @@ private struct LargeWidgetView: View {
                 }
             }
         case .rest(let rest):
-            HStack(spacing: Spacing.s12) {
-                WidgetMascot(size: 64)
-                VStack(alignment: .leading, spacing: Spacing.s4) {
-                    Text(rest.headline).font(AppFont.ui(17, .bold)).foregroundStyle(Palette.ink)
+            // 休息日、全天请假：小牛 84、标题 22、下个上班日 12，撑起上半部分。
+            HStack(spacing: Spacing.s14) {
+                WidgetMascot(size: 84)
+                VStack(alignment: .leading, spacing: Spacing.s6) {
+                    Text(rest.headline).font(AppFont.ui(22, .bold)).foregroundStyle(Palette.ink)
                     if let next = rest.nextAttendanceText {
-                        Text(next).font(AppFont.ui(11)).foregroundStyle(Palette.muted).lineLimit(1)
+                        Text(next).font(AppFont.ui(12)).foregroundStyle(Palette.muted).lineLimit(1)
                     }
                 }
             }
-            .padding(.vertical, Spacing.s4)
         }
     }
 
@@ -264,4 +276,9 @@ private struct LargeGoalsView: View {
         .padding(.horizontal, Spacing.s2)
         .frame(height: 26)
     }
+}
+
+private extension WidgetAmount {
+    /// 小号、中号的大数字字号：没有进度条 (白干中、已下班、请假全天) 时少一行，放大到 36 并拉开与下一行的距离，免得上面空出一大块。
+    var amountSize: CGFloat { progress == nil ? 36 : 30 }
 }
