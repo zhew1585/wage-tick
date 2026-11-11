@@ -62,6 +62,7 @@ private enum PagePreviews {
             ("P5-unpaid-work-form-overnight", try unpaidWorkForm(overnight, day: LocalDate(year: 2026, month: 11, day: 3))),
             ("P6-settings", page(SettingsView(form: try settingsForm(), updater: AppUpdater()))),
             ("P6-settings-rest-mode-sheet", try restModeSheet()),
+            ("P6-settings-payday-sheet", try paydaySheet()),
             ("U1-update-found", update(.found(version: "0.1.1", current: "0.1.0", notes: updateNotes, later: {}, download: {}))),
             ("U2-update-downloading", update(.downloading(version: "0.1.1", received: 3_200_000, expected: 8_600_000, cancel: {}))),
             ("U3-update-ready", update(.ready(version: "0.1.1", notes: updateNotes, later: {}, restart: {}))),
@@ -175,14 +176,15 @@ private enum PagePreviews {
         )
     }
 
-    /// 设置页的表单：临时目录里一个刚完成引导的状态 (此刻真实时间，休息模式选大小周 · 这周休两天，同设计稿)，
-    /// 不碰正在用的状态文件。
+    /// 设置页的表单：临时目录里一个刚完成引导的状态 (此刻真实时间，休息模式选大小周 · 这周休两天，
+    /// 发薪日每月 15 号 · 遇休息日提前，同设计稿)，不碰正在用的状态文件。
     private static func settingsForm() throws -> SettingsFormModel {
         let directory = FileManager.default.temporaryDirectory.appending(path: "wagetick-page-previews-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
         let model = AppModel(store: StateStore(directory: directory))
         let input = OnboardingInput(salary: 20000, schedule: schedule, restMode: .bigWeekNow, launchAtLogin: true)
         try model.send(.completeOnboarding(input))
+        try model.send(.setPayday(Payday(dayOfMonth: 15, shift: .earlier)))
         let form = SettingsFormModel(model: model, menuBar: nil, notifier: SystemNotifier(openPanel: {}))
         form.reload()
         return form
@@ -194,6 +196,19 @@ private enum PagePreviews {
         form.beginEditingRestMode()
         return AnyView(
             RestModeSettingSheet(form: form, dismiss: {})
+                .clipShape(RoundedRectangle(cornerRadius: Radius.r14))
+                .overlay(RoundedRectangle(cornerRadius: Radius.r14).strokeBorder(Palette.line, lineWidth: 1))
+                .padding(24)
+                .background(Color.white)
+        )
+    }
+
+    /// 设置页「发薪日」表单，按已保存的 (15 号、提前) 填好；说明里的本月实际发薪日按此刻真实时间推算。
+    private static func paydaySheet() throws -> AnyView {
+        let form = try settingsForm()
+        form.beginEditingPayday()
+        return AnyView(
+            PaydaySettingSheet(form: form, dismiss: {})
                 .clipShape(RoundedRectangle(cornerRadius: Radius.r14))
                 .overlay(RoundedRectangle(cornerRadius: Radius.r14).strokeBorder(Palette.line, lineWidth: 1))
                 .padding(24)

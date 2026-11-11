@@ -62,7 +62,7 @@ struct HalfDayLeaveTests {
         #expect(body.caption == "准点下班，赢 · 扣款 −¥500")
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥500"),
-            StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
+            StatItem(title: "距离周末", value: "3 天", tone: .accent),
             StatItem(title: "本月累计", value: "¥7500"),
         ])
     }
@@ -221,7 +221,7 @@ struct FullDayLeaveTests {
                 StatItem(title: "本月已上班", value: "7/20 天"),
                 // 默认扣 100%，今日结算 0。
                 StatItem(title: "本月累计", value: "¥7000"),
-                StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
+                StatItem(title: "距离周末", value: "3 天", tone: .accent),
             ]
         )))
     }
@@ -295,7 +295,7 @@ struct LeaveWithDeductionTests {
         #expect(body.caption == "准点下班，赢 · 扣款 −¥550")
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥450"),
-            StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
+            StatItem(title: "距离周末", value: "3 天", tone: .accent),
             StatItem(title: "本月累计", value: "¥7450"),
         ])
         // 次日本月累计里，这一天按结算 450 计入。

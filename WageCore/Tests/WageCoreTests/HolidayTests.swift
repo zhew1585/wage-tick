@@ -80,7 +80,7 @@ struct HolidayDayStatusTests {
                 StatItem(title: "本月已上班", value: "0/18 天"),
                 // 今天就在国庆假期里。
                 StatItem(title: "本月累计", value: "¥0"),
-                StatItem(title: "距离放假", value: "正在休息", isHighlighted: true),
+                StatItem(title: "距离放假", value: "正在休息", tone: .accent),
             ]
         )))
     }
@@ -105,7 +105,7 @@ struct HolidayDataTests {
         let before = try attendancePanel(state, at: at)
         #expect(before.stats == [
             StatItem(title: "今日结算", value: "¥818.18"),
-            StatItem(title: "距离周末", value: "明天休息", isHighlighted: true),
+            StatItem(title: "距离周末", value: "明天休息", tone: .accent),
             StatItem(title: "本月累计", value: "¥5727.27"),
         ])
 
@@ -115,7 +115,7 @@ struct HolidayDataTests {
         #expect(after.stats == [
             // 10 月 10 日周六调休上班，下一个休息日是 11 日周日。
             StatItem(title: "今日结算", value: "¥1000"),
-            StatItem(title: "距离周末", value: "2 天", isHighlighted: true),
+            StatItem(title: "距离周末", value: "2 天", tone: .accent),
             StatItem(title: "本月累计", value: "¥2000"),
         ])
     }

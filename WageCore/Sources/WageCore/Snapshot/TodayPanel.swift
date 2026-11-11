@@ -21,6 +21,8 @@ public struct TodayPanel: Sendable, Equatable {
     public let goalQueue: GoalQueueSection?
     /// 目标区标题右侧的目标总数 (累计中 + 全部排队中，可能多于列出的 3 个)，如「3 个目标」；没有未完成目标时为 nil。
     public let goalCountText: String?
+    /// 底部入口栏右侧的距发薪 (issue #20)；没设发薪日时为 nil，不显示。
+    public let payday: PaydayFooter?
 
     public enum Body: Sendable, Equatable {
         /// 应出勤日：未上班、上班中、干饭中、请假中、已下班。
@@ -55,13 +57,25 @@ public struct RestPanel: Sendable, Equatable {
 public struct StatItem: Sendable, Equatable {
     public let title: String
     public let value: String
-    /// 醒目显示 (accent 色)：距离周末。
-    public let isHighlighted: Bool
+    public let tone: Tone
 
-    public init(title: String, value: String, isHighlighted: Bool = false) {
+    /// 值的颜色。
+    public enum Tone: Sendable, Equatable {
+        /// 默认色。
+        case plain
+        /// 醒目显示 (accent 色)：距离周末。
+        case accent
+        /// money 绿：今天发薪。
+        case money
+    }
+
+    /// 醒目显示 (accent 色)，即 `tone == .accent`。
+    public var isHighlighted: Bool { tone == .accent }
+
+    public init(title: String, value: String, tone: Tone = .plain) {
         self.title = title
         self.value = value
-        self.isHighlighted = isHighlighted
+        self.tone = tone
     }
 }
 
@@ -119,6 +133,7 @@ extension TodayPanel {
         self.goal = goal
         self.goalQueue = goalQueue
         goalCountText = goalCount > 0 ? "\(goalCount) 个目标" : nil
+        payday = today.paydayCountdown.map(PaydayFooter.init)
         let regular = Self.regularBody(today: today, now: now, holidays: holidays)
         if let running = today.unpaidWork.running {
             body = .unpaidWork(UnpaidWorkPanel(today: today, running: running, now: now, todayStats: regular.stats))
@@ -138,12 +153,23 @@ extension TodayPanel {
 
 extension TodayPanel {
     /// 菜单栏菜单最上面的今日信息 (issue #18)：同统计行的三项；菜单栏是「仅图标」、今天还没下班时，最前面多一行今日已赚
-    /// (菜单栏上看不到这个数；已下班的统计行里已有今日结算)。
+    /// (菜单栏上看不到这个数；已下班的统计行里已有今日结算)。设了发薪日时距离周末下面多一行距离发薪 (issue #20)。
     func menuInfo(today: Today, menuBarMode: MenuBarMode) -> [StatItem] {
+        let stats = Self.insertingPayday(today.paydayCountdown, into: body.stats, after: today.restCountdown)
         guard menuBarMode == .iconOnly, case .attendance = body, today.status != .offWork, let earnings = today.earnings else {
-            return body.stats
+            return stats
         }
-        return [StatItem(title: "今日已赚", value: Format.money(earnings.earned))] + body.stats
+        return [StatItem(title: "今日已赚", value: Format.money(earnings.earned))] + stats
+    }
+
+    /// 距离发薪插在距离周末那项后面；统计行里没有距离周末 (一年内都没有休息日) 时放最后。
+    private static func insertingPayday(
+        _ payday: PaydayCountdown?, into stats: [StatItem], after rest: RestCountdown?
+    ) -> [StatItem] {
+        guard let payday else { return stats }
+        let restIndex = rest.flatMap { stats.firstIndex(of: .restCountdown($0)) }
+        let index = restIndex.map { $0 + 1 } ?? stats.endIndex
+        return stats[..<index] + [.paydayCountdown(payday)] + stats[index...]
     }
 }
 

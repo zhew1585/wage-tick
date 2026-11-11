@@ -70,7 +70,7 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
         today: today,
         settings: state.settings,
         panel: panel,
-        settingsForm: SettingsForm(profile: profile, today: today, settings: state.settings),
+        settingsForm: SettingsForm(profile: profile, today: today, settings: state.settings, holidays: holidays),
         leaveForm: LeaveForm(today: today),
         goals: GoalList(state: state, profile: profile, today: today, now: now, holidays: holidays),
         celebration: GoalCelebration(state: state),

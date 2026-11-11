@@ -63,6 +63,7 @@ struct TodayPanelView: View {
                 .frame(maxHeight: .infinity, alignment: .top)
                 actionsSection(panel)
                 PanelFooter(
+                    payday: panel.payday,
                     openHistory: navigation.openHistory,
                     openGoals: navigation.openGoals,
                     openSettings: navigation.openSettings

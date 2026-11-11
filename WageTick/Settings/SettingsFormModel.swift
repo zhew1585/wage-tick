@@ -22,6 +22,16 @@ final class SettingsFormModel {
     private(set) var savedPayBasis = PayBasis.monthly
     /// 工资表单里「月薪 | 日薪」的选择 (issue #16)。
     var payBasisDraft = PayBasis.monthly
+    /// 已保存的发薪日，如「每月 15 号 · 遇休息日提前」，没设时「未设置」；设置页「发薪日」一行展示 (issue #20)。
+    private(set) var savedPaydayText = ""
+    /// 已保存的发薪日；打开发薪日表单时按它填好，没设时几号留空、默认提前。
+    private(set) var savedPayday: Payday?
+    /// 发薪日表单里的几号输入。
+    var paydayDayText = ""
+    /// 发薪日表单里「碰上不上班的日子」的选择。
+    var paydayShiftDraft = PaydayShift.earlier
+    /// 打开发薪日表单时的设置页快照，表单说明据此按编辑中的值推算本月实际发薪日。
+    @ObservationIgnored private var paydayForm: SettingsForm?
     /// 已保存的休息模式，如「双休」「大小周 · 这周休两天」；设置页列表里展示。
     private(set) var savedRestModeText = ""
     /// 已保存的休息模式对应的选项 (大小周按今天所在的周)；打开休息模式表单时预先选中。
@@ -45,6 +55,7 @@ final class SettingsFormModel {
     private(set) var notificationDenied = false
 
     private(set) var salaryMessage: FormMessage?
+    private(set) var paydayMessage: FormMessage?
     private(set) var restModeMessage: FormMessage?
     private(set) var scheduleMessage: FormMessage?
     private(set) var launchMessage: FormMessage?
@@ -75,6 +86,7 @@ final class SettingsFormModel {
         if let form = snap.settingsForm {
             updateSalary(from: form)
             updateRestMode(from: form)
+            updatePayday(from: form)
             schedule = form.schedule
             launchAtLogin = form.launchAtLogin
         }
@@ -85,6 +97,7 @@ final class SettingsFormModel {
         hidesDockIcon = snap.settings.hidesDockIcon
         refreshNotificationPermission()
         salaryMessage = nil
+        paydayMessage = nil
         restModeMessage = nil
         scheduleMessage = nil
         launchMessage = nil
@@ -105,6 +118,39 @@ final class SettingsFormModel {
         salaryText = savedSalaryText
         payBasisDraft = savedPayBasis
         salaryMessage = nil
+    }
+
+    /// 打开发薪日表单：按已保存的填好 (没设时几号留空、默认提前)，清掉上次的提示。
+    func beginEditingPayday() {
+        paydayDayText = savedPayday.map { "\($0.dayOfMonth)" } ?? ""
+        paydayShiftDraft = savedPayday?.shift ?? .earlier
+        paydayForm = model.currentSnapshot().settingsForm
+        paydayMessage = nil
+    }
+
+    /// 发薪日表单正在编辑的值；几号不是数字时按 0，保存时由核心报「发薪日填 1 到 31 号」。
+    private var paydayDraft: Payday {
+        Payday(dayOfMonth: Int(paydayDayText.trimmingCharacters(in: .whitespaces)) ?? 0, shift: paydayShiftDraft)
+    }
+
+    /// 发薪日表单下方的说明，按编辑中的值写出本月实际哪天发，见 `SettingsForm.paydayNote`。
+    var paydayNote: String {
+        paydayForm?.paydayNote(for: paydayDraft) ?? ""
+    }
+
+    /// 改发薪日，全局一份。返回是否保存成功。
+    func savePayday() -> Bool {
+        paydayMessage = send(.setPayday(paydayDraft))
+        guard paydayMessage == .saved else { return false }
+        if let form = model.currentSnapshot().settingsForm {
+            updatePayday(from: form)
+        }
+        return true
+    }
+
+    private func updatePayday(from form: SettingsForm) {
+        savedPayday = form.payday
+        savedPaydayText = form.paydayText
     }
 
     /// 打开休息模式表单：预先选中已保存的，清掉上次的提示。

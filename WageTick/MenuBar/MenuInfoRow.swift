@@ -1,9 +1,11 @@
 import AppKit
+import SwiftUI
 import WageCore
 
 /// 菜单栏菜单最上面的一行今日信息 (issue #18，设计稿「菜单栏菜单 · 加今日信息」)：左边名称、右边数值。
 /// 用菜单项的自定义视图画，不可点、悬停不高亮。名称和数值都用系统的 secondaryLabel 色，跟随深浅色，不用 accent 色：
 /// 原生菜单里深色文字表示能点，灰色表示只看，整行灰色才不会被当成入口；数值靠等宽数字与 medium 字重保持好读。
+/// 唯一的例外是发薪当天的「今天发薪」(issue #20，设计稿 jO9Bd)：`tone == .money` 的数值用 money 绿。
 /// 文字原样取自快照的 `menuInfo`。
 final class MenuInfoRow: NSView {
     /// 和原生菜单项文字对齐的左右边距。
@@ -40,5 +42,6 @@ final class MenuInfoRow: NSView {
     func show(_ item: StatItem) {
         titleField.stringValue = item.title
         valueField.stringValue = item.value
+        valueField.textColor = item.tone == .money ? NSColor(Palette.money) : .secondaryLabelColor
     }
 }

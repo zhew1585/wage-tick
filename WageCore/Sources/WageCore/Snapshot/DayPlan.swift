@@ -3,7 +3,7 @@ import Foundation
 /// 应出勤日判定 (PRD 4.2.2)，先命中者为准：单日覆盖 > 调休上班日 > 法定节假日 > 休息模式 > 其余应出勤。
 /// 单日覆盖与各月的休息模式随节假日表传入 (见 `HolidayTable.overlaying(_:)`)。
 /// 节假日表里没有的年份 (含缺失年份) 自然落到按休息模式判定。
-struct AttendanceRule {
+struct AttendanceRule: Sendable, Equatable {
     let holidays: HolidayTable
 
     func isAttendanceDay(_ date: LocalDate) -> Bool {

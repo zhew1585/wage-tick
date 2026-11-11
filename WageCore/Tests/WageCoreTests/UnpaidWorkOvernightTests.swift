@@ -52,7 +52,7 @@ struct UnpaidWorkPastMidnightPanelTests {
             caption: "昨天 18:00 起 · 已白干 6:30:00",
             stats: [
                 StatItem(title: "距离下班", value: "-"),
-                StatItem(title: "距离周末", value: "2 天", isHighlighted: true),
+                StatItem(title: "距离周末", value: "2 天", tone: .accent),
                 StatItem(title: "本月累计", value: "¥8000"),
             ],
             isRestDay: false
@@ -87,7 +87,7 @@ struct UnpaidWorkPastMidnightPanelTests {
             stats: [
                 StatItem(title: "本月已上班", value: "10/20 天"),
                 StatItem(title: "本月累计", value: "¥10000"),
-                StatItem(title: "距离周末", value: "正在休息", isHighlighted: true),
+                StatItem(title: "距离周末", value: "正在休息", tone: .accent),
             ],
             isRestDay: true
         ))

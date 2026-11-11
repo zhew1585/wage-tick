@@ -32,6 +32,6 @@ extension StatItem {
         case 1: "明天休息"
         default: "\(countdown.days) 天"
         }
-        return StatItem(title: countdown.isHoliday ? "距离放假" : "距离周末", value: value, isHighlighted: true)
+        return StatItem(title: countdown.isHoliday ? "距离放假" : "距离周末", value: value, tone: .accent)
     }
 }

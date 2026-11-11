@@ -52,3 +52,46 @@ extension YearMonth {
         return YearMonth(year: index / 12, month: index % 12 + 1)
     }
 }
+
+/// 今日概览底部入口栏右侧的距发薪 (issue #20，设计稿 E8IYR / pyihH)：52×4 的发薪周期进度条 + 一句话。
+/// 平时为「距发薪 8 天」(前后两段 muted 小字夹着加粗天数)，前一天整句「明天发薪」；
+/// 当天整句「今天发薪」，进度条满格，进度条、钱币图标与文字都用 money 绿。
+public struct PaydayFooter: Sendable, Equatable {
+    /// 天数前面的小字「距发薪」；整句时为 nil。
+    public let prefix: String?
+    /// 天数 (如「8」) 或整句 (「明天发薪」「今天发薪」)。
+    public let value: String
+    /// 天数后面的小字「天」；整句时为 nil。
+    public let suffix: String?
+    /// 今天发薪：money 绿、带钱币图标。
+    public let isPayday: Bool
+    /// 进度条填充比例，0 至 1，即 `PaydayCountdown.progress`。
+    public let progress: Double
+
+    init(_ countdown: PaydayCountdown) {
+        let isCount = countdown.days > 1
+        prefix = isCount ? "距发薪" : nil
+        value = isCount ? "\(countdown.days)" : countdown.dayWord
+        suffix = isCount ? "天" : nil
+        isPayday = countdown.days == 0
+        progress = NSDecimalNumber(decimal: countdown.progress).doubleValue
+    }
+}
+
+extension PaydayCountdown {
+    /// 发薪前一天「明天发薪」，当天「今天发薪」，其余「N 天」。
+    var dayWord: String {
+        switch days {
+        case 0: "今天发薪"
+        case 1: "明天发薪"
+        default: "\(days) 天"
+        }
+    }
+}
+
+extension StatItem {
+    /// 菜单栏菜单里的距离发薪 (issue #20)：「距离发薪 8 天」「距离发薪 明天发薪」；当天「今天发薪」用 money 绿。
+    static func paydayCountdown(_ countdown: PaydayCountdown) -> StatItem {
+        StatItem(title: "距离发薪", value: countdown.dayWord, tone: countdown.days == 0 ? .money : .plain)
+    }
+}
