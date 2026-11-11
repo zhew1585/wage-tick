@@ -42,6 +42,8 @@
 - **白干计时**：下班了还没走点「我还没走」，周末被叫去加班点「被迫营业」，按时薪算你今天倒贴了多少；可以一路计到第二天上班前。
 - **攒钱队列**：给自己定几个目标（换台 Switch、去趟大理……），工资自动往里攒，显示还需几天、预计哪天达成，攒够了放烟花。
 - **历史**：按月看每天赚了多少，点进某一天可以补记扣钱、请假、白干，或者改当月的月薪。
+- **发薪日倒计时**：设好每月几号发工资，碰上休息日可以选提前、顺延或不变；概览页脚和菜单栏里显示还有几天发薪，当天变成「今天发薪」。
+- **桌面悬浮小牛**：桌面角落站着一头小牛，举着气泡告诉你离发薪还有几天，越临近越激动，发薪当天撒花庆祝；拖到屏幕边上会收起来只探个头，全屏时自动躲开，不想要可以在设置里关掉。
 - **桌面小组件**：小号、中号、大号三种尺寸，今日已赚、倒计时、距离周末和攒钱进度放在桌面上。
 - **通知**：下班时告诉你今天赚了多少，目标攒够了也会提醒。
 - **其他**：开机自动启动、隐藏 Dock 图标（只在菜单栏常驻）、清空数据重新开始。
@@ -78,6 +80,23 @@
   <img src="docs/assets/screenshots/form-leave.png" width="200" alt="请假" title="请假">
   <img src="docs/assets/screenshots/page-goals.png" width="200" alt="攒钱队列" title="攒钱队列">
   <img src="docs/assets/screenshots/page-settings.png" width="200" alt="设置" title="设置">
+</p>
+
+**发薪日**：距发薪倒计时、发薪当天、设置发薪日
+
+<p>
+  <img src="docs/assets/screenshots/panel-payday-countdown.png" width="200" alt="距发薪倒计时" title="距发薪倒计时">
+  <img src="docs/assets/screenshots/panel-payday-today.png" width="200" alt="今天发薪" title="今天发薪">
+  <img src="docs/assets/screenshots/form-payday.png" width="200" alt="设置发薪日" title="设置发薪日">
+</p>
+
+**桌面悬浮小牛**：距发薪几天、明天发薪、发薪当天、贴边收起
+
+<p>
+  <img src="docs/assets/screenshots/cow-countdown.png" width="200" alt="悬浮小牛 · 距发薪 8 天" title="悬浮小牛 · 距发薪 8 天">
+  <img src="docs/assets/screenshots/cow-tomorrow.png" width="200" alt="悬浮小牛 · 明天发薪" title="悬浮小牛 · 明天发薪">
+  <img src="docs/assets/screenshots/cow-payday.png" width="200" alt="悬浮小牛 · 发薪当天" title="悬浮小牛 · 发薪当天">
+  <img src="docs/assets/screenshots/cow-docked.png" width="200" alt="悬浮小牛 · 贴边收起" title="悬浮小牛 · 贴边收起">
 </p>
 
 **历史**：月日历与单日详情
