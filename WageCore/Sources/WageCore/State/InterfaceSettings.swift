@@ -12,9 +12,14 @@ public struct InterfaceSettings: Sendable, Equatable, Codable {
     public internal(set) var goalReachedNotification: Bool
     /// 隐藏 Dock 图标 (ADR-0005 补充)：开了只在菜单栏常驻，不进 Dock 和 ⌘Tab，默认关。
     public internal(set) var hidesDockIcon: Bool
+    /// 桌面悬浮小牛开关 (issue #21)，默认开；设了发薪日才有意义，没设时不显示浮窗也不显示开关。
+    public internal(set) var showsFloatingCow: Bool
+    /// 「今天先藏起来」那天：这一天里不显示悬浮小牛，过了当地 0 点自然失效。nil 即没藏。
+    var floatingCowHiddenOn: LocalDate?
 
     private enum CodingKeys: String, CodingKey {
         case menuBarMode, goalQueueExpanded, offWorkNotification, goalReachedNotification, hidesDockIcon
+        case showsFloatingCow, floatingCowHiddenOn
     }
 
     public init() {
@@ -23,6 +28,8 @@ public struct InterfaceSettings: Sendable, Equatable, Codable {
         offWorkNotification = true
         goalReachedNotification = true
         hidesDockIcon = false
+        showsFloatingCow = true
+        floatingCowHiddenOn = nil
     }
 
     /// 旧文件缺少的字段 (如 #5 写出的文件没有显示模式) 取默认值，不当作损坏文件；
@@ -37,5 +44,7 @@ public struct InterfaceSettings: Sendable, Equatable, Codable {
         goalReachedNotification = try container.decodeIfPresent(Bool.self, forKey: .goalReachedNotification)
             ?? defaults.goalReachedNotification
         hidesDockIcon = try container.decodeIfPresent(Bool.self, forKey: .hidesDockIcon) ?? defaults.hidesDockIcon
+        showsFloatingCow = try container.decodeIfPresent(Bool.self, forKey: .showsFloatingCow) ?? defaults.showsFloatingCow
+        floatingCowHiddenOn = try container.decodeIfPresent(LocalDate.self, forKey: .floatingCowHiddenOn)
     }
 }
