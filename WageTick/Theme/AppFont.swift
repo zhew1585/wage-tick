@@ -32,6 +32,8 @@ enum AppFont {
         case medium = 500
         case semibold = 600
         case bold = 700
+        /// 悬浮小牛气泡里的大字 (设计稿 800)。
+        case extraBold = 800
 
         fileprivate var system: NSFont.Weight {
             switch self {
@@ -39,6 +41,7 @@ enum AppFont {
             case .medium: .medium
             case .semibold: .semibold
             case .bold: .bold
+            case .extraBold: .heavy
             }
         }
     }

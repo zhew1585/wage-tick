@@ -1,7 +1,7 @@
 import AppKit
 import WageCore
 
-/// 组装外壳各部件：状态存储、菜单栏条目、主菜单、引导窗口、今日概览面板、设置窗口、目标管理、历史窗口、系统通知。
+/// 组装外壳各部件：状态存储、菜单栏条目、主菜单、引导窗口、今日概览面板、设置窗口、目标管理、历史窗口、系统通知、桌面悬浮小牛。
 /// 普通 App + 菜单栏常驻 (ADR-0005)：点 Dock 图标找回窗口，关掉所有窗口不退出，小牛继续在菜单栏跑。
 /// 设置里可以隐藏 Dock 图标 (`DockIcon`)，这时只从菜单栏小牛找回窗口。
 @MainActor
@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var history: HistoryWindowController!
     private var mainMenu: MainMenu!
     private var updater: AppUpdater!
+    private var floatingCow: FloatingCowController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 设计稿只有浅色一套 token (`Palette`)，App 窗口固定浅色外观；菜单都是原生菜单，跟随系统深浅 (ADR-0004)。
@@ -58,6 +59,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             installUpdate: { [weak self] in self?.updater.installPendingUpdate() }
         )
         updater.onPendingVersionChange = { [weak self] version in self?.statusItem.setPendingUpdate(version) }
+        // 悬浮小牛跟着菜单栏的刷新走：设置里改了开关、发薪日后菜单栏立即刷新，浮窗也随之出现或收起。
+        floatingCow = FloatingCowController(model: model, actions: FloatingCowController.Actions(
+            openTodayPanel: { [weak self] in self?.todayPanel.show() },
+            openSettings: { [weak self] in self?.settings.show() },
+            stateChanged: { [weak self] in self?.statusItem.refresh() }
+        ))
+        statusItem.onSnapshot = { [weak self] snapshot in self?.floatingCow.update(snapshot) }
+        statusItem.refresh()
         history = HistoryWindowController(model: model) { [weak self] in
             self?.statusItem.refresh()
         }

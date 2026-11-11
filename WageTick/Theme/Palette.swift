@@ -29,6 +29,17 @@ enum Palette {
     /// 分段控件选中块的投影 (设计稿 #1F1B161A，即 ink 10%)。
     static let shadow = ink.opacity(0.1)
 
+    // MARK: 悬浮小牛 (设计稿方案 C 的存钱罐与金币彩带，直接写的色值)
+
+    /// 硬币面。
+    static let coin = Color(hex: 0xF5B82E)
+    /// 硬币外圈描边。
+    static let coinEdge = Color(hex: 0xB7791F)
+    /// 硬币内圈。
+    static let coinRing = Color(hex: 0xD9961A)
+    /// 深一点的金币 (彩带里的 coin、coins)。
+    static let coinDeep = Color(hex: 0xE0A21C)
+
     // MARK: 交互态 (设计稿没给，按上面的 token 推出来；用法见 `Components/Interaction.swift`)
 
     /// 悬停时叠在任意底色上的一层暖褐色 (#9B7B44 的 10%)：叠在 bg 上正好是 surface，
