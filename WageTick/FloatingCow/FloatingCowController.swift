@@ -65,6 +65,8 @@ final class FloatingCowController {
         self.model = model
         self.actions = actions
         spot = FloatingCowSpot.load()
+        // 上次贴着边：启动时就是收起的样子。
+        if case .docked(let edge, _, _) = spot { content.mode = .collapsed(edge) }
     }
 
     /// 菜单栏刷新时交来最新快照；内容没变时不重画。
