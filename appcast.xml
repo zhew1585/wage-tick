@@ -3,6 +3,19 @@
   <channel>
     <title>牛马鼓励器</title>
     <item>
+      <title>0.1.0-nightly.20261111.9</title>
+      <pubDate>Wed, 11 Nov 2026 09:07:10 GMT</pubDate>
+      <sparkle:version>9</sparkle:version>
+      <sparkle:shortVersionString>0.1.0-nightly.20261111.9</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <sparkle:channel>nightly</sparkle:channel>
+      <link>https://github.com/zhew1585/wage-tick/releases/tag/v0.1.0-nightly.20261111.9</link>
+      <description sparkle:format="plain-text">桌面悬浮小牛 (#24)
+发薪日倒计时 (设置、概览页脚、菜单栏) (#23)
+发薪日模型与距发薪计算 (#22)</description>
+      <enclosure url="https://github.com/zhew1585/wage-tick/releases/download/v0.1.0-nightly.20261111.9/WageTick-0.1.0-nightly.20261111.9.zip" type="application/octet-stream" sparkle:edSignature="LC9bVxXhjcr+Z9p6ljRafzyZRNoWpLSD+IqSv/d1PjQ/SggwI4qOHsp0MfHXr3u5GpD0Gam2dOABTOkGZNpSCA==" length="9691976" />
+    </item>
+    <item>
       <title>0.1.0-nightly.20261109.2</title>
       <pubDate>Mon, 09 Nov 2026 10:57:25 GMT</pubDate>
       <sparkle:version>2</sparkle:version>
