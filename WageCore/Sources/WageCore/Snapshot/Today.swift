@@ -29,6 +29,8 @@ public struct Today: Sendable, Equatable {
     public let nextAttendanceDay: LocalDate?
     /// 距离周末：到下一个休息日还有几天；一年内都没有休息日时为 nil。
     let restCountdown: RestCountdown?
+    /// 距发薪 (issue #20)；没设发薪日时为 nil。
+    public let paydayCountdown: PaydayCountdown?
     /// 当日计划；休息日 (含全天请假) 为 nil。面板据此推导进度与倒计时。
     let plan: DayPlan?
     /// 今天的结算推导 (当日扣款明细、今日上限)；不应出勤的休息日为 nil。
@@ -90,6 +92,7 @@ extension Today {
         attendedDays = pastDays.count
         nextAttendanceDay = rule.nextAttendanceDay(after: day)
         restCountdown = rule.restCountdown(from: day)
+        paydayCountdown = profile.payday.map { rule.paydayCountdown(from: day, payday: $0) }
         guard rule.isAttendanceDay(day) else {
             status = .restDay
             earnings = nil

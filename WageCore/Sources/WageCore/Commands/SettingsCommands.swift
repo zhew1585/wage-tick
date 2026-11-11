@@ -22,6 +22,12 @@ func changeSchedule(_ schedule: WorkSchedule, state: AppState, now: Moment) thro
     return try updatingProfile(state) { $0.setSchedule(schedule, from: now.localDate) }
 }
 
+/// 设置发薪日 (issue #20)：几号 1 至 31，全局一份，立即影响距发薪。
+func setPayday(_ payday: Payday, state: AppState) throws(CommandError) -> AppState {
+    guard Payday.validDays.contains(payday.dayOfMonth) else { throw .paydayOutOfRange }
+    return try updatingProfile(state) { $0.payday = payday }
+}
+
 func setLaunchAtLogin(_ enabled: Bool, state: AppState) throws(CommandError) -> AppState {
     try updatingProfile(state) { $0.launchAtLogin = enabled }
 }
