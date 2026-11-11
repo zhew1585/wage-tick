@@ -26,6 +26,8 @@ final class StatusItemController: NSObject {
     private let menu = NSMenu()
     private var timer: Timer?
     private var shown: MenuBarDisplay?
+    /// 每次刷新拿到的快照也交给它 (桌面悬浮小牛)，免得再起一个定时器重复推进到此刻。
+    var onSnapshot: ((Snapshot) -> Void)?
 
     init(
         model: AppModel,
@@ -109,6 +111,7 @@ final class StatusItemController: NSObject {
         item.menu = model.isOnboarded ? menu : nil
         render(snap.menuBar)
         renderInfo(snap.menuInfo)
+        onSnapshot?(snap)
         scheduleNextRefresh(rolling: snap.today?.isRolling == true)
     }
 

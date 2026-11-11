@@ -18,6 +18,10 @@ public enum Command: Sendable, Equatable {
     case setHidesDockIcon(Bool)
     /// 设置发薪日 (issue #20)，几号未经校验。
     case setPayday(Payday)
+    /// 开关桌面悬浮小牛 (issue #21)，引导前也能改；打开时顺带取消「今天先藏起来」。
+    case setShowsFloatingCow(Bool)
+    /// 悬浮小牛右键「今天先藏起来」：今天 (按此刻所在时区) 不再显示，第二天 0 点自动出现。
+    case hideFloatingCowForToday
     /// 给今天记一笔扣钱 (PRD 4.4.1、F5)。
     case addDeduction(DeductionInput)
     /// 修改今天的一笔扣钱记录。
@@ -191,6 +195,15 @@ public func apply(
     case .setHidesDockIcon(let hidden):
         var next = state
         next.settings.hidesDockIcon = hidden
+        return (next, [])
+    case .setShowsFloatingCow(let shown):
+        var next = state
+        next.settings.showsFloatingCow = shown
+        if shown { next.settings.floatingCowHiddenOn = nil }
+        return (next, [])
+    case .hideFloatingCowForToday:
+        var next = state
+        next.settings.floatingCowHiddenOn = now.localDate
         return (next, [])
     // 面板上的扣钱、请假只作用于今天 (#7、#8)，与历史编辑走同一套逻辑；不检查历史范围，
     // 系统时间被拨回到安装当月之前时 (PRD 4.3.5 #11) 今天的操作照旧。

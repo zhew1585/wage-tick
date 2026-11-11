@@ -65,7 +65,7 @@ enum Format {
         return String(format: "%02d:%02d:%02d", parts.hour!, parts.minute!, parts.second!)
     }
 
-    private static let weekdayNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+    static let weekdayNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
 
     /// 星期几，如「周五」。
     static func weekday(_ date: LocalDate) -> String {

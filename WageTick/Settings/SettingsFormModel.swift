@@ -10,7 +10,7 @@ enum FormMessage: Equatable {
 
 /// 设置页的表单状态与动作 (PRD F12)。
 /// 每一项都发命令给核心，校验与提示文案来自核心的 `CommandError`，与引导一致 (PRD 4.3.5 #1 至 #3)。
-/// 月薪、休息模式、作息在弹出的表单里改，点「保存」才生效；显示模式、隐藏 Dock 图标、开机自启、两类通知开关改了立即生效。
+/// 月薪、休息模式、作息在弹出的表单里改，点「保存」才生效；显示模式、隐藏 Dock 图标、桌面悬浮小牛、开机自启、两类通知开关改了立即生效。
 @MainActor
 @Observable
 final class SettingsFormModel {
@@ -51,6 +51,10 @@ final class SettingsFormModel {
     private(set) var offWorkNotification = true
     private(set) var goalReachedNotification = true
     private(set) var hidesDockIcon = false
+    /// 桌面悬浮小牛开关 (issue #21)。
+    private(set) var showsFloatingCow = true
+    /// 设了发薪日：菜单栏一组才出现「桌面悬浮小牛」开关，改完发薪日立即出现。
+    var hasPayday: Bool { savedPayday != nil }
     /// 系统拒绝了通知权限：通知区显示提示 (AC-SET-05)。
     private(set) var notificationDenied = false
 
@@ -95,6 +99,7 @@ final class SettingsFormModel {
         offWorkNotification = snap.settings.offWorkNotification
         goalReachedNotification = snap.settings.goalReachedNotification
         hidesDockIcon = snap.settings.hidesDockIcon
+        showsFloatingCow = snap.settings.showsFloatingCow
         refreshNotificationPermission()
         salaryMessage = nil
         paydayMessage = nil
@@ -110,6 +115,8 @@ final class SettingsFormModel {
 
     private func updatePreviews(from snap: Snapshot) {
         guard let form = snap.settingsForm else { return }
+        // 右键菜单里「关掉悬浮小牛」也会改它，设置页开着时跟上。
+        showsFloatingCow = snap.settings.showsFloatingCow
         menuBarPreviews = Dictionary(uniqueKeysWithValues: MenuBarMode.allCases.map { ($0, form.menuBarPreview($0)) })
     }
 
@@ -237,6 +244,12 @@ final class SettingsFormModel {
         guard send(.setHidesDockIcon(hidden)) == .saved else { return }
         hidesDockIcon = hidden
         DockIcon.apply(hidden: hidden)
+    }
+
+    /// 记进状态，菜单栏随即刷新，浮窗跟着出现或收起。
+    func setShowsFloatingCow(_ shown: Bool) {
+        guard send(.setShowsFloatingCow(shown)) == .saved else { return }
+        showsFloatingCow = shown
     }
 
     func openNotificationSettings() {

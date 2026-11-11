@@ -1,7 +1,7 @@
 import SwiftUI
 import WageCore
 
-/// 设置页 (PRD F12，设计稿 P6 设置 · 休息模式 · 760)：钱与作息 (本月工资 (月薪或日薪)、发薪日、休息模式、作息，点开弹表单改；作息一行同时显示上下班与饭点，二者在同一个表单里改)，菜单栏 (显示模式与各模式预览、隐藏 Dock 图标)，
+/// 设置页 (PRD F12，设计稿 P6 设置 · 休息模式 · 760)：钱与作息 (本月工资 (月薪或日薪)、发薪日、休息模式、作息，点开弹表单改；作息一行同时显示上下班与饭点，二者在同一个表单里改)，菜单栏 (显示模式与各模式预览、隐藏 Dock 图标、设了发薪日时的桌面悬浮小牛)，
 /// 通知与启动 (下班通知、目标达成通知、开机自启)，系统拒绝通知时的提示条，更新 (版本、自动更新、接收尝鲜版、检查更新)，数据 (清空数据并重启)。一屏放得下，放不下时滚动。
 /// 只管排版，动作与提示都在 `SettingsFormModel`。
 struct SettingsView: View {
@@ -91,6 +91,11 @@ struct SettingsView: View {
                 .padding(.vertical, Spacing.s12 - 1)
                 CardDivider()
                 toggle("隐藏 Dock 图标", isOn: Binding(get: { form.hidesDockIcon }, set: { form.setHidesDockIcon($0) }))
+                // 设了发薪日才有悬浮小牛 (issue #21)，没设时不出现这一行。
+                if form.hasPayday {
+                    CardDivider()
+                    toggle("桌面悬浮小牛", isOn: Binding(get: { form.showsFloatingCow }, set: { form.setShowsFloatingCow($0) }))
+                }
             }
         }
     }

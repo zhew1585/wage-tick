@@ -40,6 +40,12 @@ enum Phosphor: String {
     case plus
     case swap
     case x
+    // 悬浮小牛发薪当天撒的金币彩带 (设计稿用 Bold 字重)。
+    case coinBold = "coin-bold"
+    case coinsBold = "coins-bold"
+    case confettiBold = "confetti-bold"
+    case sparkleBold = "sparkle-bold"
+    case starFourBold = "star-four-bold"
 
     var image: Image {
         Image("Phosphor/\(rawValue)").renderingMode(.template)

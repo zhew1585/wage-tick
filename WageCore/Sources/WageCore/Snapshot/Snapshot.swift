@@ -20,6 +20,8 @@ public struct Snapshot: Sendable, Equatable {
     public let celebration: GoalCelebration?
     /// 菜单栏菜单最上面的今日信息 (issue #18)，见 `TodayPanel.menuInfo`；未完成引导时为空。
     public let menuInfo: [StatItem]
+    /// 桌面悬浮小牛 (issue #21) 的内容；没设发薪日、开关关着、今天藏起来了或未完成引导时为 nil，外壳据此收起浮窗。
+    public let floatingCow: FloatingCow?
     /// 历史 (PRD 4.6.1) 的推导输入；未完成引导时为 nil。只带输入不推导，见 `historyMonths()`。
     var history: HistoryInputs? = nil
 }
@@ -55,7 +57,7 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
     guard let profile = state.profile else {
         return Snapshot(
             menuBar: MenuBarDisplay(pose: .yawning, text: nil), today: nil, settings: state.settings, panel: nil,
-            settingsForm: nil, leaveForm: nil, goals: nil, celebration: nil, menuInfo: []
+            settingsForm: nil, leaveForm: nil, goals: nil, celebration: nil, menuInfo: [], floatingCow: nil
         )
     }
     let today = Today(profile: profile, dayRecords: state.dayRecords, now: now, holidays: holidays)
@@ -75,6 +77,7 @@ public func snapshot(of state: AppState, at now: Moment, holidays: HolidayTable 
         goals: GoalList(state: state, profile: profile, today: today, now: now, holidays: holidays),
         celebration: GoalCelebration(state: state),
         menuInfo: panel.menuInfo(today: today, menuBarMode: state.settings.menuBarMode),
+        floatingCow: FloatingCow(today: today, settings: state.settings),
         history: HistoryInputs(profile: profile, dayRecords: state.dayRecords, today: today, now: now, holidays: holidays)
     )
 }
