@@ -15,6 +15,10 @@ public struct SettingsForm: Sendable, Equatable {
     /// 今天生效的作息。
     public let schedule: WorkSchedule
     public let launchAtLogin: Bool
+    /// 发薪日 (issue #20)，打开发薪日表单时预填；没设时为 nil。
+    public let payday: Payday?
+    /// 设置页「发薪日」一行的值，如「每月 15 号 · 遇休息日提前」，没设时为「未设置」。
+    public var paydayText: String { payday?.summary ?? "未设置" }
     /// 显示模式各段下面的预览 (设计稿 P6 · 760)：此刻按该模式菜单栏会显示的数字。
     let menuBarPreviews: [MenuBarMode: String]
 
@@ -33,6 +37,7 @@ extension SettingsForm {
         restModeChoice = profile.restMode(for: today.date.yearMonth).choice(on: today.date)
         schedule = profile.schedule(on: today.date)
         launchAtLogin = profile.launchAtLogin
+        payday = profile.payday
         menuBarPreviews = Dictionary(uniqueKeysWithValues: MenuBarMode.allCases.compactMap { mode in
             var preview = settings
             preview.menuBarMode = mode

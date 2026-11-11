@@ -16,6 +16,8 @@ public enum Command: Sendable, Equatable {
     case setLaunchAtLogin(Bool)
     /// 开关隐藏 Dock 图标，引导前也能改。
     case setHidesDockIcon(Bool)
+    /// 设置发薪日 (issue #20)，几号未经校验。
+    case setPayday(Payday)
     /// 给今天记一笔扣钱 (PRD 4.4.1、F5)。
     case addDeduction(DeductionInput)
     /// 修改今天的一笔扣钱记录。
@@ -119,6 +121,7 @@ public enum CommandError: Error, Sendable, Equatable {
     case unpaidWorkInFuture
     case unpaidWorkBeyondAutoStop
     case unpaidWorkNotFound
+    case paydayOutOfRange
 
     public var message: String {
         switch self {
@@ -154,6 +157,7 @@ public enum CommandError: Error, Sendable, Equatable {
         case .unpaidWorkInFuture: "还没到这个时间"
         case .unpaidWorkBeyondAutoStop: "结束不能晚于下一个上班日的上班时间"
         case .unpaidWorkNotFound: "这段白干已经不在了"
+        case .paydayOutOfRange: "发薪日填 1 到 31 号"
         }
     }
 }
@@ -182,6 +186,8 @@ public func apply(
         return (setMenuBarMode(mode, state: state), [])
     case .setLaunchAtLogin(let enabled):
         return (try setLaunchAtLogin(enabled, state: state), [])
+    case .setPayday(let payday):
+        return (try setPayday(payday, state: state), [])
     case .setHidesDockIcon(let hidden):
         var next = state
         next.settings.hidesDockIcon = hidden

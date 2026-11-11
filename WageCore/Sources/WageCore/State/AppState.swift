@@ -77,8 +77,10 @@ public struct Profile: Sendable, Equatable, Codable {
     /// 按月份记录的休息模式，按月份升序，至少一条 (PRD 4.2.2)。与月薪一样：修改对当月整月生效，
     /// 未来月份沿用最近一次设置，过去的月份保留当时的模式。某月实际采用的模式用 `restMode(for:)`。
     public internal(set) var restModes: [MonthlyRestMode]
+    /// 发薪日 (issue #20)，全局一份；没设时为 nil，不显示距发薪。
+    public internal(set) var payday: Payday?
 
-    private enum CodingKeys: String, CodingKey { case installDate, salaries, launchAtLogin, schedules, restModes }
+    private enum CodingKeys: String, CodingKey { case installDate, salaries, launchAtLogin, schedules, restModes, payday }
     /// #2 至 #5 写出的旧文件只有一份作息，没有版本。
     private enum LegacyCodingKeys: String, CodingKey { case schedule }
 
@@ -95,13 +97,14 @@ public struct Profile: Sendable, Equatable, Codable {
 
     init(
         installDate: LocalDate, salaries: [MonthlySalary], schedules: [ScheduleVersion], restModes: [MonthlyRestMode],
-        launchAtLogin: Bool
+        launchAtLogin: Bool, payday: Payday? = nil
     ) {
         self.installDate = installDate
         self.salaries = salaries
         self.schedules = schedules
         self.restModes = restModes
         self.launchAtLogin = launchAtLogin
+        self.payday = payday
     }
 
     /// 从文件读入时至少要有一条月薪、一个作息版本、一条休息模式，并按月份、生效日期排好序，
@@ -133,7 +136,9 @@ public struct Profile: Sendable, Equatable, Codable {
             salaries: salaries.sorted { $0.month < $1.month },
             schedules: schedules.sorted { $0.effectiveFrom < $1.effectiveFrom },
             restModes: restModes.sorted { $0.month < $1.month },
-            launchAtLogin: try container.decode(Bool.self, forKey: .launchAtLogin)
+            launchAtLogin: try container.decode(Bool.self, forKey: .launchAtLogin),
+            // #20 之前的旧文件没有发薪日，读入为未设置。
+            payday: try container.decodeIfPresent(Payday.self, forKey: .payday)
         )
     }
 
