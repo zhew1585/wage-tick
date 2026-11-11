@@ -1,4 +1,7 @@
-# 每个 PR 与 main 的提交：跑核心测试，编一次 App (Debug)，确保能发布。
+# 每个 PR 与 main 的提交 (ADR-0008)：两项检查都通过才能合进 main。
+# - 核心测试：WageCore 的全部单元测试，覆盖工资计算与界面文字。
+# - App 编译与启动：按发布的方式编 Release，再真的启动一次，确认签名、框架、小组件扩展都在、App 能跑起来。
+# 两个 job 的 name 是分支保护里的必需检查名，改名要同步改仓库的 ruleset。
 name: CI
 
 on:
@@ -15,15 +18,24 @@ permissions:
 
 jobs:
   test:
-    name: 测试与编译
+    name: 核心测试
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: 选 Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.4.app
       - name: 核心测试
         run: swift test --package-path WageCore
+
+  app:
+    name: App 编译与启动
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: 选 Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
       - name: 缓存依赖
         uses: actions/cache@v4
         with:
@@ -40,7 +52,11 @@ jobs:
             sleep $wait
           done
 
-      - name: 编译 App
+      - name: 编译 Release
+        # 和 release.yml 一样的配置与签名，发布时会出的问题在这里就能发现。
         run: |
-          xcodebuild -project WageTick.xcodeproj -scheme WageTick -configuration Debug \
+          xcodebuild -project WageTick.xcodeproj -scheme WageTick -configuration Release \
             -derivedDataPath build/ci -destination "generic/platform=macOS" build -quiet
+
+      - name: 启动检查
+        run: scripts/ci/smoke-test.sh "build/ci/Build/Products/Release/牛马鼓励器.app"

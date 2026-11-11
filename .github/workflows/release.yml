@@ -111,6 +111,9 @@ jobs:
             -derivedDataPath build/release -destination "generic/platform=macOS" \
             MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" build -quiet
 
+      - name: 启动检查
+        run: scripts/ci/smoke-test.sh "build/release/Build/Products/Release/牛马鼓励器.app"
+
       - name: 打包
         run: scripts/ci/package.sh "build/release/Build/Products/Release/牛马鼓励器.app" "$VERSION" dist
 
