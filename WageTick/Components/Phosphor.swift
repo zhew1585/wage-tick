@@ -33,6 +33,8 @@ enum Phosphor: String {
     // 目标、历史、设置 (760 设计稿) 用到的。
     case bellSlash = "bell-slash"
     case checkCircle = "check-circle"
+    // 发薪日 (issue #20)：概览页脚「今天发薪」。
+    case coins
     case drop
     case list
     case plus

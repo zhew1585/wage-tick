@@ -50,7 +50,7 @@ enum Format {
     /// 日期，如「2月16日 周一」；不在 `reference` 同一年时带年份，如「2027年1月4日 周一」。
     static func date(_ date: LocalDate, relativeTo reference: LocalDate) -> String {
         let year = date.year == reference.year ? "" : "\(date.year)年"
-        return "\(year)\(date.month)月\(date.day)日 \(weekdayNames[date.weekday - 1])"
+        return "\(year)\(date.month)月\(date.day)日 \(weekday(date))"
     }
 
     /// 此刻在所在时区的时分，如「15:07」。
@@ -66,6 +66,11 @@ enum Format {
     }
 
     private static let weekdayNames = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+
+    /// 星期几，如「周五」。
+    static func weekday(_ date: LocalDate) -> String {
+        weekdayNames[date.weekday - 1]
+    }
 
     /// 下班倒计时 h:mm:ss，如 `3:00:00`。不足一秒的部分向上取整，到点前不会提前显示 `0:00:00`。
     static func countdown(from now: Date, to end: Date) -> String {

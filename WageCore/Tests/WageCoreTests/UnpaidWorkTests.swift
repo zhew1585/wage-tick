@@ -159,7 +159,7 @@ struct UnpaidWorkPanelTests {
             caption: "18:00 起 · 已白干 1:05:12",
             stats: [
                 StatItem(title: "今日结算", value: "¥1000"),
-                StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
+                StatItem(title: "距离周末", value: "3 天", tone: .accent),
                 StatItem(title: "本月累计", value: "¥8000"),
             ],
             isRestDay: false
@@ -193,7 +193,7 @@ struct UnpaidWorkPanelTests {
             caption: "10:00 起 · 已白干 0:30:00",
             stats: [
                 StatItem(title: "今日结算", value: "¥0"),
-                StatItem(title: "距离周末", value: "正在休息", isHighlighted: true),
+                StatItem(title: "距离周末", value: "正在休息", tone: .accent),
                 StatItem(title: "本月累计", value: "¥10000"),
             ],
             isRestDay: true
@@ -292,7 +292,7 @@ struct UnpaidWorkWithDayRecordsTests {
             caption: "10:00 起 · 已白干 0:30:00",
             stats: [
                 StatItem(title: "今日结算", value: "¥0"),
-                StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
+                StatItem(title: "距离周末", value: "3 天", tone: .accent),
                 StatItem(title: "本月累计", value: "¥7000"),
             ],
             isRestDay: true
@@ -310,7 +310,7 @@ struct UnpaidWorkWithDayRecordsTests {
 
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥950"),
-            StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
+            StatItem(title: "距离周末", value: "3 天", tone: .accent),
             StatItem(title: "本月累计", value: "¥7950"),
         ])
     }

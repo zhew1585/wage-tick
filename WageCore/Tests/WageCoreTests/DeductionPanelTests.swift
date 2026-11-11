@@ -14,7 +14,7 @@ struct DeductionPanelTests {
         #expect(body.caption == "准点下班，赢 · 扣款 −¥50")
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥950"),
-            StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
+            StatItem(title: "距离周末", value: "3 天", tone: .accent),
             StatItem(title: "本月累计", value: "¥7950"),
         ])
     }

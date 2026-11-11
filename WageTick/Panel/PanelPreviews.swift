@@ -3,7 +3,7 @@ import AppKit
 import SwiftUI
 import WageCore
 
-/// 离屏渲染面板与两个表单的各个状态，存成 PNG，和设计稿 (P2、F5、F6 · 760) 对照用。只在 Debug 构建里。
+/// 离屏渲染面板与两个表单的各个状态，存成 PNG，和设计稿 (P2、F5、F6 · 760，页脚距发薪) 对照用。只在 Debug 构建里。
 /// 状态全部在内存里用核心命令造出来 (2026 年 11 月，月薪 21000、10:00 至 18:00、饭点 12:00 至 13:00，日薪 1000)，
 /// 不起菜单栏、不读写 state.json，可以和正在跑的 App 同时用。
 ///
@@ -47,6 +47,8 @@ private enum PanelPreviews {
         let firstHalfLeave = try at(try onboarded(), day: 5, 9, 0) {
             try $0.send(.setLeave(Leave(start: TimeOfDay(hour: 10, minute: 0), end: TimeOfDay(hour: 12, minute: 0), deductionPercent: 50)))
         }
+        // 发薪日每月 15 号、遇休息日提前：11-15 是周日，提前到 13 日 (周五)。
+        let payday = try at(base, day: 2, 9, 0) { try $0.send(.setPayday(Payday(dayOfMonth: 15, shift: .earlier))) }
         let percentItem = try at(base, day: 5, 15, 0) {
             try $0.send(.addDeduction(DeductionInput(amount: .percentOfDailyWage(10), reason: .late, note: "地铁又晚了五分钟")))
         }
@@ -60,6 +62,9 @@ private enum PanelPreviews {
             ("P2-rest-day", panel(base, day: 7, 10, 12, 40)),
             ("P2-first-half-leave-no-goal", panel(firstHalfLeave, day: 5, 15, 0)),
             ("P2-middle-leave", panel(middleLeave, day: 5, 15, 0)),
+            ("P2-payday-countdown", panel(payday, day: 5, 15, 0)),
+            ("P2-payday-tomorrow", panel(payday, day: 12, 15, 0)),
+            ("P2-payday-today", panel(payday, day: 13, 15, 0)),
             ("F5-add", panel(base, day: 5, 15, 0, route: .deduction(.add))),
             ("F5-edit-fixed", panel(fined, day: 5, 15, 0, route: .deduction(.edit(firstDeduction(fined, day: 5))))),
             ("F5-edit-percent", panel(percentItem, day: 5, 15, 0, route: .deduction(.edit(firstDeduction(percentItem, day: 5))))),

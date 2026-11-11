@@ -85,7 +85,7 @@ struct Panel760RestTests {
             stats: [
                 StatItem(title: "本月已上班", value: "10/20 天"),
                 StatItem(title: "本月累计", value: "¥10000"),
-                StatItem(title: "距离周末", value: "正在休息", isHighlighted: true),
+                StatItem(title: "距离周末", value: "正在休息", tone: .accent),
             ]
         )))
     }

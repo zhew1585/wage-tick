@@ -19,6 +19,9 @@ public struct SettingsForm: Sendable, Equatable {
     public let payday: Payday?
     /// 设置页「发薪日」一行的值，如「每月 15 号 · 遇休息日提前」，没设时为「未设置」。
     public var paydayText: String { payday?.summary ?? "未设置" }
+    /// 发薪日表单的说明据此推算本月实际发薪日：今天所在的月与应出勤判定。
+    let month: YearMonth
+    let rule: AttendanceRule
     /// 显示模式各段下面的预览 (设计稿 P6 · 760)：此刻按该模式菜单栏会显示的数字。
     let menuBarPreviews: [MenuBarMode: String]
 
@@ -29,7 +32,7 @@ public struct SettingsForm: Sendable, Equatable {
 }
 
 extension SettingsForm {
-    init(profile: Profile, today: Today, settings: InterfaceSettings) {
+    init(profile: Profile, today: Today, settings: InterfaceSettings, holidays: HolidayTable) {
         let pay = profile.pay(for: today.date.yearMonth)
         salaryText = Format.editable(pay.amount)
         salaryDisplay = "\(pay.basis.label) \(Format.money(pay.amount))"
@@ -38,10 +41,40 @@ extension SettingsForm {
         schedule = profile.schedule(on: today.date)
         launchAtLogin = profile.launchAtLogin
         payday = profile.payday
+        month = today.date.yearMonth
+        rule = AttendanceRule(holidays: holidays)
         menuBarPreviews = Dictionary(uniqueKeysWithValues: MenuBarMode.allCases.compactMap { mode in
             var preview = settings
             preview.menuBarMode = mode
             return MenuBarDisplay(today: today, settings: preview).text.map { (mode, $0) }
         })
+    }
+}
+
+extension SettingsForm {
+    /// 发薪日表单下方的说明 (设计稿 QgdwY)：先说月末规则，再按编辑中的发薪日写出这个月实际哪天发，如
+    /// 「填 29 到 31 时，小月按月末那天算。这个月 15 号是周日，会提前到 13 号 (周五) 发。」
+    /// 几号不在 1 至 31 时只说规则 (保存时由 `.setPayday` 报错)。
+    public func paydayNote(for payday: Payday) -> String {
+        let monthEndRule = "填 29 到 31 时，小月按月末那天算。"
+        guard Payday.validDays.contains(payday.dayOfMonth) else { return monthEndRule }
+        let days = month.days
+        let nominal = days[min(payday.dayOfMonth, days.count) - 1]
+        let actual = rule.actualPayday(in: month, payday: payday)
+        let which = payday.dayOfMonth > days.count
+            ? "这个月按月末 \(nominal.day) 号 (\(Format.weekday(nominal))) 算"
+            : "这个月 \(nominal.day) 号是\(Format.weekday(nominal))"
+        return monthEndRule + which + shiftClause(nominal: nominal, actual: actual, shift: payday.shift) + "。"
+    }
+
+    /// 那天要不要挪：要上班「当天发」；不挪「照常当天发」；挪了「会提前到 13 号 (周五) 发」，跨月时带月份。
+    /// 星期本身说明不了为什么不上班 (如工作日放假) 时先补一句「不上班」。
+    private func shiftClause(nominal: LocalDate, actual: LocalDate, shift: PaydayShift) -> String {
+        guard !rule.isAttendanceDay(nominal) else { return "，当天发" }
+        let reason = rule.holidays.restMode(for: month).isRestDay(nominal) ? "" : "，不上班"
+        guard actual != nominal else { return reason + "，照常当天发" }
+        let verb = shift == .later ? "顺延" : "提前"
+        let monthPart = actual.yearMonth == month ? "" : "\(actual.month) 月 "
+        return reason + "，会\(verb)到 \(monthPart)\(actual.day) 号 (\(Format.weekday(actual))) 发"
     }
 }

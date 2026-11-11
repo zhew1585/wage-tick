@@ -66,7 +66,7 @@ struct TodayPanelWorkingTests {
         #expect(body.caption == "满勤日薪 ¥1000 · 时薪 ¥142.86")
         #expect(body.stats == [
             StatItem(title: "距离下班", value: "3:00:00"),
-            StatItem(title: "距离周末", value: "明天休息", isHighlighted: true),
+            StatItem(title: "距离周末", value: "明天休息", tone: .accent),
             StatItem(title: "本月累计", value: "¥9571.43"),
         ])
     }
@@ -119,7 +119,7 @@ struct TodayPanelRestDayTests {
             stats: [
                 StatItem(title: "本月已上班", value: "10/20 天"),
                 StatItem(title: "本月累计", value: "¥10000"),
-                StatItem(title: "距离周末", value: "正在休息", isHighlighted: true),
+                StatItem(title: "距离周末", value: "正在休息", tone: .accent),
             ]
         )))
     }
@@ -140,7 +140,7 @@ struct TodayPanelOffWorkTests {
         #expect(body.progress == nil)
         #expect(body.stats == [
             StatItem(title: "今日结算", value: "¥1000"),
-            StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
+            StatItem(title: "距离周末", value: "3 天", tone: .accent),
             StatItem(title: "本月累计", value: "¥8000"),
         ])
     }
@@ -167,7 +167,7 @@ struct TodayPanelFormatTests {
         #expect(offWork.headline == "¥952.3810")
         #expect(offWork.stats == [
             StatItem(title: "今日结算", value: "¥952.38"),
-            StatItem(title: "距离周末", value: "3 天", isHighlighted: true),
+            StatItem(title: "距离周末", value: "3 天", tone: .accent),
             // 4 × 20000 ÷ 21 = 3809.5238…
             StatItem(title: "本月累计", value: "¥3809.52"),
         ])
