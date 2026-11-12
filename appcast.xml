@@ -3,6 +3,18 @@
   <channel>
     <title>牛马鼓励器</title>
     <item>
+      <title>0.1.0-nightly.20261112.15</title>
+      <pubDate>Thu, 12 Nov 2026 10:38:19 GMT</pubDate>
+      <sparkle:version>15</sparkle:version>
+      <sparkle:shortVersionString>0.1.0-nightly.20261112.15</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <sparkle:channel>nightly</sparkle:channel>
+      <link>https://github.com/zhew1585/wage-tick/releases/tag/v0.1.0-nightly.20261112.15</link>
+      <description sparkle:format="plain-text">小牛成为 App 形象，九个姿势随状态切换并全部动起来 (#28)
+降低空闲时的 CPU 占用 (#27)</description>
+      <enclosure url="https://github.com/zhew1585/wage-tick/releases/download/v0.1.0-nightly.20261112.15/WageTick-0.1.0-nightly.20261112.15.zip" type="application/octet-stream" sparkle:edSignature="IVf/VIshe2w9YIFFPF1x7Ep2uMYOqs0iNtjzgdbxbbAVcrWKerMWGnyUO5YBVkJOYN0NZW8Uf5Wx7YhTSPsoBA==" length="11092758" />
+    </item>
+    <item>
       <title>0.1.0-nightly.20261112.13</title>
       <pubDate>Thu, 12 Nov 2026 07:05:27 GMT</pubDate>
       <sparkle:version>13</sparkle:version>
