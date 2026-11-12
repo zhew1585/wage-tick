@@ -3,6 +3,17 @@
   <channel>
     <title>牛马鼓励器</title>
     <item>
+      <title>0.1.0-nightly.20261112.13</title>
+      <pubDate>Thu, 12 Nov 2026 07:05:27 GMT</pubDate>
+      <sparkle:version>13</sparkle:version>
+      <sparkle:shortVersionString>0.1.0-nightly.20261112.13</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <sparkle:channel>nightly</sparkle:channel>
+      <link>https://github.com/zhew1585/wage-tick/releases/tag/v0.1.0-nightly.20261112.13</link>
+      <description sparkle:format="plain-text">多屏时悬浮小牛不跨接缝、只贴桌面真边缘 (#26)</description>
+      <enclosure url="https://github.com/zhew1585/wage-tick/releases/download/v0.1.0-nightly.20261112.13/WageTick-0.1.0-nightly.20261112.13.zip" type="application/octet-stream" sparkle:edSignature="XCxIYTyaONUSOXCAaTR4wC+yNcvWPunZLzUZn6ai6a41Rsql1rMN8ahLP8c1TO0jIf7Fq5zdwxfyOIXOLt64Dg==" length="9698003" />
+    </item>
+    <item>
       <title>0.1.0-nightly.20261111.11</title>
       <pubDate>Wed, 11 Nov 2026 17:55:23 GMT</pubDate>
       <sparkle:version>11</sparkle:version>
