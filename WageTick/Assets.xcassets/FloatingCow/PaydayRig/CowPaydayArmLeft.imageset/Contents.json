@@ -1,0 +1,7 @@
+{
+  "images" : [
+    { "filename" : "cow-payday-arm-left.png", "idiom" : "universal", "scale" : "1x" },
+    { "filename" : "cow-payday-arm-left@2x.png", "idiom" : "universal", "scale" : "2x" }
+  ],
+  "info" : { "author" : "xcode", "version" : 1 }
+}

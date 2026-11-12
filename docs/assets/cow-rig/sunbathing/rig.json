@@ -1,0 +1,539 @@
+{
+  "source": "/private/tmp/claude-501/-Users-weizhe--t3-worktrees-wage-tick-t3-fd36606b-f39998cda88a552e/caf23d64-b6d2-4c0a-9765-ca0009ce6b0f/scratchpad/cow-poses/out/sunbathing.png",
+  "source_sha256": "32f059142455b12968d0652d723753dbbe5f51eea36e119ad33faf64068ec4ec",
+  "fixed_source": "source-fixed.png",
+  "canvas": {
+    "width": 1086,
+    "height": 1448
+  },
+  "coordinate_system": "top-left; x right y down; positive rotation counterclockwise",
+  "palette": {
+    "pants_and_hooves": "#54372c",
+    "sample": "cow-work.png trousers ROI mode RGB 84,55,44"
+  },
+  "layers": [
+    {
+      "name": "tail",
+      "file": "tail.png",
+      "z": 0,
+      "parent": null,
+      "pivot": {
+        "pixels": [
+          350,
+          1105
+        ],
+        "normalized": [
+          0.32228360957642727,
+          0.763121546961326
+        ]
+      },
+      "rotation_degrees": [
+        -20,
+        20
+      ],
+      "translation_y_pixels": [
+        0,
+        0
+      ],
+      "opacity_range": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "body",
+      "file": "body.png",
+      "z": 1,
+      "parent": null,
+      "pivot": {
+        "pixels": [
+          503,
+          1010
+        ],
+        "normalized": [
+          0.4631675874769797,
+          0.6975138121546961
+        ]
+      },
+      "rotation_degrees": [
+        0,
+        0
+      ],
+      "translation_y_pixels": [
+        0,
+        0
+      ],
+      "opacity_range": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "armWave",
+      "file": "armWave.png",
+      "z": 2,
+      "parent": null,
+      "pivot": {
+        "pixels": [
+          379,
+          755
+        ],
+        "normalized": [
+          0.34898710865561694,
+          0.5214088397790055
+        ]
+      },
+      "rotation_degrees": [
+        -15,
+        15
+      ],
+      "translation_y_pixels": [
+        0,
+        0
+      ],
+      "opacity_range": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "armDrink",
+      "file": "armDrink.png",
+      "z": 3,
+      "parent": null,
+      "pivot": {
+        "pixels": [
+          630,
+          804
+        ],
+        "normalized": [
+          0.580110497237569,
+          0.5552486187845304
+        ]
+      },
+      "rotation_degrees": [
+        -12,
+        12
+      ],
+      "translation_y_pixels": [
+        0,
+        0
+      ],
+      "opacity_range": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "head",
+      "file": "head.png",
+      "z": 4,
+      "parent": null,
+      "pivot": {
+        "pixels": [
+          514,
+          741
+        ],
+        "normalized": [
+          0.4732965009208103,
+          0.5117403314917127
+        ]
+      },
+      "rotation_degrees": [
+        -6,
+        6
+      ],
+      "translation_y_pixels": [
+        0,
+        0
+      ],
+      "opacity_range": [
+        1,
+        1
+      ]
+    }
+  ],
+  "fragment_transfers": [
+    {
+      "source": "head",
+      "target": "armDrink",
+      "pixels": 1,
+      "bbox": [
+        968,
+        500,
+        1,
+        1
+      ]
+    },
+    {
+      "source": "armDrink",
+      "target": "head",
+      "pixels": 11,
+      "bbox": [
+        786,
+        603,
+        4,
+        8
+      ]
+    },
+    {
+      "source": "armWave",
+      "target": "head",
+      "pixels": 3,
+      "bbox": [
+        236,
+        556,
+        1,
+        3
+      ]
+    },
+    {
+      "source": "armWave",
+      "target": "head",
+      "pixels": 6,
+      "bbox": [
+        236,
+        560,
+        2,
+        5
+      ]
+    },
+    {
+      "source": "armWave",
+      "target": "head",
+      "pixels": 1,
+      "bbox": [
+        237,
+        566,
+        1,
+        1
+      ]
+    },
+    {
+      "source": "tail",
+      "target": "body",
+      "pixels": 65,
+      "bbox": [
+        312,
+        981,
+        13,
+        11
+      ]
+    },
+    {
+      "source": "body",
+      "target": "head",
+      "pixels": 171,
+      "bbox": [
+        231,
+        501,
+        7,
+        55
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armDrink",
+      "pixels": 2,
+      "bbox": [
+        921,
+        522,
+        2,
+        1
+      ]
+    },
+    {
+      "source": "body",
+      "target": "head",
+      "pixels": 427,
+      "bbox": [
+        741,
+        551,
+        64,
+        122
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armDrink",
+      "pixels": 3,
+      "bbox": [
+        953,
+        577,
+        1,
+        3
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armDrink",
+      "pixels": 4,
+      "bbox": [
+        955,
+        577,
+        2,
+        4
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armDrink",
+      "pixels": 1,
+      "bbox": [
+        953,
+        581,
+        1,
+        1
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armWave",
+      "pixels": 357,
+      "bbox": [
+        102,
+        597,
+        20,
+        64
+      ]
+    },
+    {
+      "source": "body",
+      "target": "head",
+      "pixels": 1,
+      "bbox": [
+        252,
+        606,
+        1,
+        1
+      ]
+    },
+    {
+      "source": "body",
+      "target": "head",
+      "pixels": 183,
+      "bbox": [
+        253,
+        608,
+        71,
+        83
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armWave",
+      "pixels": 1,
+      "bbox": [
+        107,
+        636,
+        1,
+        1
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armWave",
+      "pixels": 1,
+      "bbox": [
+        108,
+        639,
+        1,
+        1
+      ]
+    },
+    {
+      "source": "body",
+      "target": "head",
+      "pixels": 7,
+      "bbox": [
+        731,
+        677,
+        7,
+        7
+      ]
+    },
+    {
+      "source": "body",
+      "target": "head",
+      "pixels": 2,
+      "bbox": [
+        723,
+        689,
+        2,
+        2
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armWave",
+      "pixels": 1,
+      "bbox": [
+        315,
+        690,
+        1,
+        1
+      ]
+    },
+    {
+      "source": "body",
+      "target": "head",
+      "pixels": 483,
+      "bbox": [
+        620,
+        694,
+        99,
+        79
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armWave",
+      "pixels": 2,
+      "bbox": [
+        86,
+        727,
+        1,
+        2
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armDrink",
+      "pixels": 165,
+      "bbox": [
+        702,
+        742,
+        9,
+        30
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armWave",
+      "pixels": 1,
+      "bbox": [
+        93,
+        764,
+        1,
+        1
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armDrink",
+      "pixels": 1,
+      "bbox": [
+        676,
+        794,
+        1,
+        1
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armDrink",
+      "pixels": 137,
+      "bbox": [
+        677,
+        796,
+        26,
+        42
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armWave",
+      "pixels": 1,
+      "bbox": [
+        293,
+        843,
+        1,
+        1
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armWave",
+      "pixels": 3,
+      "bbox": [
+        311,
+        843,
+        3,
+        2
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armWave",
+      "pixels": 12,
+      "bbox": [
+        328,
+        844,
+        12,
+        1
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armDrink",
+      "pixels": 1,
+      "bbox": [
+        998,
+        860,
+        1,
+        1
+      ]
+    },
+    {
+      "source": "body",
+      "target": "tail",
+      "pixels": 1,
+      "bbox": [
+        192,
+        955,
+        1,
+        1
+      ]
+    },
+    {
+      "source": "body",
+      "target": "tail",
+      "pixels": 1,
+      "bbox": [
+        188,
+        957,
+        1,
+        1
+      ]
+    },
+    {
+      "source": "body",
+      "target": "armDrink",
+      "pixels": 1,
+      "bbox": [
+        981,
+        1003,
+        1,
+        1
+      ]
+    }
+  ],
+  "composite_error": {
+    "rgba_max": 2,
+    "rgba_mean": 0.00919013842678795,
+    "differing_pixels": 20849
+  },
+  "qa_status": "needs_joint_contour_cleanup",
+  "known_issues": [
+    "armWave ±15°、armDrink ±12° 时肩部仍有局部裁切边或双描边。",
+    "head ±6° 及混合极限时肩颈接缝仍可见。",
+    "尾根仍有细小描边接缝。"
+  ],
+  "verification_file": "verification.json",
+  "notes": [
+    "All nonzero-alpha source-fixed pixels assigned once and retained. Added hidden paint only under source alpha >=253.",
+    "Full-canvas aligned layers. headBlink replaces head.",
+    "tear/rice inherit head rotation around the head pivot, then apply their local translation. Full-canvas pixel pivots remain in source coordinates.",
+    "Positive rotations counterclockwise. Body is stationary; optional sunbathing whole-character sway is a group transform."
+  ]
+}

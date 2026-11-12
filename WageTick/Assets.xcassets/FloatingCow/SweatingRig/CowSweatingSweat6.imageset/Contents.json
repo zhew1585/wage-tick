@@ -1,0 +1,7 @@
+{
+  "images" : [
+    { "filename" : "cow-sweating-sweat6.png", "idiom" : "universal", "scale" : "1x" },
+    { "filename" : "cow-sweating-sweat6@2x.png", "idiom" : "universal", "scale" : "2x" }
+  ],
+  "info" : { "author" : "xcode", "version" : 1 }
+}

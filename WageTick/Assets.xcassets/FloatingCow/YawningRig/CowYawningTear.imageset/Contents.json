@@ -1,0 +1,7 @@
+{
+  "images" : [
+    { "filename" : "cow-yawning-tear.png", "idiom" : "universal", "scale" : "1x" },
+    { "filename" : "cow-yawning-tear@2x.png", "idiom" : "universal", "scale" : "2x" }
+  ],
+  "info" : { "author" : "xcode", "version" : 1 }
+}
