@@ -59,6 +59,7 @@ final class FloatingCowController {
     private var isFullScreenHidden = false
     private var hoverTimer: Timer?
     private var mouseLeftAt: Date?
+    private var screensObserver: NSObjectProtocol?
     private let logger = Logger(subsystem: AppIdentity.bundleID, category: "FloatingCow")
 
     init(model: AppModel, actions: Actions) {
@@ -67,6 +68,15 @@ final class FloatingCowController {
         spot = FloatingCowSpot.load()
         // 上次贴着边：启动时就是收起的样子。
         if case .docked(let edge, _, _) = spot { content.mode = .collapsed(edge) }
+        // 插拔外接屏、改排列或分辨率后坐标系会变，按停放位置重新摆一次，免得停在接缝上或看不见的地方。
+        screensObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.panel.isVisible else { return }
+                self.applyFrame()
+            }
+        }
     }
 
     /// 菜单栏刷新时交来最新快照；内容没变时不重画。
@@ -105,7 +115,7 @@ final class FloatingCowController {
     }
 
     private var currentScreen: NSScreen? {
-        panel.screen ?? FloatingCowLayout.screen(for: panel.frame) ?? NSScreen.main
+        panel.screen ?? NSScreen.main
     }
 
     /// 按停放位置与当前样子 (展开、收起) 摆好浮窗。随便放的位置已不在任何屏幕上时退回默认位置。
@@ -120,7 +130,7 @@ final class FloatingCowController {
             }
         case .free, nil:
             content.mode = .expanded
-            setFrame(spot.flatMap(FloatingCowLayout.expandedFrame(at:)) ?? FloatingCowLayout.defaultFrame())
+            setFrame(spot.flatMap { FloatingCowLayout.expandedFrame(at: $0) } ?? FloatingCowLayout.defaultFrame())
         }
     }
 
