@@ -53,8 +53,6 @@ final class SettingsFormModel {
     private(set) var hidesDockIcon = false
     /// 桌面悬浮小牛开关 (issue #21)。
     private(set) var showsFloatingCow = true
-    /// 设了发薪日：菜单栏一组才出现「桌面悬浮小牛」开关，改完发薪日立即出现。
-    var hasPayday: Bool { savedPayday != nil }
     /// 系统拒绝了通知权限：通知区显示提示 (AC-SET-05)。
     private(set) var notificationDenied = false
 

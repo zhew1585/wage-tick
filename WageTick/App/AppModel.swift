@@ -14,6 +14,8 @@ final class AppModel {
     }
     /// 「推进到此刻」产生的领域事件 (下班、目标达成) 交给它发系统通知。
     var onEvents: (([DomainEvent]) -> Void)?
+    /// 命令执行成功后交给它 (悬浮小牛据此插播动作，如记扣钱时哭)。
+    var onCommand: ((Command) -> Void)?
     private let logger = Logger(subsystem: AppIdentity.bundleID, category: "AppModel")
     /// 清空数据后到退出前不再落盘，免得刷新把旧状态写回去。
     private var isResetting = false
@@ -35,6 +37,7 @@ final class AppModel {
         state = result.state
         save()
         deliver(result.events)
+        onCommand?(command)
     }
 
     /// 清空全部数据 (设置页「清空数据并重启」)：状态文件挪成备份，之后不再落盘，调用方随即重启 App。
