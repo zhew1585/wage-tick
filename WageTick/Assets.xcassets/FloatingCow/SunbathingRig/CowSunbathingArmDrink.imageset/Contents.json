@@ -1,0 +1,7 @@
+{
+  "images" : [
+    { "filename" : "cow-sunbathing-arm-drink.png", "idiom" : "universal", "scale" : "1x" },
+    { "filename" : "cow-sunbathing-arm-drink@2x.png", "idiom" : "universal", "scale" : "2x" }
+  ],
+  "info" : { "author" : "xcode", "version" : 1 }
+}

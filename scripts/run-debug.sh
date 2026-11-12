@@ -15,7 +15,8 @@ xcodebuild -project WageTick.xcodeproj -scheme WageTick -configuration Debug -de
     -destination "platform=macOS,arch=arm64" build -quiet
 
 # 先退掉正在跑的 App 与小组件扩展，免得拷的时候还占着旧文件。
-pkill -f "$APP_NAME/Contents/MacOS/WageTick\$" || true
+# 带启动参数跑的 (如调试用的 -debugCowPose) 命令行后面还有参数，也要匹配上。
+pkill -f "$APP_NAME/Contents/MacOS/WageTick( |\$)" || true
 pkill -f "WageTickWidgets.appex" || true
 sleep 1
 

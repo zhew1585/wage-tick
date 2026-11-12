@@ -1,61 +1,100 @@
 import Foundation
 
-/// 桌面悬浮小牛 (issue #21，设计稿方案 C) 的展示内容：小牛姿势、头顶气泡、脚边存钱罐、贴边收起时的小条。
-/// 全部由距发薪推导，外壳原样展示；拿到 nil (见 `Snapshot.floatingCow`) 时收起浮窗。
+/// 桌面悬浮小牛 (issue #21 起，现为整个 App 的形象) 的展示内容：小牛姿势、头顶气泡、脚边存钱罐、贴边收起时的小条。
+/// 全部由场景 (`CowScene`) 推导，外壳原样展示；拿到 nil (见 `Snapshot.floatingCow`) 时收起浮窗。
+/// 倒计时类的气泡精确到分钟，内容一分钟才变一次，外壳每次刷新比较后才重画。
 public struct FloatingCow: Sendable, Equatable {
-    public let mood: PaydayMood
-    public var pose: FloatingCowPose { mood.pose }
+    public let scene: CowScene
+    public var pose: FloatingCowPose { scene.pose }
     public let bubble: FloatingCowBubble
-    public let jar: CoinJar
+    /// 休息日 (不赚钱也不在发薪档) 没有罐子，为 nil。
+    public let jar: CoinJar?
     /// 拖到屏幕左右边缘收起后，探头旁边的白色小条。
     public let pill: FloatingCowPill
 }
 
-/// 心情档位，按距发薪天数分 (issue #21 表)。
-/// 判定顺序：当天 > 明天 > 快了 > 一周左右 > 刚发完 > 还早。
-/// 刚发完 (上一个实际发薪日后 1 至 3 天) 只会和还早重叠 (发薪周期至少二十几天)，重叠时算刚发完；
-/// 周期极短、和更近的档位重叠时，以倒数更近的档位为准。
-public enum PaydayMood: Sendable, Equatable, CaseIterable {
-    /// 还早：> 14 天。
-    case farOff
-    /// 一周左右：4 至 14 天。
-    case withinTwoWeeks
-    /// 快了：2 至 3 天。
-    case soon
-    /// 明天：1 天。
-    case tomorrow
-    /// 当天：0 天。
+/// 小牛此刻的场景，决定姿势、气泡、罐子。
+/// 判定顺序：白干计时中 > 发薪当天 > 上班中且距发薪 1 至 3 天 > 日状态 (全天请假按休息日)。
+/// 发薪临近只顶替上班中，干饭、下班、休息照常。
+public enum CowScene: Sendable, Equatable {
+    /// 未上班。
+    case beforeWork
+    /// 上班中。
+    case working
+    /// 干饭中。
+    case lunch
+    /// 请假中：落在两段上班中间的请假。
+    case onLeave
+    /// 已下班。
+    case offWork
+    /// 休息日，也用于全天请假。
+    case restDay
+    /// 白干计时中，不论日状态。
+    case unpaidWork
+    /// 上班中、距发薪 1 至 3 天。
+    case paydaySoon(days: Int)
+    /// 发薪当天，整天都是。
     case payday
-    /// 刚发完：上一个实际发薪日之后 1 至 3 天。
-    case justPaid
 
-    init(_ countdown: PaydayCountdown) {
-        let sincePrevious = countdown.next.days(since: countdown.previous) - countdown.days
-        switch countdown.days {
-        case 0: self = .payday
-        case 1: self = .tomorrow
-        case 2...3: self = .soon
-        case 4...14: self = .withinTwoWeeks
-        default: self = (1...3).contains(sincePrevious) ? .justPaid : .farOff
+    init(today: Today) {
+        let paydayDays = today.paydayCountdown?.days
+        if today.unpaidWork.isRunning {
+            self = .unpaidWork
+        } else if paydayDays == 0 {
+            self = .payday
+        } else if today.status == .working, let days = paydayDays, (1...3).contains(days) {
+            self = .paydaySoon(days: days)
+        } else {
+            self = switch today.status {
+            case .restDay: .restDay
+            case .notStarted: .beforeWork
+            case .working: .working
+            case .lunchBreak: .lunch
+            case .onLeave: .onLeave
+            case .offWork: .offWork
+            }
         }
     }
 
     public var pose: FloatingCowPose {
         switch self {
-        case .farOff, .withinTwoWeeks, .justPaid: .working
-        case .soon, .tomorrow: .excited
+        case .beforeWork: .yawning
+        case .working: .working
+        case .lunch: .eating
+        case .onLeave, .restDay: .sunbathing
+        case .offWork: .lyingFlat
+        case .unpaidWork: .sweating
+        case .paydaySoon: .excited
         case .payday: .paid
+        }
+    }
+
+    var style: FloatingCowStyle {
+        switch self {
+        case .offWork, .restDay: .ink
+        case .beforeWork, .working, .lunch, .onLeave, .unpaidWork, .paydaySoon: .accent
+        case .payday: .payday
         }
     }
 }
 
-/// 悬浮小牛的三种全身姿势 (设计稿 Cow Character 组件)，外壳对应到 `Assets.xcassets` 里的透明 PNG。
-public enum FloatingCowPose: Sendable, Equatable {
+/// 悬浮小牛的全身姿势，外壳对应到 `Assets.xcassets/FloatingCow` 里的素材与动作。
+public enum FloatingCowPose: Sendable, Equatable, CaseIterable {
+    /// 打哈欠：未上班。
+    case yawning
     /// 打工：端着咖啡，半睁眼。
     case working
-    /// 兴奋：握拳。
+    /// 捧碗干饭。
+    case eating
+    /// 躺平：已下班。
+    case lyingFlat
+    /// 戴墨镜晒太阳：休息日、请假。
+    case sunbathing
+    /// 抱着电脑冒汗：白干。
+    case sweating
+    /// 兴奋握拳：快发薪。
     case excited
-    /// 发薪：跳起来撒金币。
+    /// 跳起来撒金币：发薪当天。
     case paid
 }
 
@@ -71,12 +110,14 @@ public enum FloatingCowStyle: Sendable, Equatable {
 
 /// 小牛头顶的气泡：小字前缀 + 大字 (可带单位) + 一句台词。
 public struct FloatingCowBubble: Sendable, Equatable {
-    /// 小字前缀，如「距发薪」「今天」。
+    /// 小字前缀，如「距下班」「今天」。
     public let prefix: String
-    /// 大字，如「8」「明天」「发工资啦」。
+    /// 大字，如「2:14」「¥952.38」「2」「明天」「发工资啦」。
     public let value: String
-    /// 大字后面的小单位「天」；大字是文字 (明天、发工资啦) 时为 nil，外壳据此决定大字用数字字体还是正文字体。
+    /// 大字后面的小单位「天」，没有时为 nil。
     public let unit: String?
+    /// 大字是数字 (用等宽数字字体) 还是文字 (明天、发工资啦，用正文字体)。
+    public let numeric: Bool
     /// 今天的台词，同一天不变。
     public let quip: String
     public let style: FloatingCowStyle
@@ -118,49 +159,89 @@ public struct CoinJar: Sendable, Equatable {
 }
 
 extension FloatingCow {
-    /// 没设发薪日、开关关着或今天藏起来了时为 nil。
-    init?(today: Today, settings: InterfaceSettings) {
-        guard settings.showsFloatingCow, settings.floatingCowHiddenOn != today.date,
-              let countdown = today.paydayCountdown else { return nil }
-        let mood = PaydayMood(countdown)
-        self.mood = mood
-        bubble = FloatingCowBubble(countdown: countdown, mood: mood, quip: mood.quip(for: countdown, on: today.date))
-        jar = CoinJar(progress: countdown.progress, overflowing: mood == .payday)
-        pill = FloatingCowPill(countdown: countdown, style: mood.style)
-    }
-}
-
-extension PaydayMood {
-    var style: FloatingCowStyle {
-        switch self {
-        case .farOff, .justPaid: .ink
-        case .withinTwoWeeks, .soon, .tomorrow: .accent
-        case .payday: .payday
-        }
+    /// 开关关着或今天藏起来了时为 nil。
+    init?(today: Today, settings: InterfaceSettings, now: Moment) {
+        guard settings.showsFloatingCow, settings.floatingCowHiddenOn != today.date else { return nil }
+        let scene = CowScene(today: today)
+        self.scene = scene
+        bubble = FloatingCowBubble(scene: scene, today: today, now: now)
+        jar = CoinJar(scene: scene, today: today)
+        pill = FloatingCowPill(scene: scene, bubble: bubble)
     }
 }
 
 private extension FloatingCowBubble {
-    init(countdown: PaydayCountdown, mood: PaydayMood, quip: String) {
-        self.quip = quip
-        style = mood.style
-        switch mood {
+    init(scene: CowScene, today: Today, now: Moment) {
+        let quip = scene.quip(on: today.date)
+        let plan = today.plan
+        switch scene {
+        case .beforeWork:
+            self.init(countdown: "距上班", to: plan?.start, now: now, quip: quip, style: scene.style)
+        case .working, .onLeave:
+            self.init(countdown: "距下班", to: plan?.end, now: now, quip: quip, style: scene.style)
+        case .lunch:
+            self.init(countdown: "距开工", to: plan?.lunch?.end, now: now, quip: quip, style: scene.style)
+        case .offWork:
+            let earned = today.earnings.map { Format.money($0.cap) } ?? "-"
+            self.init(prefix: "今天赚了", value: earned, unit: nil, numeric: true, quip: quip, style: scene.style)
+        case .restDay:
+            let days = today.nextAttendanceDay.map { $0.days(since: today.date) }
+            self.init(days: days, prefix: "距上班", quip: quip, style: scene.style)
+        case .unpaidWork:
+            let milliseconds = today.unpaidWork.running?.milliseconds ?? 0
+            let value = Format.hoursMinutes(seconds: milliseconds / 1000)
+            self.init(prefix: "已白干", value: value, unit: nil, numeric: true, quip: quip, style: scene.style)
+        case .paydaySoon(let days):
+            self.init(days: days, prefix: "距发薪", quip: quip, style: scene.style)
         case .payday:
-            (prefix, value, unit) = ("今天", "发工资啦", nil)
-        case .tomorrow:
-            (prefix, value, unit) = ("距发薪", "明天", nil)
-        case .farOff, .withinTwoWeeks, .soon, .justPaid:
-            (prefix, value, unit) = ("距发薪", "\(countdown.days)", "天")
+            self.init(prefix: "今天", value: "发工资啦", unit: nil, numeric: false, quip: quip, style: scene.style)
+        }
+    }
+
+    /// 倒计时到 `end` (时:分，不足一分钟进位，不会显示 0:00)；没有 `end` 时显示「-」。
+    init(countdown prefix: String, to end: Date?, now: Moment, quip: String, style: FloatingCowStyle) {
+        let value = end.map { end in
+            let seconds = max(0, end.timeIntervalSince(now.date))
+            return Format.hoursMinutes(seconds: Int((seconds / 60).rounded(.up)) * 60)
+        }
+        self.init(prefix: prefix, value: value ?? "-", unit: nil, numeric: value != nil, quip: quip, style: style)
+    }
+
+    /// 还有几天：1 天写「明天」，没有 (一年内不上班) 时写「-」。
+    init(days: Int?, prefix: String, quip: String, style: FloatingCowStyle) {
+        switch days {
+        case 1: self.init(prefix: prefix, value: "明天", unit: nil, numeric: false, quip: quip, style: style)
+        case let days?: self.init(prefix: prefix, value: "\(days)", unit: "天", numeric: true, quip: quip, style: style)
+        case nil: self.init(prefix: prefix, value: "-", unit: nil, numeric: false, quip: quip, style: style)
+        }
+    }
+}
+
+private extension CoinJar {
+    /// 发薪那两档装发薪周期进度 (当天装满冒出来)，休息日没有罐子，其余装今天的工作进度。
+    init?(scene: CowScene, today: Today) {
+        switch scene {
+        case .payday, .paydaySoon:
+            guard let countdown = today.paydayCountdown else { return nil }
+            self.init(progress: countdown.progress, overflowing: scene == .payday)
+        case .restDay:
+            return nil
+        case .beforeWork, .working, .lunch, .onLeave, .offWork, .unpaidWork:
+            guard let earnings = today.earnings else { return nil }
+            self.init(progress: earnings.progress)
         }
     }
 }
 
 private extension FloatingCowPill {
-    init(countdown: PaydayCountdown, style: FloatingCowStyle) {
-        switch countdown.days {
-        case 0: self.init(value: "今天", caption: "发薪", style: style)
-        case 1: self.init(value: "明天", caption: "发薪", style: style)
-        default: self.init(value: "\(countdown.days) 天", caption: "距发薪", style: style)
+    /// 小条照抄气泡：上行大字 (带单位)，下行前缀；发薪当天、明天发薪写作「今天 / 发薪」「明天 / 发薪」。
+    init(scene: CowScene, bubble: FloatingCowBubble) {
+        switch scene {
+        case .payday: self.init(value: "今天", caption: "发薪", style: bubble.style)
+        case .paydaySoon(days: 1): self.init(value: "明天", caption: "发薪", style: bubble.style)
+        default:
+            let value = bubble.unit.map { "\(bubble.value) \($0)" } ?? bubble.value
+            self.init(value: value, caption: bubble.prefix, style: bubble.style)
         }
     }
 }

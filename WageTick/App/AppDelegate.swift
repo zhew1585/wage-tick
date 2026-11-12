@@ -28,7 +28,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DockIcon.apply(hidden: model.currentSnapshot().settings.hidesDockIcon)
         // 菜单栏第一次刷新就会推进到此刻，事件出口要先接好。
         notifier = SystemNotifier { [weak self] in self?.todayPanel.show() }
-        model.onEvents = { [weak self] events in self?.notifier.post(events) }
+        model.onEvents = { [weak self] events in
+            self?.notifier.post(events)
+            self?.floatingCow?.react(to: events)
+        }
+        model.onCommand = { [weak self] command in self?.floatingCow?.react(to: command) }
         // 先交出内置与缓存的节假日数据，菜单栏第一次刷新就按它计算。
         holidayUpdater = HolidayUpdater(model: model)
         holidayUpdater.start()

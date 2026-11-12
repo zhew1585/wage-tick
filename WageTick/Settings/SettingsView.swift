@@ -91,11 +91,8 @@ struct SettingsView: View {
                 .padding(.vertical, Spacing.s12 - 1)
                 CardDivider()
                 toggle("隐藏 Dock 图标", isOn: Binding(get: { form.hidesDockIcon }, set: { form.setHidesDockIcon($0) }))
-                // 设了发薪日才有悬浮小牛 (issue #21)，没设时不出现这一行。
-                if form.hasPayday {
-                    CardDivider()
-                    toggle("桌面悬浮小牛", isOn: Binding(get: { form.showsFloatingCow }, set: { form.setShowsFloatingCow($0) }))
-                }
+                CardDivider()
+                toggle("桌面悬浮小牛", isOn: Binding(get: { form.showsFloatingCow }, set: { form.setShowsFloatingCow($0) }))
             }
         }
     }

@@ -4,7 +4,7 @@ import OSLog
 import SwiftUI
 import WageCore
 
-/// 浮窗正在画什么：快照里的小牛内容，展开还是贴边收起。
+/// 浮窗正在画什么：快照里的小牛内容，展开还是贴边收起，有没有插播。
 @MainActor
 @Observable
 final class FloatingCowContent {
@@ -15,6 +15,20 @@ final class FloatingCowContent {
 
     var cow: FloatingCow?
     var mode = Mode.expanded
+    /// 插播的一次性动作 (扣钱哭、目标达成跳)，播完回到 nil，小牛回到快照给的姿势。
+    var reaction: CowAct?
+    #if DEBUG
+    /// 调试用：启动参数 `-debugCowPose <姿势>` 固定小牛的动作，见 `FloatingCowController.debugAct`。
+    var debugAct: CowAct?
+    #endif
+
+    var act: CowAct? {
+        #if DEBUG
+        reaction ?? debugAct
+        #else
+        reaction
+        #endif
+    }
 }
 
 /// 浮窗的根视图：展开时画完整小牛，收起时画小条 + 探头。
@@ -24,7 +38,7 @@ struct FloatingCowRoot: View {
     var body: some View {
         if let cow = content.cow {
             switch content.mode {
-            case .expanded: FloatingCowCanvas(cow: cow)
+            case .expanded: FloatingCowCanvas(cow: cow, act: content.act)
             case .collapsed(let edge): FloatingCowPeek(pill: cow.pill, side: edge)
             }
         }
@@ -48,6 +62,8 @@ final class FloatingCowController {
     private static let hoverInterval: TimeInterval = 0.15
     /// 鼠标离开展开的小牛这么久才收回，免得擦边时来回闪。
     private static let collapseDelay: TimeInterval = 0.4
+    /// 插播动作播多久。
+    private static let reactionDuration: Duration = .seconds(4)
 
     private let model: AppModel
     private let actions: Actions
@@ -60,12 +76,16 @@ final class FloatingCowController {
     private var hoverTimer: Timer?
     private var mouseLeftAt: Date?
     private var screensObserver: NSObjectProtocol?
+    private var reactionTask: Task<Void, Never>?
     private let logger = Logger(subsystem: AppIdentity.bundleID, category: "FloatingCow")
 
     init(model: AppModel, actions: Actions) {
         self.model = model
         self.actions = actions
         spot = FloatingCowSpot.load()
+        #if DEBUG
+        content.debugAct = Self.debugAct()
+        #endif
         // 上次贴着边：启动时就是收起的样子。
         if case .docked(let edge, _, _) = spot { content.mode = .collapsed(edge) }
         // 插拔外接屏、改排列或分辨率后坐标系会变，按停放位置重新摆一次，免得停在接缝上或看不见的地方。
@@ -81,6 +101,9 @@ final class FloatingCowController {
 
     /// 菜单栏刷新时交来最新快照；内容没变时不重画。
     func update(_ snapshot: Snapshot) {
+        #if DEBUG
+        let snapshot = debugPayday(snapshot)
+        #endif
         _ = fullScreen
         // 收起期间不再查全屏；下次出现时重新查。
         if snapshot.floatingCow == nil { isFullScreenHidden = false }
@@ -90,6 +113,49 @@ final class FloatingCowController {
         }
         updateVisibility()
     }
+
+    // MARK: 插播
+
+    /// 领域事件：目标达成时跳起撒钱。
+    func react(to events: [DomainEvent]) {
+        if events.contains(where: { if case .goalReached = $0 { true } else { false } }) {
+            play(.pose(.paid))
+        }
+    }
+
+    /// 牛马发了命令：记一笔扣钱时哭。
+    func react(to command: Command) {
+        if case .addDeduction = command { play(.crying) }
+    }
+
+    /// 插播 `act`，`reactionDuration` 后回到快照给的姿势；正在插播时换成新的、重新计时。
+    private func play(_ act: CowAct) {
+        reactionTask?.cancel()
+        content.reaction = act
+        reactionTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.reactionDuration)
+            guard !Task.isCancelled else { return }
+            self?.content.reaction = nil
+        }
+    }
+
+    #if DEBUG
+    /// 调试用：启动参数 `-debugCowPose <姿势>` (如 `eating`、`crying`) 固定小牛的动作，在真桌面上逐个看。
+    /// `open /Applications/牛马鼓励器.app --args -debugCowPose eating`
+    private static func debugAct() -> CowAct? {
+        guard let name = UserDefaults.standard.string(forKey: "debugCowPose") else { return nil }
+        if name == "crying" { return .crying }
+        return FloatingCowPose.allCases.first { "\($0)" == name }.map(CowAct.pose)
+    }
+
+    /// 调试用：启动参数带 `-debugPaydayCow YES` 时把发薪日临时当成今天 (只算快照、不改存档)，在真桌面上看发薪当天的小牛。
+    /// `open /Applications/牛马鼓励器.app --args -debugPaydayCow YES`
+    private func debugPayday(_ snapshot: Snapshot) -> Snapshot {
+        guard UserDefaults.standard.bool(forKey: "debugPaydayCow") else { return snapshot }
+        let today = Calendar.current.component(.day, from: Date())
+        return (try? model.dryRun(.setPayday(Payday(dayOfMonth: today, shift: .unchanged))).get()) ?? snapshot
+    }
+    #endif
 
     // MARK: 显示与摆放
 

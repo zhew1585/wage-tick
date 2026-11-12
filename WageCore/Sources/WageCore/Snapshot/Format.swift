@@ -80,6 +80,12 @@ enum Format {
         return "\(seconds / 3600):\(minutes):\(rest)"
     }
 
+    /// 时长的「时:分」，秒数向下取整到分钟，如 5040 秒为 `1:24`。悬浮小牛气泡里的倒计时与白干时长用。
+    static func hoursMinutes(seconds: Int) -> String {
+        let minutes = max(0, seconds) / 60
+        return "\(minutes / 60):\(String(format: "%02d", minutes % 60))"
+    }
+
     /// 百分比 (`ratio` 为 0 至 1 的比例)：四舍五入到 2 位，永远显示 2 位小数，如 `57.14%`、`12.50%`、`0.00%`。
     /// 菜单栏进度模式也用它，滚动时宽度不跳。
     static func percent(_ ratio: Decimal) -> String {

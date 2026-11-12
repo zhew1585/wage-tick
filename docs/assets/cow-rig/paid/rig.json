@@ -1,0 +1,160 @@
+{
+  "source": "/Users/weizhe/.pencil/documents/5498c176-4755-4b2f-b351-c6533167e9f2/images/cow-payday.png",
+  "source_sha256": "bc98c5bc9d3cc4c693b76846dbcfd221b63f636b22bb25d8f6cf4f4a7de29120",
+  "canvas": {
+    "width": 1086,
+    "height": 1448
+  },
+  "coordinate_system": "top-left origin; positive angle is counterclockwise in Pillow",
+  "layers": [
+    {
+      "name": "tail",
+      "file": "tail.png",
+      "z": 0,
+      "pivot": {
+        "pixels": [
+          343,
+          1053
+        ],
+        "normalized": [
+          0.31583793738489874,
+          0.7272099447513812
+        ]
+      },
+      "rotation_degrees": [
+        -20,
+        20
+      ]
+    },
+    {
+      "name": "armLeft",
+      "file": "armLeft.png",
+      "z": 1,
+      "pivot": {
+        "pixels": [
+          383,
+          755
+        ],
+        "normalized": [
+          0.35267034990791896,
+          0.5214088397790055
+        ]
+      },
+      "rotation_degrees": [
+        -25,
+        25
+      ]
+    },
+    {
+      "name": "armRight",
+      "file": "armRight.png",
+      "z": 2,
+      "pivot": {
+        "pixels": [
+          669,
+          755
+        ],
+        "normalized": [
+          0.6160220994475138,
+          0.5214088397790055
+        ]
+      },
+      "rotation_degrees": [
+        -25,
+        25
+      ]
+    },
+    {
+      "name": "body",
+      "file": "body.png",
+      "z": 3,
+      "pivot": {
+        "pixels": [
+          532,
+          1001
+        ],
+        "normalized": [
+          0.48987108655616945,
+          0.6912983425414365
+        ]
+      },
+      "rotation_degrees": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "tieFlap",
+      "file": "tieFlap.png",
+      "z": 4,
+      "pivot": {
+        "pixels": [
+          551,
+          823
+        ],
+        "normalized": [
+          0.507366482504604,
+          0.5683701657458563
+        ]
+      },
+      "rotation_degrees": [
+        -15,
+        15
+      ]
+    },
+    {
+      "name": "head",
+      "file": "head.png",
+      "z": 5,
+      "pivot": {
+        "pixels": [
+          535,
+          733
+        ],
+        "normalized": [
+          0.49263351749539597,
+          0.5062154696132597
+        ]
+      },
+      "rotation_degrees": [
+        -8,
+        8
+      ]
+    },
+    {
+      "name": "coins",
+      "file": "coins.png",
+      "z": 6,
+      "pivot": {
+        "pixels": [
+          934,
+          275
+        ],
+        "normalized": [
+          0.860036832412523,
+          0.1899171270718232
+        ]
+      },
+      "rotation_degrees": [
+        0,
+        0
+      ]
+    }
+  ],
+  "composite_error": {
+    "rgba_max": 5,
+    "rgba_mean": 0.030025538495975907,
+    "differing_pixels": 69043,
+    "premultiplied_max": 2.4980392156862763,
+    "premultiplied_mean": 0.03677103015641305
+  },
+  "notes": [
+    "Source interior alpha is predominantly 253/254. Paint under those samples changes the resulting alpha slightly; reconstruction is near-identical, not bit-exact.",
+    "Source visible samples and edge antialias alpha retained; hidden patches use hand-drawn flat fills and dark outlines.",
+    "Positive rotation is counterclockwise. Pivot origin is top-left of 1086x1448 source.",
+    "coins contains all three coins; no independent coin exports.",
+    "QA montage has 100px padding before rotation to show fists outside the source canvas.",
+    "Known remaining QA issues: small pointed/duplicate strokes at extreme shoulder poses and ribbon root/lower edge; small ear/coin separation traces. This is not a fully clean production-ready rig."
+  ],
+  "qa_status": "needs_final_contour_cleanup"
+}

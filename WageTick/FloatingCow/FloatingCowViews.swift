@@ -6,13 +6,21 @@ import WageCore
 // 内容全部取自快照的 `FloatingCow`，这里只管画。App 固定浅色外观 (ADR-0004)，气泡与小条都是实底，深色桌面上照样看得清。
 
 /// 展开的小牛连同四周留白 (发薪当天的彩带、气泡投影画在留白里)，大小固定为 `FloatingCowMetrics.canvas`，小牛靠右下。
+/// 小牛按 `act` 做动作 (`CowRig`)，发薪当天和跳跃插播时周围撒彩带，气泡和存钱罐不动。
+/// `act` 默认是快照给的姿势；`time` 只给离屏预览用，停在动画第几秒。系统开了「减弱动态效果」时停在静止姿势。
 struct FloatingCowCanvas: View {
     let cow: FloatingCow
+    var act: CowAct?
+    var time: TimeInterval?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        FloatingCowFigure(cow: cow)
+        let motion = time.map { CowMotion.frozen($0) } ?? (reduceMotion ? .rest : .live)
+        let act = act ?? .pose(cow.pose)
+        FloatingCowFigure(cow: cow, act: act, motion: motion)
             .overlay(alignment: .topLeading) {
-                if cow.bubble.style == .payday { Confetti() }
+                if act == .pose(.paid) { Confetti(motion: motion) }
             }
             .padding(FloatingCowMetrics.figureInsets)
             .frame(width: FloatingCowMetrics.canvas.width, height: FloatingCowMetrics.canvas.height, alignment: .bottomTrailing)
@@ -22,6 +30,8 @@ struct FloatingCowCanvas: View {
 /// 设计稿 Pet：气泡、指向小牛的尖角、脚边一排 (存钱罐 + 小牛)，右对齐，宽 164。
 struct FloatingCowFigure: View {
     let cow: FloatingCow
+    let act: CowAct
+    let motion: CowMotion
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 0) {
@@ -31,19 +41,20 @@ struct FloatingCowFigure: View {
                 .frame(width: 16, height: 10)
                 .padding(.trailing, 48)
             HStack(alignment: .bottom, spacing: 0) {
-                CoinJarView(jar: cow.jar)
-                Image(cow.pose.imageName)
-                    .resizable()
-                    .interpolation(.high)
+                if let jar = cow.jar { CoinJarView(jar: jar) }
+                // 换动作时换一个新视图 (实时播放的图层重新搭)，淡入淡出。
+                FloatingCowBody(act: act, motion: motion)
+                    .id(act)
+                    .transition(.opacity)
                     .frame(width: FloatingCowMetrics.cowSize.width, height: FloatingCowMetrics.cowSize.height)
-                    .accessibilityLabel("小牛")
             }
         }
         .frame(width: FloatingCowMetrics.figureWidth, alignment: .trailing)
+        .animation(.easeInOut(duration: 0.25), value: act)
     }
 }
 
-/// 头顶气泡：小字前缀、大字 (数字带「天」)、一句台词。发薪当天 money 绿底白字。
+/// 头顶气泡：小字前缀、大字 (数字用等宽字体，可带「天」)、一句台词。发薪当天 money 绿底白字。
 private struct Bubble: View {
     let bubble: FloatingCowBubble
 
@@ -54,11 +65,13 @@ private struct Bubble: View {
                 .font(AppFont.ui(11, .medium))
                 .foregroundStyle(payday ? Color.white.opacity(0.8) : Palette.muted)
             HStack(alignment: .bottom, spacing: Spacing.s4) {
+                // 金额可能较长 (¥12,345.67)，放不下时整体缩小，不换行。
+                Text(bubble.value)
+                    .font(bubble.numeric ? AppFont.num(30, .extraBold) : AppFont.ui(26, .extraBold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                 if let unit = bubble.unit {
-                    Text(bubble.value).font(AppFont.num(30, .extraBold))
                     Text(unit).font(AppFont.ui(13, .bold)).padding(.bottom, Spacing.s5)
-                } else {
-                    Text(bubble.value).font(AppFont.ui(26, .extraBold))
                 }
             }
             .foregroundStyle(valueColor(bubble.style))
@@ -101,46 +114,14 @@ private func valueColor(_ style: FloatingCowStyle) -> Color {
     }
 }
 
-/// 发薪当天撒在小牛周围的金币彩带，位置按设计稿 Zsosp 换算到气泡左上角为原点。
-private struct Confetti: View {
-    private struct Piece {
-        let icon: Phosphor
-        let x: CGFloat
-        let y: CGFloat
-        let size: CGFloat
-        let rotation: Double
-        let color: Color
-    }
-
-    private static let pieces = [
-        Piece(icon: .confettiBold, x: -42, y: -26, size: 22, rotation: -10, color: Palette.accent),
-        Piece(icon: .starFourBold, x: 60, y: -40, size: 14, rotation: 0, color: Palette.coin),
-        Piece(icon: .sparkleBold, x: 136, y: -31, size: 14, rotation: 0, color: Palette.coin),
-        Piece(icon: .sparkleBold, x: 146, y: 97, size: 14, rotation: 0, color: Palette.accent),
-        Piece(icon: .coinBold, x: -30, y: 123, size: 14, rotation: 15, color: Palette.coin),
-        Piece(icon: .coinBold, x: -12, y: 169, size: 14, rotation: -20, color: Palette.coinDeep),
-        Piece(icon: .coinsBold, x: -32, y: 214, size: 14, rotation: 0, color: Palette.coinDeep),
-    ]
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            ForEach(Self.pieces.indices, id: \.self) { index in
-                let piece = Self.pieces[index]
-                PhosphorIcon(piece.icon, size: piece.size)
-                    .foregroundStyle(piece.color)
-                    .rotationEffect(.degrees(piece.rotation))
-                    .offset(x: piece.x, y: piece.y)
-            }
-        }
-        .frame(width: 0, height: 0, alignment: .topLeading)
-        .allowsHitTesting(false)
-    }
-}
-
 /// 贴边收起的样子：白色小条「N 天 / 距发薪」+ 探头。探头图的右边框就是屏幕边缘，贴左边时整张图水平翻转，小条换到右边。
+/// 探头也在动 (`CowRigs.peek`)；`time` 只给离屏预览用。
 struct FloatingCowPeek: View {
     let pill: FloatingCowPill
     let side: FloatingCowEdge
+    var time: TimeInterval?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: Spacing.s4) {
@@ -153,12 +134,9 @@ struct FloatingCowPeek: View {
     }
 
     private var peek: some View {
-        Image("CowPeek")
-            .resizable()
-            .interpolation(.high)
+        RigView(rig: CowRigs.peek, motion: time.map { CowMotion.frozen($0) } ?? (reduceMotion ? .rest : .live))
             .frame(width: FloatingCowMetrics.peekSize.width, height: FloatingCowMetrics.peekSize.height)
             .scaleEffect(x: side == .left ? -1 : 1, y: 1)
-            .accessibilityLabel("小牛")
     }
 }
 
@@ -246,17 +224,6 @@ private struct Coin: View {
             .overlay(Circle().strokeBorder(Palette.coinEdge, lineWidth: 1))
             .overlay(Circle().strokeBorder(Palette.coinRing, lineWidth: 1).frame(width: 6, height: 6))
             .frame(width: 12, height: 12)
-    }
-}
-
-extension FloatingCowPose {
-    /// `Assets.xcassets/FloatingCow` 里的透明 PNG (设计稿 Cow Character 组件 aHCEB)。
-    var imageName: String {
-        switch self {
-        case .working: "CowWork"
-        case .excited: "CowExcited"
-        case .paid: "CowPayday"
-        }
     }
 }
 

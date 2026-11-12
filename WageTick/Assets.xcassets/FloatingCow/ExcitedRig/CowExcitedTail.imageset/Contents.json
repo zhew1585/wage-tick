@@ -1,0 +1,7 @@
+{
+  "images" : [
+    { "filename" : "cow-excited-tail.png", "idiom" : "universal", "scale" : "1x" },
+    { "filename" : "cow-excited-tail@2x.png", "idiom" : "universal", "scale" : "2x" }
+  ],
+  "info" : { "author" : "xcode", "version" : 1 }
+}
