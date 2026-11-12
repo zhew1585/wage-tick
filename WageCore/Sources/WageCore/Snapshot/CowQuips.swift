@@ -1,36 +1,70 @@
 import Foundation
 
-/// 悬浮小牛气泡里的台词 (issue #21)：每个心情档位 3 至 5 句，第一句是 issue 表里的示例。
-/// 每天按日期固定挑一句：同一天早晚、重启都一样，换天大概率换一句。
-extension PaydayMood {
-    /// 这一档的全部台词；有的句子带上实际发薪日或剩余天数。
-    func quips(for countdown: PaydayCountdown) -> [String] {
+/// 悬浮小牛气泡里的台词：每个场景 3 至 5 句，每天按日期固定挑一句。
+/// 同一天早晚、重启都一样，换天大概率换一句；同一天换了场景 (如上班到下班) 跟着换一句。
+extension CowScene {
+    /// 这个场景的全部台词；快发薪的句子带上剩余天数。
+    var quips: [String] {
         switch self {
-        case .farOff:
+        case .beforeWork:
             [
-                "钱包冬眠中，省着点花",
-                "离发薪还远，奶茶先戒一戒",
-                "余额紧张，泡面也挺香",
-                "日子还长，慢慢拉磨",
+                "再眯五分钟，就五分钟",
+                "工位还没醒，我也没醒",
+                "今天的磨，还在路上",
+                "咖啡续上，准备开工",
             ]
-        case .withinTwoWeeks:
+        case .working:
             [
-                "撑住，\(countdown.next.day) 号\(Format.weekdayNames[countdown.next.weekday - 1])就发钱",
-                "再拉 \(countdown.days) 天磨，工资就到账",
-                "发薪日已经看得见了",
-                "熬了这么久，不差这几天",
+                "认真摸鱼，偶尔拉磨",
+                "每一秒都在进账",
+                "稳住，别让老板看见",
+                "拉磨也要有节奏",
             ]
-        case .soon:
+        case .lunch:
             [
-                "再坚持\(countdown.days == 2 ? "两" : "三")天，钱在路上了",
-                "工资正在打包，马上发货",
-                "已经能闻到工资的味道了",
+                "干饭不积极，思想有问题",
+                "吃饱了才有力气摸鱼",
+                "这一口，是我应得的",
+                "饭点不谈工作",
             ]
-        case .tomorrow:
+        case .onLeave:
+            [
+                "暂时离线，马上回来",
+                "偷得半日闲",
+                "请假的时间格外珍贵",
+            ]
+        case .offWork:
+            [
+                "下班了，谁也别找我",
+                "今天的磨拉完了",
+                "躺平是对自己最好的奖励",
+                "电脑一合，烦恼全无",
+            ]
+        case .restDay:
+            [
+                "今天不营业",
+                "阳光正好，工作勿扰",
+                "休息日就该晒太阳",
+                "手机静音，世界安静",
+            ]
+        case .unpaidWork:
+            [
+                "这一分钟，没人给钱",
+                "老板的梦想，我的加班",
+                "白干也要干得漂亮",
+                "早点收工吧，牛马",
+            ]
+        case .paydaySoon(days: 1):
             [
                 "购物车可以先加满了",
                 "今晚早点睡，明早看短信",
                 "最后一班岗，站好就行",
+            ]
+        case .paydaySoon(let days):
+            [
+                "再坚持\(days == 2 ? "两" : "三")天，钱在路上了",
+                "工资正在打包，马上发货",
+                "已经能闻到工资的味道了",
             ]
         case .payday:
             [
@@ -39,24 +73,12 @@ extension PaydayMood {
                 "工资到手，奶茶加料",
                 "今天的牛马最值钱",
             ]
-        case .justPaid:
-            [
-                "钱包鼓鼓，别一口气花光",
-                "趁还有钱，先把房租交了",
-                "新一轮拉磨开始了",
-                "余额正好，理性消费",
-            ]
         }
     }
 
-    /// 这一档有几句台词 (不依赖具体日期)。
-    var quipCount: Int {
-        quips(for: PaydayCountdown(days: 0, next: Self.epoch, previous: Self.epoch.adding(days: -30))).count
-    }
-
     /// `day` 这天的台词：按日期算一个固定的伪随机下标，不用 `Hasher` (每次启动的种子不同)。
-    func quip(for countdown: PaydayCountdown, on day: LocalDate) -> String {
-        let quips = quips(for: countdown)
+    func quip(on day: LocalDate) -> String {
+        let quips = quips
         return quips[Int(Self.mix(UInt64(bitPattern: Int64(day.days(since: Self.epoch)))) % UInt64(quips.count))]
     }
 
