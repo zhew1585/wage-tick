@@ -103,15 +103,23 @@ enum AppFont {
     // MARK: 构造
 
     static func ui(_ size: CGFloat, _ weight: Weight = .regular) -> Font {
-        Font(nsFont(.ui, size: size, weight: weight) as CTFont)
+        cache.entry(.ui, size, weight).font
     }
 
     static func num(_ size: CGFloat, _ weight: Weight = .regular) -> Font {
-        Font(nsFont(.num, size: size, weight: weight) as CTFont)
+        cache.entry(.num, size, weight).font
     }
 
     /// 按可变字体 wght 轴取精确字重 (JetBrains Mono 没有 600 的命名实例，按特征取会落到 700)。
     static func nsFont(_ family: Family, size: CGFloat, weight: Weight = .regular) -> NSFont {
+        cache.entry(family, size, weight).nsFont
+    }
+
+    /// 同一字族、字号、字重只建一次字体对象。菜单栏和今日概览每 0.1 秒重算一遍 body，
+    /// 每次都新建字体的话，CoreText 按字体对象缓存的排版结果全部命不中，每次刷新都要重新整形所有文字。
+    private static let cache = FontCache()
+
+    private static func makeFont(_ family: Family, size: CGFloat, weight: Weight) -> NSFont {
         let descriptor = NSFontDescriptor(fontAttributes: [
             .family: family.name,
             NSFontDescriptor.AttributeName(kCTFontVariationAttribute as String): [wghtAxis: weight.rawValue],
@@ -136,6 +144,34 @@ enum AppFont {
             if !CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) {
                 let message = error?.takeRetainedValue().localizedDescription ?? "未知错误"
                 logger.error("注册字体失败 \(url.lastPathComponent, privacy: .public)：\(message, privacy: .public)")
+            }
+        }
+    }
+
+    /// 字体缓存，加锁，任何线程都能取。
+    private final class FontCache: @unchecked Sendable {
+        struct Entry {
+            let nsFont: NSFont
+            let font: Font
+        }
+
+        private struct Key: Hashable {
+            let family: Family
+            let size: CGFloat
+            let weight: Weight
+        }
+
+        private let lock = NSLock()
+        private var entries: [Key: Entry] = [:]
+
+        func entry(_ family: Family, _ size: CGFloat, _ weight: Weight) -> Entry {
+            let key = Key(family: family, size: size, weight: weight)
+            return lock.withLock {
+                if let entry = entries[key] { return entry }
+                let nsFont = makeFont(family, size: size, weight: weight)
+                let entry = Entry(nsFont: nsFont, font: Font(nsFont as CTFont))
+                entries[key] = entry
+                return entry
             }
         }
     }

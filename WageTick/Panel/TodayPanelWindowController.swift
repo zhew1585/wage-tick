@@ -26,6 +26,7 @@ final class TodayPanelContent {
 /// 普通窗口 (ADR-0005)：系统红绿灯，透明标题栏，固定尺寸 (`WindowMetrics`)，展开目标、打开表单时在窗口里滚动。
 /// 没开着时打开的位置见 `WindowPlacement` (引导刚完成时接在引导窗口原位)；点红绿灯、按 Esc 或 ⌘W 关掉，失去焦点不收起。
 /// 只在面板可见时刷新：上班中或白干中按滚动频率，其余每秒一次 (倒计时、时钟)。
+/// 被别的窗口整个挡住、最小化、在别的桌面空间时停表 (`occlusionState`)，露出来时立即补一次再接着刷。
 @MainActor
 final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     /// 上班中主数字滚动的刷新间隔，与菜单栏一致 (AC-BAR-02)。
@@ -79,6 +80,13 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         stop()
     }
 
+    /// 露出来时立即刷新并接着定时刷；看不见时 `scheduleNextRefresh` 不再排下一次，定时器自然停下。
+    func windowDidChangeOcclusionState(_ notification: Notification) {
+        if panel.occlusionState.contains(.visible) && timer == nil {
+            refresh()
+        }
+    }
+
     // MARK: 刷新
 
     private func stop() {
@@ -114,6 +122,8 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
 
     private func scheduleNextRefresh(rolling: Bool) {
         timer?.invalidate()
+        timer = nil
+        guard panel.occlusionState.contains(.visible) else { return }
         let timer = Timer(timeInterval: rolling ? Self.rollingInterval : Self.idleInterval, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
         }
