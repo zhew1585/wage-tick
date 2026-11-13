@@ -50,7 +50,8 @@ struct OnboardingScheduleHero: View {
     let collapse: CGFloat
 
     var body: some View {
-        let hours = rates?.standardHoursNumber ?? "—"
+        // 作息算不出来 (如上下班同一时刻) 时写 0。
+        let hours = rates?.standardHoursNumber ?? "0"
         BoldHero(
             theme: .orange,
             kicker: "几点上班，几点下班？",
