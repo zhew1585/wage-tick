@@ -100,7 +100,8 @@ struct RigView: View {
     var body: some View {
         Group {
             switch motion {
-            case .live: RigLive(rig: rig)
+            // 图层只在创建时搭一次，换了动作 (如发薪日点了被迫营业，撒钱换成冒汗) 要换一个新视图重搭。
+            case .live: RigLive(rig: rig).id(rig.parts.map(\.image))
             case .frozen(let time): RigStill(rig: rig, frame: time.map(rig.frame(at:)) ?? RigFrame())
             }
         }
