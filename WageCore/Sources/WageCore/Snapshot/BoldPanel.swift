@@ -6,8 +6,10 @@ public struct HeroCaption: Sendable, Equatable {
     public enum Icon: Sendable, Equatable {
         /// 钱在涨：上班中。
         case rising
-        /// 闹钟：未上班、休息日 (几点开工)。
+        /// 闹钟：未上班 (几点开工)。
         case alarm
+        /// 太阳：休息日 (下个上班日几点开工)。
+        case sun
         /// 暂停：干饭中。
         case pause
         /// 请假中。
@@ -35,7 +37,7 @@ extension HeroCaption {
             return
         }
         guard let plan = today.plan, let earnings = today.earnings else {
-            self.init(icon: .alarm, text: Self.nextStart(today: today, timeZone: now.timeZone))
+            self.init(icon: .sun, text: Self.nextStart(today: today, timeZone: now.timeZone))
             return
         }
         let time = { (date: Date) in Format.time(Moment(date: date, timeZone: now.timeZone)) }
@@ -91,7 +93,7 @@ extension TodayPanel {
 
     /// 大胆版统计行 (设计稿「大胆风格」)：倒计时已在小牛气泡里，统计行不再放距离下班。
     /// 应出勤日未下班为 [今日扣款, 本月累计, 距发薪]，已下班为 [今日结算, 本月累计, 距发薪]；
-    /// 白干中 (当天开始、应出勤日) 为 [今日结算, 今日扣款, 本月累计]；休息日为 [本月累计, 本月已上班, 距发薪]。
+    /// 白干中 (当天开始、应出勤日) 为 [今日结算, 今日扣款, 本月累计]；休息日为 [本月累计, 本月扣款, 距发薪]。
     /// 没设发薪日时第三项换成距离周末 (一年内没有休息日时不放)。金额取整到元、带千分位。
     static func boldStats(today: Today, body: Body) -> [StatItem] {
         let month = StatItem(title: "本月累计", value: Format.groupedMoney(today.monthToDate))
@@ -108,9 +110,9 @@ extension TodayPanel {
                 return [StatItem(title: "今日结算", value: Format.groupedMoney(0)), month, third].compactMap { $0 }
             }
             return [StatItem(title: "今日结算", value: Format.groupedMoney(earnings.cap)), deduction, month]
-        case .rest(let rest):
-            let attended = rest.stats.first { $0.title == "本月已上班" }
-            return [month, attended, third].compactMap { $0 }
+        case .rest:
+            let monthDeduction = StatItem(title: "本月扣款", value: Format.groupedMoney(today.monthDeduction))
+            return [month, monthDeduction, third].compactMap { $0 }
         }
     }
 }

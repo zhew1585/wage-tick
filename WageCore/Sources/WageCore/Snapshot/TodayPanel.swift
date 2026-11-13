@@ -27,8 +27,8 @@ public struct TodayPanel: Sendable, Equatable {
     public let cowScene: CowScene
     /// 头图里小牛头顶的气泡 (与悬浮小牛同一句)。
     public let cowBubble: FloatingCowBubble
-    /// 大胆版的进度格 (每格 1 小时)；休息日没在白干时为 nil。
-    public let blocks: HourBlocks?
+    /// 大胆版的进度格：上班日每格 1 小时，休息日每个本月应出勤日一格。
+    public let blocks: HourBlocks
     /// 首页头图气泡里的短台词 (未上班、已下班、休息日、发薪当天)；其余场景为 nil，气泡写倒计时 (`cowBubble`)。
     public let heroQuip: String?
     /// 大胆版头图标题 (见 `heroKicker`)。
@@ -152,7 +152,8 @@ extension TodayPanel {
         cowScene = scene
         cowBubble = FloatingCowBubble(scene: scene, today: today, now: now)
         let regular = Self.regularBody(today: today, now: now, holidays: holidays)
-        blocks = today.unpaidWork.running.map { HourBlocks(today: today, running: $0, now: now) } ?? HourBlocks(today: today, now: now)
+        blocks = today.unpaidWork.running.map { HourBlocks(today: today, running: $0, now: now) }
+            ?? HourBlocks(today: today, now: now) ?? HourBlocks(restMonthOf: today)
         if let running = today.unpaidWork.running {
             body = .unpaidWork(UnpaidWorkPanel(today: today, running: running, now: now, todayStats: regular.stats))
         } else {

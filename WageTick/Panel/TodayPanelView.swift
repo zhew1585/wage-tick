@@ -76,13 +76,11 @@ struct TodayPanelView: View {
         }
     }
 
-    /// 头图下面：提示条、进度格 (休息日没在白干时没有)、扣款超过日薪的提示、统计行、攒钱队列。
+    /// 头图下面：提示条、进度格 (上班日按小时、休息日按本月上班日)、扣款超过日薪的提示、统计行、攒钱队列。
     private func homeSections(_ panel: TodayPanel) -> some View {
         VStack(spacing: Spacing.s16) {
             notices(panel.notices)
-            if let blocks = panel.blocks {
-                HourBlocksView(blocks: blocks)
-            }
+            HourBlocksView(blocks: panel.blocks)
             if case .attendance(let attendance) = panel.body, let notice = attendance.notice {
                 Text(notice).font(AppFont.caption).foregroundStyle(Palette.accent).frame(maxWidth: .infinity, alignment: .leading)
             }

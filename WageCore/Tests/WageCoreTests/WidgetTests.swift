@@ -130,7 +130,7 @@ struct WidgetSnapshotTests {
         #expect(widget.tone == .rest)
         #expect(widget.main == .rest(WidgetRest(headline: "今天休息", nextAttendanceText: "下个上班日 2月16日 周一", daysUntilWork: 2)))
         #expect(widget.scene == .restDay)
-        #expect(widget.blocks == nil)
+        #expect(widget.blocks?.label.hasPrefix("本月已搬砖") == true)
         #expect(widget.sideStats.map(\.title) == ["距离周末", "本月累计"])
     }
 

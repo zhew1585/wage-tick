@@ -96,9 +96,10 @@ struct BoldHero<Number: View>: View {
                     .foregroundStyle(theme.kicker)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    .frame(maxWidth: .infinity, minHeight: 36, maxHeight: 36, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: 34, maxHeight: 34, alignment: .leading)
+                // Archivo Black 的字框上方留白大，往上收一点，数字贴着标题 (设计稿)。
                 number()
-                    .padding(.top, Spacing.s4)
+                    .padding(.top, -10)
                 if let caption {
                     HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
                         if let captionIcon { PhosphorIcon(captionIcon, size: 13).iconOnTextBaseline() }

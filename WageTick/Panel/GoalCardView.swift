@@ -97,7 +97,7 @@ struct BoldGoalCard: View {
     }
 }
 
-/// 排队中目标缩成并排的小胶囊：surface 底，名称 12/700，右侧短版预计。悬停显示完整预计。
+/// 排队中目标缩成并排的小胶囊：surface 底，名称 12/700，右侧预计到手的日期。悬停显示完整预计。
 private struct QueuedGoalChips: View {
     let goals: [QueuedGoalCard]
 
@@ -107,7 +107,9 @@ private struct QueuedGoalChips: View {
                 HStack(spacing: Spacing.s6) {
                     Text(goal.name).font(AppFont.ui(12, .bold)).foregroundStyle(Palette.ink)
                     Spacer(minLength: Spacing.s4)
-                    Text(goal.shortEstimate).font(AppFont.num(10)).foregroundStyle(Palette.muted)
+                    // 设计稿只写日期 (「11月26日」)，胶囊窄，去掉快照短版预计前面的「预计」。
+                    Text(goal.shortEstimate.replacingOccurrences(of: "预计 ", with: ""))
+                        .font(AppFont.num(10)).foregroundStyle(Palette.muted)
                 }
                 .lineLimit(1)
                 .padding(.horizontal, Spacing.s12)

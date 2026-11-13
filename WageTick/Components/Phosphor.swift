@@ -57,6 +57,7 @@ enum Phosphor: String {
     case trendUp = "trend-up"
     case pause
     case moon
+    case sun
 
     var image: Image {
         Image("Phosphor/\(rawValue)").renderingMode(.template)

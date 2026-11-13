@@ -10,7 +10,7 @@ struct HourBlocksTests {
     @Test("上班中 15:00：7 格填 4 格，写已搬砖 4 / 7 小时、57%，下面上班、饭点、下班")
     func working() throws {
         let panel = try #require(snapshot(of: try onboarded(), at: standardDay(15, 0)).panel)
-        let blocks = try #require(panel.blocks)
+        let blocks = panel.blocks
 
         #expect(blocks.count == 7)
         #expect(abs(blocks.filled - 4) < 0.01)
@@ -28,7 +28,7 @@ struct HourBlocksTests {
     @Test("已下班：7 格全满")
     func offWork() throws {
         let panel = try #require(snapshot(of: try onboarded(), at: standardDay(18, 30)).panel)
-        let blocks = try #require(panel.blocks)
+        let blocks = panel.blocks
 
         #expect(blocks.filled == 7)
         #expect(blocks.value == "100%")
@@ -38,7 +38,7 @@ struct HourBlocksTests {
     @Test("下班后白干 1:05：工时格全满，多一格超时，右上 +1:05")
     func unpaidAfterWork() throws {
         let state = try applied(.startUnpaidWork, to: try onboarded(), at: standardDay(18, 0))
-        let blocks = try #require(snapshot(of: state, at: standardDay(19, 5, 12)).panel?.blocks)
+        let blocks = try #require(snapshot(of: state, at: standardDay(19, 5, 12)).panel).blocks
 
         #expect(blocks.count == 7)
         #expect(blocks.filled == 7)
@@ -52,8 +52,8 @@ struct HourBlocksTests {
     func unpaidOnRestDay() throws {
         let saturday = { (hour: Int, minute: Int) in moment(2026, 2, 14, hour, minute) }
         let state = try applied(.startUnpaidWork, to: try onboarded(), at: saturday(10, 0))
-        let short = try #require(snapshot(of: state, at: saturday(11, 30)).panel?.blocks)
-        let long = try #require(snapshot(of: state, at: saturday(20, 0)).panel?.blocks, "超过一整天")
+        let short = try #require(snapshot(of: state, at: saturday(11, 30)).panel).blocks
+        let long = try #require(snapshot(of: state, at: saturday(20, 0)).panel, "超过一整天").blocks
 
         #expect(short.count == 7)
         #expect(abs(short.filled - 1.5) < 0.01)
@@ -65,12 +65,17 @@ struct HourBlocksTests {
         #expect(long.value == "+10:00")
     }
 
-    @Test("休息日没在白干：没有进度格")
+    @Test("休息日没在白干：每个本月上班日一格，已过的填满，统计行为本月累计、本月扣款、距离周末")
     func restDay() throws {
         let saturday = moment(2026, 2, 14, 10, 0)
         let panel = try #require(snapshot(of: try onboarded(), at: saturday).panel)
 
-        #expect(panel.blocks == nil)
+        #expect(panel.blocks.count == 20)
+        #expect(panel.blocks.label == "本月已搬砖 \(Int(panel.blocks.filled)) / 20 天")
+        #expect(panel.blocks.startText == "2月1日")
+        #expect(panel.blocks.endText == "2月28日")
+        #expect(panel.boldStats.map(\.title) == ["本月累计", "本月扣款", "距离周末"])
+        #expect(panel.heroCaption.icon == .sun)
         #expect(panel.cowScene == .restDay)
     }
 
@@ -82,7 +87,7 @@ struct HourBlocksTests {
         #expect(caption(standardDay(9, 15)) == HeroCaption(icon: .alarm, text: "10:00 开工"))
         #expect(caption(standardDay(15, 0)) == HeroCaption(icon: .rising, text: "每秒 +¥0.0397 · 时薪 ¥142.86"))
         #expect(caption(standardDay(12, 30)) == HeroCaption(icon: .pause, text: "13:00 继续计钱"))
-        #expect(caption(moment(2026, 2, 14, 10, 0)) == HeroCaption(icon: .alarm, text: "周一 10:00 开工"))
+        #expect(caption(moment(2026, 2, 14, 10, 0)) == HeroCaption(icon: .sun, text: "周一 10:00 开工"))
         let unpaid = try applied(.startUnpaidWork, to: state, at: standardDay(18, 0))
         #expect(snapshot(of: unpaid, at: standardDay(19, 5)).panel?.heroCaption
             == HeroCaption(icon: .falling, text: "18:00 起白干 · 每秒倒贴 ¥0.0397"))

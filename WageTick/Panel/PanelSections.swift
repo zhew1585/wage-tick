@@ -228,7 +228,8 @@ struct HourBlocksView: View {
                 Spacer()
                 Text(blocks.value).font(AppFont.heavy(22)).foregroundStyle(blocks.isUnpaid ? Palette.hot : Palette.accent)
             }
-            HStack(spacing: Spacing.s4) {
+            // 休息日按本月上班日排二十来格，格子窄，间隔也收一点。
+            HStack(spacing: blocks.count > 12 ? Spacing.s3 : Spacing.s4) {
                 ForEach(0..<blocks.count, id: \.self) { index in
                     cell(fill: min(max(blocks.filled - Double(index), 0), 1))
                 }

@@ -76,6 +76,18 @@ extension HourBlocks {
         return ("\(time(plan.start)) 上班", lunch, "\(time(plan.end)) 下班")
     }
 
+    /// 休息日 (含全天请假，没在白干)：每个本月应出勤日一格，已过的填满，如「本月已搬砖 5 / 20 天」「25%」，下面写月初、月底。
+    init(restMonthOf today: Today) {
+        let total = max(1, today.monthAttendanceDays)
+        let attended = min(today.attendedDays, total)
+        let days = today.date.yearMonth.days
+        self.init(
+            count: total, filled: Double(attended), overtime: false,
+            label: "本月已搬砖 \(attended) / \(total) 天", value: "\(attended * 100 / total)%", isUnpaid: false,
+            startText: days.first.map(Format.monthDay), middleText: nil, endText: days.last.map(Format.monthDay)
+        )
+    }
+
     /// 工时换成格数：四舍五入到整小时，至少 1 格。
     private static func count(milliseconds: Int) -> Int {
         max(1, Int((Double(milliseconds) / 3_600_000).rounded()))

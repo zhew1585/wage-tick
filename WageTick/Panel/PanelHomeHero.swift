@@ -36,6 +36,7 @@ struct PanelHomeHero: View {
         switch icon {
         case .rising: .trendUp
         case .alarm: .alarm
+        case .sun: .sun
         case .pause: .pause
         case .leave: .umbrella
         case .moon: .moon
