@@ -1,15 +1,13 @@
 import SwiftUI
 import WageCore
 
-/// 攒钱队列 (PRD F8)：line 描边的卡片，整组按住一行上下拖动排序【D6】。
-/// 第一行是累计中 (accent-soft 底，进度条、累计额 / 目标金额、预计完成，设计稿 P3 目标管理 · 760)，其余排队中。
-/// 第一行的样子按「眼下排在第几」决定，拖到第一位的行即时显示成累计中，内容取快照里的 `asFirst` 预览。
-/// 被拖的行实时跟着鼠标，其余行带动画让位，松手才把新顺序交给核心。
+/// 攒钱队列 (PRD F8，大胆版设计稿「目标-攒钱队列」)：第一个 (累计中) 是首页同款墨色大卡 (`BoldGoalCard`，右上「队列 1/N」)，
+/// 其余排队中的一个一张描边卡 (橙色大序号、名称与预计、金额、拖拽手柄)。整组按住任一张上下拖动排序【D6】，拖到第一个的松手即成为累计中。
+/// 被拖的卡实时跟着鼠标，其余卡带动画让位，松手才把新顺序交给核心；拖动中每张卡保持原来的样子 (大卡还是大卡)，松手后按新顺序重画。
 /// 用列表内的拖动手势而不是系统拖放 (`onDrag`)：系统拖放要生成拖拽图、走跨 App 的拖放流程，起拖慢、跟手差。
-/// - 拖动距离在列表自己的坐标系 (`coordinateSpace`) 里量：在被拖的行里量的话，行一动坐标跟着动，会一抖一抖。
-/// - 被拖的行不参与换位动画 (它的位移由偏移量直接抵掉)，只有让位的行做动画。
-/// - 卡片不用 `clipShape` 裁圆角：行带 `zIndex` 时裁切会套到每一行上，悬停底色变成一块块圆角；改为首末行自己画外侧圆角。
-/// 所有行同一个固定行高 (`QueueGoalRowView.height`)，按拖动距离算落点，不用逐行量尺寸。
+/// - 拖动距离在列表自己的坐标系 (`coordinateSpace`) 里量：在被拖的卡里量的话，卡一动坐标跟着动，会一抖一抖。
+/// - 大卡和小卡高度不同，每张卡量出自己的高度，按被拖卡的中心越过了哪几张卡的中心算落点。
+/// 编辑、删除在悬停时出现的按钮或右键菜单里，点卡片本身不做任何事。
 struct GoalQueueList: View {
     let rows: [QueueGoalRow]
     let edit: (QueueGoalRow) -> Void
@@ -17,38 +15,40 @@ struct GoalQueueList: View {
     /// 松手后攒钱队列的新顺序 (全部未完成目标)。
     let reorder: ([Int]) -> Void
 
-    /// 正在拖的那行，以及它拖动开始时的位置和当前的拖动距离。
+    /// 正在拖的那张，以及它拖动开始时的位置和当前的拖动距离。
     @State private var drag: (id: Int, from: Int, offset: CGFloat)?
+    /// 每张卡量出来的高度，按目标编号。
+    @State private var heights: [Int: CGFloat] = [:]
 
-    /// 相邻两行的间距：行高加 1pt 分隔线。
-    private static let slot = QueueGoalRowView.height + 1
+    private static let spacing = Spacing.s10
     private static let space = "goalQueue"
 
     var body: some View {
         let order = currentOrder
-        let shape = RoundedRectangle(cornerRadius: Radius.card)
-        VStack(spacing: 0) {
+        VStack(spacing: Self.spacing) {
             ForEach(Array(order.enumerated()), id: \.element.id) { index, row in
-                if index > 0 { CardDivider() }
                 let isDragged = drag?.id == row.id
-                QueueGoalRowView(
-                    row: row,
-                    isFirst: index == 0,
-                    isLast: index == order.count - 1,
-                    state: isDragged ? .dragging : (drag == nil ? .idle : .othersDragging),
-                    edit: { edit(row) },
-                    delete: { delete(row) }
-                )
-                .offset(y: isDragged ? draggedOffset(at: index) : 0)
-                .zIndex(isDragged ? 1 : 0)
-                .transaction { if isDragged { $0.animation = nil } }
-                .gesture(dragGesture(for: row))
+                card(row, index: index, isDragged: isDragged)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { heights[row.id] = $0 }
+                    .offset(y: isDragged ? draggedOffset(in: order) : 0)
+                    .zIndex(isDragged ? 1 : 0)
+                    .transaction { if isDragged { $0.animation = nil } }
+                    .gesture(dragGesture(for: row))
             }
         }
         .animation(.easeOut(duration: 0.15), value: order.map(\.id))
         .coordinateSpace(name: Self.space)
-        .background(Palette.card, in: shape)
-        .overlay(shape.strokeBorder(Palette.line, lineWidth: 1))
+    }
+
+    /// 累计中 (核心给的第一个) 画大卡，其余画描边卡，序号按眼下 (拖动中临时) 的位置。
+    @ViewBuilder
+    private func card(_ row: QueueGoalRow, index: Int, isDragged: Bool) -> some View {
+        let state: QueueCardState = isDragged ? .dragging : (drag == nil ? .idle : .othersDragging)
+        if row.id == rows.first?.id {
+            AccumulatingGoalCard(row: row, total: rows.count, state: state, edit: { edit(row) }, delete: { delete(row) })
+        } else {
+            QueuedGoalCardView(row: row, number: index + 1, state: state, edit: { edit(row) }, delete: { delete(row) })
+        }
     }
 
     /// 拖动中按落点临时换过位置的顺序；没在拖时就是核心给的顺序。
@@ -60,24 +60,37 @@ struct GoalQueueList: View {
         return order
     }
 
-    /// 按拖动距离算出的落点，夹在列表首尾之间。
+    private func height(_ row: QueueGoalRow) -> CGFloat {
+        heights[row.id] ?? QueuedGoalCardView.height
+    }
+
+    /// 核心给的顺序里每张卡的上沿。
+    private var tops: [CGFloat] {
+        rows.indices.map { index in
+            rows[..<index].reduce(0) { $0 + height($1) + Self.spacing }
+        }
+    }
+
+    /// 落点：被拖卡此刻的中心越过了几张别的卡的中心，就排在第几。
     private func target(for drag: (id: Int, from: Int, offset: CGFloat)) -> Int {
-        let steps = Int((drag.offset / Self.slot).rounded())
-        return min(max(drag.from + steps, 0), rows.count - 1)
+        let tops = tops
+        let center = tops[drag.from] + height(rows[drag.from]) / 2 + drag.offset
+        return rows.indices.filter { $0 != drag.from && tops[$0] + height(rows[$0]) / 2 < center }.count
     }
 
-    /// 被拖的行：抵掉它在临时顺序里已经挪动的格数，保持贴着鼠标。
-    private func draggedOffset(at index: Int) -> CGFloat {
-        guard let drag else { return 0 }
-        return drag.offset - CGFloat(index - drag.from) * Self.slot
+    /// 被拖的卡：抵掉它在临时顺序里的新位置，保持贴着鼠标。
+    private func draggedOffset(in order: [QueueGoalRow]) -> CGFloat {
+        guard let drag, let index = order.firstIndex(where: { $0.id == drag.id }) else { return 0 }
+        let laidOut = order[..<index].reduce(0) { $0 + height($1) + Self.spacing }
+        return tops[drag.from] + drag.offset - laidOut
     }
 
-    /// 拖动距离夹在列表范围内：被拖的行最多到第一行或最后一行的位置，不会拖出卡片。
-    private func clamped(_ translation: CGFloat) -> CGFloat {
-        guard let drag else { return translation }
-        let up = -CGFloat(drag.from) * Self.slot
-        let down = CGFloat(rows.count - 1 - drag.from) * Self.slot
-        return min(max(translation, up), down)
+    /// 拖动距离夹在列表范围内：被拖的卡最多到最上或最下，不会拖出列表。
+    private func clamped(_ translation: CGFloat, from: Int) -> CGFloat {
+        let tops = tops
+        guard let last = rows.indices.last else { return translation }
+        let bottom = tops[last] + height(rows[last]) - height(rows[from])
+        return min(max(translation, -tops[from]), bottom - tops[from])
     }
 
     private func dragGesture(for row: QueueGoalRow) -> some Gesture {
@@ -86,7 +99,9 @@ struct GoalQueueList: View {
                 if drag == nil, let from = rows.firstIndex(where: { $0.id == row.id }) {
                     drag = (row.id, from, 0)
                 }
-                drag?.offset = clamped(value.translation.height)
+                if let from = drag?.from {
+                    drag?.offset = clamped(value.translation.height, from: from)
+                }
             }
             .onEnded { _ in
                 guard drag != nil else { return }
@@ -97,151 +112,97 @@ struct GoalQueueList: View {
     }
 }
 
-/// 攒钱队列的一行，固定行高。`isFirst` 时是累计中的样子，否则是排队中。
-/// 悬停显示编辑、删除按钮 (排队中的行另叠一层 surface 底)，光标是张开的手 (可拖动排序)；拖动时浮起成一张带投影的小卡。
-/// 点整行不做任何事，编辑走铅笔按钮或右键菜单。
-private struct QueueGoalRowView: View {
-    enum DragState {
-        case idle
-        /// 这一行正被拖动。
-        case dragging
-        /// 别的行正被拖动：鼠标划过也不亮悬停底色、不出按钮。
-        case othersDragging
-    }
+/// 一张卡在拖动中的状态。
+private enum QueueCardState {
+    case idle
+    /// 这一张正被拖动。
+    case dragging
+    /// 别的卡正被拖动：鼠标划过也不出按钮。
+    case othersDragging
+}
 
+/// 累计中目标的墨色大卡：首页同款 `BoldGoalCard`，右上写「队列 1/N」；悬停时右上换成编辑、删除按钮。光标是张开的手 (可拖动排序)。
+private struct AccumulatingGoalCard: View {
     let row: QueueGoalRow
-    /// 排在第一位 (累计中)：首行也画卡片上侧圆角。
-    let isFirst: Bool
-    /// 排在最后：画卡片下侧圆角。
-    let isLast: Bool
-    let state: DragState
+    let total: Int
+    let state: QueueCardState
     let edit: () -> Void
     let delete: () -> Void
-
-    /// 行高固定，排序时按它算落点；累计中的三行信息 (名称与金额、进度条、预计完成) 要在这个高度内排下。
-    static let height: CGFloat = 76
-
-    private static let trackHeight: CGFloat = 6
-    private static let dragRadius = Radius.r10
 
     @State private var hovering = false
 
     var body: some View {
+        let showsButtons = hovering && state == .idle
+        BoldGoalCard(goal: row.asFirst, trailing: showsButtons ? nil : "队列 1/\(total)")
+            .overlay(alignment: .topTrailing) {
+                if showsButtons {
+                    HStack(spacing: Spacing.s10) {
+                        IconButton(systemName: "pencil", help: "编辑", color: .white.opacity(0.7), action: edit)
+                        IconButton(systemName: "trash", help: "删除", color: .white.opacity(0.7), action: delete)
+                    }
+                    .padding(.top, Spacing.s16)
+                    .padding(.trailing, Spacing.s16)
+                }
+            }
+            .shadow(color: state == .dragging ? Palette.ink.opacity(0.25) : .clear, radius: 10, y: 4)
+            .contentShape(Rectangle())
+            .cursor(state == .dragging ? .closedHand : .openHand)
+            .onHover { hovering = $0 }
+            .contextMenu {
+                Button("编辑", action: edit)
+                Button("删除", role: .destructive, action: delete)
+            }
+            .help("拖动调整顺序，排在第一个的就是累计中")
+    }
+}
+
+/// 排队中目标的描边卡 (高 58、圆角 16、墨色描边)：橙色大序号 (02、03…)、名称与「排队中 · 预计 11月26日」、金额、拖拽手柄。
+/// 悬停时金额前出现编辑、删除按钮；拖动时浮起一层投影。
+private struct QueuedGoalCardView: View {
+    let row: QueueGoalRow
+    /// 眼下排第几 (从 1 起)。
+    let number: Int
+    let state: QueueCardState
+    let edit: () -> Void
+    let delete: () -> Void
+
+    static let height: CGFloat = 58
+
+    @State private var hovering = false
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.r16)
         HStack(spacing: Spacing.s10) {
-            handle
-            if isFirst { accumulating } else { queued }
+            Text(String(format: "%02d", number))
+                .font(AppFont.heavy(22))
+                .foregroundStyle(Palette.accent)
+                .frame(minWidth: 32, alignment: .leading)
+            VStack(alignment: .leading, spacing: Spacing.s2) {
+                Text(row.name).font(AppFont.ui(14, .bold)).foregroundStyle(Palette.ink)
+                Text(row.estimate).font(AppFont.small).foregroundStyle(Palette.muted)
+            }
+            .lineLimit(1)
+            Spacer(minLength: Spacing.s4)
+            if hovering && state == .idle {
+                IconButton(systemName: "pencil", help: "编辑", action: edit)
+                IconButton(systemName: "trash", help: "删除", action: delete)
+            }
+            Text(row.amountText).font(AppFont.heavy(15)).foregroundStyle(Palette.ink).lineLimit(1).fixedSize()
+            PhosphorIcon(.GoalIcon.dotsSixVertical, size: 14).foregroundStyle(Palette.muted)
         }
-        .padding(.horizontal, Spacing.s14)
+        .padding(.leading, Spacing.s14)
+        .padding(.trailing, Spacing.s12)
         .frame(height: Self.height)
-        .background { background }
-        .contentShape(Rectangle())
+        .background(Palette.bg, in: shape)
+        .overlay(shape.strokeBorder(Palette.ink, lineWidth: 1))
+        .shadow(color: state == .dragging ? Palette.shadow : .clear, radius: 8, y: 3)
+        .contentShape(shape)
         .cursor(state == .dragging ? .closedHand : .openHand)
         .onHover { hovering = $0 }
         .contextMenu {
             Button("编辑", action: edit)
             Button("删除", role: .destructive, action: delete)
         }
-    }
-
-    private var handle: some View {
-        PhosphorIcon(.list, size: 14)
-            .foregroundStyle(isFirst ? Palette.accent : Palette.muted)
-            .help("拖动调整顺序，排在第一个的就是累计中")
-    }
-
-    private var showsButtons: Bool { hovering && state == .idle }
-
-    @ViewBuilder
-    private var buttons: some View {
-        if showsButtons {
-            IconButton(systemName: "pencil", help: "编辑", action: edit)
-            IconButton(systemName: "trash", help: "删除", action: delete)
-        }
-    }
-
-    /// 累计中：名称与「累计中」标记、累计额 / 目标金额；进度条；预计完成。
-    private var accumulating: some View {
-        let card = row.asFirst
-        return VStack(alignment: .leading, spacing: Spacing.s6) {
-            HStack(spacing: Spacing.s6) {
-                Text(card.name).font(AppFont.ui(14, .bold)).foregroundStyle(Palette.ink).lineLimit(1)
-                Text("累计中")
-                    .font(AppFont.chip)
-                    .foregroundStyle(Palette.accent)
-                    .padding(.horizontal, Spacing.s6)
-                    .padding(.vertical, Spacing.s1)
-                    .background(Palette.card, in: Capsule())
-                    .fixedSize()
-                Spacer(minLength: Spacing.s4)
-                buttons
-                amount(card)
-            }
-            track(card.progress)
-            Text(card.estimate).font(AppFont.small).foregroundStyle(Palette.muted).lineLimit(1)
-        }
-    }
-
-    /// 排队中：名称与「排队中」，右边目标金额。
-    private var queued: some View {
-        HStack(spacing: Spacing.s10) {
-            VStack(alignment: .leading, spacing: Spacing.s2) {
-                Text(row.name).font(AppFont.bodySemibold).foregroundStyle(Palette.ink).lineLimit(1)
-                Text("排队中").font(AppFont.small).foregroundStyle(Palette.muted)
-            }
-            Spacer(minLength: Spacing.s8)
-            buttons
-            Text(row.amountText).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.ink)
-        }
-    }
-
-    /// accent 大号累计额，后跟小号「/ 目标金额」。
-    private func amount(_ card: ActiveGoalCard) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.s4) {
-            Text(card.accumulatedText).font(AppFont.num(15, .bold)).foregroundStyle(Palette.accent)
-            Text("/ \(card.targetText)").font(AppFont.numSmall).foregroundStyle(Palette.muted)
-        }
-        .lineLimit(1)
-        .fixedSize()
-    }
-
-    private func track(_ progress: Double) -> some View {
-        Capsule()
-            .fill(Palette.card)
-            .frame(height: Self.trackHeight)
-            .overlay(alignment: .leading) {
-                GeometryReader { proxy in
-                    Capsule()
-                        .fill(Palette.accent)
-                        .frame(width: proxy.size.width * min(max(progress, 0), 1))
-                }
-            }
-    }
-
-    @ViewBuilder
-    private var background: some View {
-        switch state {
-        case .dragging:
-            RoundedRectangle(cornerRadius: Self.dragRadius)
-                .fill(isFirst ? Palette.accentSoft : Palette.card)
-                .overlay(RoundedRectangle(cornerRadius: Self.dragRadius).strokeBorder(Palette.line, lineWidth: 1))
-                .shadow(color: Palette.shadow, radius: 6, y: 2)
-        case _ where isFirst:
-            outerShape.fill(Palette.accentSoft)
-        case .idle where hovering:
-            outerShape.fill(Palette.surface)
-        default:
-            Color.clear
-        }
-    }
-
-    /// 首行带卡片上侧圆角、末行带下侧圆角，和卡片外框贴合。
-    private var outerShape: UnevenRoundedRectangle {
-        let radius = Radius.card
-        return UnevenRoundedRectangle(
-            topLeadingRadius: isFirst ? radius : 0,
-            bottomLeadingRadius: isLast ? radius : 0,
-            bottomTrailingRadius: isLast ? radius : 0,
-            topTrailingRadius: isFirst ? radius : 0
-        )
+        .help("拖动调整顺序，排在第一个的就是累计中")
     }
 }
