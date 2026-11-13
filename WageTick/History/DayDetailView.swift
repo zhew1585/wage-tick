@@ -25,7 +25,8 @@ struct DayDetailView: View {
         HeroScroll { collapse in
             hero(collapse)
         } content: {
-            VStack(alignment: .leading, spacing: Spacing.s22) {
+            // 一屏放得下、不能空滑：块间距 18、底部 16 (原来 22 / 24 比可视区高 11pt)。
+            VStack(alignment: .leading, spacing: Spacing.s18) {
                 if let notice = detail.notice {
                     PanelNoticeBanner(text: notice)
                 }
@@ -39,7 +40,7 @@ struct DayDetailView: View {
             }
             .padding(.horizontal, Spacing.screen)
             .padding(.top, Spacing.s18)
-            .padding(.bottom, Spacing.s24)
+            .padding(.bottom, Spacing.s16)
         }
         .sheet(item: $deductionForm) { request in
             DeductionFormView(
