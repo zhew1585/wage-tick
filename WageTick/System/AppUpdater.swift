@@ -46,7 +46,7 @@ final class AppUpdater: NSObject {
         let version = info["CFBundleShortVersionString"] as? String ?? "?"
         let build = info["CFBundleVersion"] as? String ?? "?"
         versionText = "\(version) (\(build))"
-        driver = UpdateUserDriver(currentVersion: version)
+        driver = UpdateUserDriver(currentVersion: version, build: build)
         super.init()
         driver.onDeferred = { [weak self] version in self?.pendingVersion = version }
         let updater = SPUUpdater(hostBundle: .main, applicationBundle: .main, userDriver: driver, delegate: self)
