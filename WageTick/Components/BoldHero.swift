@@ -206,7 +206,7 @@ private struct HeroCow: View {
                     HeroBubble(content: bubble, accent: theme.bubbleAccent)
                         .frame(maxWidth: bubble.numeric ? 150 : 124, alignment: .trailing)
                         .fixedSize(horizontal: false, vertical: true)
-                        .offset(x: -6, y: act == .pose(.lyingFlat) ? 30 : -30)
+                        .offset(x: -6, y: act == .pose(.lyingFlat) ? 56 : -30)
                 }
             }
             .allowsHitTesting(false)

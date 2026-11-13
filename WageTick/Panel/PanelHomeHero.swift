@@ -84,6 +84,8 @@ private struct HeroDisplay {
             number = attendance.headline
             caption = attendance.caption
             paused = scene == .lunch || scene == .onLeave || scene == .offWork
+            // 已下班的数字定格成整数位多的结算额，缩小一点给躺平小牛的气泡让位置。
+            if scene == .offWork { size = 80 }
             compact = HeroAmount.split(number).integer
         case .unpaidWork(let unpaidWork):
             kicker = unpaidWork.label
