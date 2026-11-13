@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 头图 + 下面的内容一起放进滚动区：内容放不下时往下滑，头图从 320 收成 100 高的窄栏并钉在顶上，内容从它下面滑过。
-/// 头图也在滚动区里，鼠标停在头图上滚动一样有效；内容放得下时不滚动，头图保持完整。
+/// 头图也在滚动区里，鼠标停在头图上滚动一样有效；内容放得下时不滚动，头图保持完整。不显示滚动条，能滑就行。
 /// 底部固定的按钮栏不放进来，放在它下面 (`VStack { HeroScroll {…} content: {…}; 底部按钮栏 }`)。
 ///
 /// 用法：
@@ -33,9 +33,10 @@ struct HeroScroll<Hero: View, Content: View>: View {
                 .zIndex(1)
                 content()
             }
-            .background(OverlayScrollers())
+            .background(HiddenScrollers())
         }
         .coordinateSpace(name: Self.space)
+        .scrollIndicators(.hidden)
         .scrollBounceBehavior(.basedOnSize)
         .frame(maxHeight: .infinity, alignment: .top)
     }
