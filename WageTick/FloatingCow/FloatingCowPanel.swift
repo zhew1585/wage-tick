@@ -49,6 +49,8 @@ final class FloatingCowEventView: NSView {
     init<Content: View>(rootView: Content) {
         super.init(frame: .zero)
         let hosting = NSHostingView(rootView: rootView)
+        // 浮窗大小只由控制器按停放位置算好再设 (`FloatingCowController.applyFrame`)，不让 SwiftUI 内容的理想尺寸去拉伸窗口。
+        hosting.sizingOptions = []
         hosting.translatesAutoresizingMaskIntoConstraints = false
         addSubview(hosting)
         NSLayoutConstraint.activate([
