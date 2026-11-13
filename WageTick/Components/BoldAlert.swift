@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 大胆版的提醒弹窗 (替代系统 `alert`)：盖在窗口上的半透明墨色遮罩，中间一张白色圆角卡片，
+/// 大胆版的提醒弹窗 (替代系统 `alert`)：盖在窗口上的半透明墨色遮罩，中间一张白色圆角卡片，文字用圆润的站酷快乐体，
 /// 站酷体一句话和一个墨色胶囊「知道了」。回车或 Esc 关掉，点遮罩也关。
 ///
 /// 用法：`.boldAlert($message)`；`message` 不为 nil 时弹出，关掉后置回 nil。
@@ -17,7 +17,7 @@ struct BoldAlert: View {
                 .onTapGesture(perform: dismiss)
             VStack(spacing: Spacing.s16) {
                 Text(message)
-                    .font(AppFont.fun(22))
+                    .font(AppFont.round(22))
                     .foregroundStyle(Palette.ink)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -51,7 +51,7 @@ extension View {
     }
 }
 
-/// 大胆版的二次确认弹窗 (替代系统确认 `alert`)：同 `BoldAlert` 的遮罩与白卡片，站酷体标题、一段说明，
+/// 大胆版的二次确认弹窗 (替代系统确认 `alert`)：同 `BoldAlert` 的遮罩与白卡片，站酷快乐体标题、一段说明，
 /// 下面左「取消」描边、右确认按钮 (危险操作红色实心)。Esc、点遮罩等同取消；回车不触发，免得误按清空。
 struct BoldConfirm: View {
     let title: String
@@ -68,7 +68,7 @@ struct BoldConfirm: View {
                 .onTapGesture(perform: cancel)
             VStack(spacing: Spacing.s12) {
                 Text(title)
-                    .font(AppFont.fun(22))
+                    .font(AppFont.round(22))
                     .foregroundStyle(Palette.ink)
                 Text(message)
                     .font(AppFont.caption)
