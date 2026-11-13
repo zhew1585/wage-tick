@@ -1,9 +1,10 @@
 import SwiftUI
 import WageCore
 
-/// 目标达成庆祝动画 (PRD F9、AC-GPRG-04)：盖在今日概览面板上，彩纸落下、中间弹出达成文字。
-/// 文字原样取自快照的 `GoalCelebration`。播放约 3 秒后自动消失，点一下提前关掉；结束时调用 `finish`。
-/// 系统开了「减弱动态效果」时只显示文字，不落彩纸。
+/// 目标达成庆祝动画 (PRD F9、AC-GPRG-04，设计稿「弹窗-目标达成」)：盖在今日概览面板上，暗色遮罩、彩纸落下，
+/// 中间弹出撒钱的小牛和一张高亮黄卡片 (「目标达成」+ 放大的目标名)，下面一行「点一下关掉」。
+/// 目标名原样取自快照的 `GoalCelebration`。播放约 3 秒后自动消失，点一下提前关掉；结束时调用 `finish`。
+/// 系统开了「减弱动态效果」时不落彩纸、小牛不动，卡片直接出现。
 struct CelebrationView: View {
     let celebration: GoalCelebration
     let finish: () -> Void
@@ -17,7 +18,7 @@ struct CelebrationView: View {
     private static let duration: Double = 3
     private static let confettiCount = 36
     /// 播放时盖在面板上的一层暗色。
-    private static let dimOpacity = 0.15
+    private static let dimOpacity = 0.6
 
     var body: some View {
         GeometryReader { geometry in
@@ -26,15 +27,17 @@ struct CelebrationView: View {
                 if !reduceMotion && !pieces.isEmpty {
                     ConfettiLayer(pieces: pieces, size: geometry.size)
                 }
-                Text(celebration.message)
-                    .font(.title3.weight(.semibold))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 14)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-                    .scaleEffect(started || reduceMotion ? 1 : 0.4)
-                    .opacity(started ? 1 : 0)
-                    .padding(.horizontal, 20)
+                VStack(spacing: 0) {
+                    FloatingCowBody(act: .pose(.paid), motion: reduceMotion ? .rest : .live)
+                        .frame(width: 180, height: 240)
+                    card
+                    Text("点一下关掉")
+                        .font(AppFont.ui(12, .medium))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .padding(.top, Spacing.s16)
+                }
+                .scaleEffect(started || reduceMotion ? 1 : 0.4)
+                .opacity(started ? 1 : 0)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
@@ -42,9 +45,12 @@ struct CelebrationView: View {
         // 点一下提前结束：整块手型光标；是动画，不加底色。
         .onTapGesture(perform: finish)
         .pointingHandCursor()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(celebration.message)
+        .accessibilityAddTraits(.isButton)
         .onAppear {
             pieces = ConfettiPiece.random(count: Self.confettiCount, within: Self.duration)
-            // 文字弹出：带一点回弹。
+            // 小牛与卡片弹出：带一点回弹。
             withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) { started = true }
         }
         .task {
@@ -53,6 +59,24 @@ struct CelebrationView: View {
             guard !Task.isCancelled else { return }
             finish()
         }
+    }
+
+    /// 高亮黄卡片 (墨色 3pt 描边、圆角 24)：站酷体「目标达成」与 Archivo Black 的目标名 (太长时缩小)。
+    private var card: some View {
+        let shape = RoundedRectangle(cornerRadius: 24)
+        return VStack(spacing: Spacing.s4) {
+            Text("目标达成").font(AppFont.fun(22)).foregroundStyle(Palette.ink)
+            Text(celebration.goalName)
+                .font(AppFont.heavy(40))
+                .foregroundStyle(Palette.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.4)
+        }
+        .padding(.horizontal, Spacing.s24)
+        .padding(.vertical, Spacing.s18)
+        .frame(minWidth: 220, maxWidth: 260)
+        .background(Palette.highlight, in: shape)
+        .overlay(shape.strokeBorder(Palette.ink, lineWidth: 3))
     }
 }
 
@@ -92,7 +116,7 @@ private struct ConfettiPiece: Identifiable {
     /// 落下过程中转过的角度。
     let spin: Double
 
-    private static let palette: [Color] = [Palette.accent, Palette.money, Palette.loss, Palette.ink, Palette.line]
+    private static let palette: [Color] = [Palette.highlight, Palette.accent, Palette.lime, .white, HeroTheme.sky.top]
 
     /// `count` 片彩纸，都在 `duration` 秒内落完：延迟至多占 1/5，下落用时占剩下的一半到全部。
     static func random(count: Int, within duration: Double) -> [ConfettiPiece] {

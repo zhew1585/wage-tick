@@ -22,7 +22,6 @@ struct TodayWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: Self.kind, provider: TodayTimelineProvider()) { entry in
             TodayWidgetEntryView(entry: entry)
-                .containerBackground(Palette.bg, for: .widget)
         }
         .configurationDisplayName("今日概览")
         .description("今天赚了多少、离下班还有多久，还有攒钱目标的进度。")
@@ -38,8 +37,10 @@ struct TodayWidgetEntryView: View {
     let entry: WidgetEntry
     @Environment(\.widgetFamily) private var family
 
+    /// 底色随状态与尺寸变 (`WidgetBackground`)：小号、中号铺满状态色，大号米白底。
     var body: some View {
         WidgetContentView(snapshot: entry.snapshot, size: size, clock: WidgetClock(now: entry.date))
+            .containerBackground(for: .widget) { WidgetBackground(snapshot: entry.snapshot, size: size) }
     }
 
     private var size: WidgetSize {

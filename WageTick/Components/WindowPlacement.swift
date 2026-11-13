@@ -48,7 +48,7 @@ final class WindowPlacement: NSObject {
 
     /// 标题栏那一条落在某块屏幕的可用区域里，牛马才拖得回来。
     private func isOnScreen(_ frame: NSRect) -> Bool {
-        let titlebar = NSRect(x: frame.minX, y: frame.maxY - WindowChrome.Titlebar.standard.height, width: frame.width, height: WindowChrome.Titlebar.standard.height)
+        let titlebar = NSRect(x: frame.minX, y: frame.maxY - WindowChrome.Titlebar.hero.height, width: frame.width, height: WindowChrome.Titlebar.hero.height)
         return NSScreen.screens.contains { $0.visibleFrame.intersects(titlebar) }
     }
 

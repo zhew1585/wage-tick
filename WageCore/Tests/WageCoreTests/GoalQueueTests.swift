@@ -161,7 +161,10 @@ struct GoalQueueDeletionTests {
         let done = try sending(.advance, to: state, at: standardDay(15, 0))
         let deleted = try sending(.deleteGoal(id: try goalID("A", in: done)), to: done, at: standardDay(16, 0))
 
-        #expect(try goalList(deleted, at: standardDay(16, 0)) == GoalList(queue: goalList(done, at: standardDay(16, 0)).queue, completed: []))
+        let before = try goalList(done, at: standardDay(16, 0))
+        #expect(try goalList(deleted, at: standardDay(16, 0)) == GoalList(
+            queue: before.queue, completed: [], queueFinishText: before.queueFinishText, completedSummary: nil
+        ))
         #expect(try activeGoal(deleted, at: standardDay(16, 0)) == activeGoal(done, at: standardDay(16, 0)))
     }
 
@@ -508,5 +511,85 @@ struct GoalQueueListTests {
         ])
         #expect(abs(previews[0].progress - 0.1) < 1e-9)
         #expect(previews[1].progress == 1)
+    }
+}
+
+@Suite("目标队列：大胆版目标页与已到手页")
+struct GoalBoldPageTests {
+    @Test("目标页排队中的每一行带按位置的预计，头图写全部攒完的预计；与面板同一套算法")
+    func queuedEstimatesAndFinish() throws {
+        // 同 AC-GPRG-06：A 9 天到 2 月 24 日，B 再 3 天到 2 月 27 日，C 再 3 天到 3 月 4 日。
+        let list = try goalList(try threeGoals(), at: standardDay(11, 0))
+
+        #expect(list.queue.map(\.estimate) == ["还需搬砖 9 天 · 2月24日", "排队中 · 预计 2月27日", "排队中 · 预计 3月4日"])
+        #expect(list.queueFinishText == "全部攒完 预计 3月4日")
+    }
+
+    @Test("全部攒完跨年时写年月；队列为空时没有")
+    func finishInLaterYear() throws {
+        let state = try creatingGoals([("A", 10000), ("B", 300_000)], in: try onboarded(), at: standardDay(9, 0))
+
+        // A 到 2026 年 2 月 24 日；B 300 天，双休下正好 60 周，再过 420 天到 2027 年 4 月 20 日。
+        let finish = try goalList(state, at: standardDay(11, 0)).queueFinishText
+        #expect(finish == "全部攒完 预计 2027年4月")
+        #expect(try goalList(try onboarded(), at: standardDay(11, 0)).queueFinishText == nil)
+    }
+
+    @Test("本月没有要上班的日子时没法预计：排队中写暂时没法预计，没有全部攒完")
+    func noEstimateWithoutAttendanceDays() throws {
+        var state = try threeGoals()
+        for day in 1...28 where !LocalDate(year: 2026, month: 2, day: day).isSaturdayOrSunday {
+            state = try sending(.editDay(LocalDate(year: 2026, month: 2, day: day), .setOverride(.dayOff)), to: state, at: standardDay(9, 0))
+        }
+        let list = try goalList(state, at: standardDay(11, 0))
+
+        #expect(list.queue.dropFirst().map(\.estimate) == ["排队中 · 暂时没法预计", "排队中 · 暂时没法预计"])
+        #expect(list.queueFinishText == nil)
+    }
+
+    @Test("已到手：到手日期、按当前日薪折合搬砖天数 (1 位小数)，总结写总额与搬砖天数")
+    func completedRows() throws {
+        // 日薪 1000：1899 ≈ 1.9 天，1000 = 1.0 天；合计 2899 ≈ 2.9 天。
+        let first = try creatingGoal("AirPods Pro", 1899, in: try onboarded(), at: standardDay(9, 0))
+        let firstDone = try sending(.advance, to: first, at: moment(2026, 2, 13, 15, 0))
+        let second = try creatingGoal("Kindle", 1000, in: firstDone, at: moment(2026, 2, 13, 15, 0))
+        let done = try sending(.advance, to: second, at: moment(2026, 2, 17, 15, 0))
+        let list = try goalList(done, at: moment(2026, 2, 18, 9, 0))
+
+        #expect(list.completed.map { [$0.name, $0.amountText, $0.receivedText, $0.workDaysText] } == [
+            ["Kindle", "¥1000", "2月17日 到手", "≈ 搬砖 1.0 天"],
+            ["AirPods Pro", "¥1899", "2月13日 到手", "≈ 搬砖 1.9 天"],
+        ])
+        #expect(list.completedSummary == "共 ¥2899 · 搬砖 2.9 天")
+        #expect(list.completedYears.map { [String($0.year), $0.summary] } == [["2026", "2 件 · ¥2899"]])
+    }
+
+    @Test("已到手按年份分组，年份倒序，每年一个小计")
+    func completedByYear() throws {
+        let created = moment(2026, 12, 29, 9, 0)
+        let first = try creatingGoal("键盘", 100, in: try onboarded(at: created), at: created)
+        let firstDone = try sending(.advance, to: first, at: moment(2026, 12, 30, 15, 0))
+        let second = try creatingGoal("耳机", 300, in: firstDone, at: moment(2026, 12, 30, 15, 0))
+        let third = try creatingGoal("鼠标", 200, in: second, at: moment(2026, 12, 30, 15, 0))
+        let done = try sending(.advance, to: third, at: moment(2027, 1, 5, 15, 0))
+        let years = try goalList(done, at: moment(2027, 1, 6, 9, 0)).completedYears
+
+        #expect(years.map(\.year) == [2027, 2026])
+        #expect(years.map(\.summary) == ["2 件 · ¥500", "1 件 · ¥100"])
+        #expect(years[1].rows.map(\.receivedText) == ["12月30日 到手"])
+    }
+
+    @Test("本月日薪为 0 时已到手不写搬砖天数，总结只写总额；没有已完成时没有总结")
+    func completedWithoutDailyWage() throws {
+        let state = try sending(.advance, to: try creatingGoal("键盘", 500, in: try onboarded(), at: standardDay(9, 0)), at: standardDay(15, 0))
+        var off = state
+        for day in 1...28 where !LocalDate(year: 2026, month: 2, day: day).isSaturdayOrSunday {
+            off = try sending(.editDay(LocalDate(year: 2026, month: 2, day: day), .setOverride(.dayOff)), to: off, at: standardDay(16, 0))
+        }
+        let list = try goalList(off, at: standardDay(17, 0))
+
+        #expect(list.completed.map(\.workDaysText) == [nil])
+        #expect(list.completedSummary == "共 ¥500")
+        #expect(try goalList(try onboarded(), at: standardDay(11, 0)).completedSummary == nil)
     }
 }

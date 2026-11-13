@@ -2,7 +2,7 @@
 import AppKit
 import SwiftUI
 
-/// 离屏渲染引导两步的几个状态 (含双休、大小周两种休息模式)，存成 PNG，和设计稿 (P1 引导 · 1、2 · 760) 对照用。只在 Debug 构建里。
+/// 离屏渲染引导两步的几个状态 (含双休、大小周两种休息模式)，存成 PNG，和大胆版设计稿「引导-1工资」「引导-2作息」对照用。只在 Debug 构建里。
 /// `AppModel` 读写临时目录里的空状态 (用完删掉)，不碰 state.json；试算按此刻与空节假日表。
 ///
 /// 入口是 C 符号 `wagetick_render_onboarding_previews(目录)`，用法同 `PanelPreviews`：
@@ -27,6 +27,7 @@ private enum OnboardingPreviews {
         let scenes: [(String, OnboardingView)] = [
             ("P1-1-salary-empty", OnboardingView(model: model) {}),
             ("P1-1-salary-filled", OnboardingView(model: model, salaryText: "20000") {}),
+            ("P1-1-salary-missing-alert", OnboardingView(model: model, alertMessage: "一个月赚多少要告诉我哦") {}),
             ("P1-1-rest-alternating", OnboardingView(model: model, salaryText: "20000", restMode: .bigWeekNow) {}),
             ("P1-1-salary-daily", OnboardingView(model: model, salaryText: "200", payBasis: .daily) {}),
             ("P1-2-schedule", OnboardingView(model: model, step: .schedule, salaryText: "20000") {}),

@@ -25,6 +25,10 @@ public struct Today: Sendable, Equatable {
     public let monthToDate: Decimal
     /// 本月今天之前已过的应出勤日数。
     public let attendedDays: Int
+    /// 本月应出勤日数 (含今天之后的)。
+    let monthAttendanceDays: Int
+    /// 本月扣款：已过各应出勤日与今天的当日扣款之和 (扣钱 + 请假扣薪，同 GLOSSARY 的当日扣款)。
+    let monthDeduction: Decimal
     /// 明天起第一个应出勤日。
     public let nextAttendanceDay: LocalDate?
     /// 距离周末：到下一个休息日还有几天；一年内都没有休息日时为 nil。
@@ -80,6 +84,7 @@ extension Today {
         }
         let pastDays = month.days.filter { $0 < day && rule.isAttendanceDay($0) }
         let settledSum = pastDays.map { settle($0).cap }.reduce(0, +)
+        let pastDeduction = pastDays.map { settle($0).deductionTotal }.reduce(0, +)
         // 时薪按该日生效作息的标准工时，不受请假影响 (PRD 4.4.3 #4)。
         let clock = UnpaidWorkClock(profile: profile, rule: rule, dayRecords: dayRecords, now: now)
         let unpaidWorkToday = { (status: DayStatus) in
@@ -90,6 +95,7 @@ extension Today {
         payBasis = profile.pay(for: month).basis
         schedule = profile.schedule(on: day)
         attendedDays = pastDays.count
+        monthAttendanceDays = rule.attendanceDayCount(in: month)
         nextAttendanceDay = rule.nextAttendanceDay(after: day)
         restCountdown = rule.restCountdown(from: day)
         paydayCountdown = profile.payday.map { rule.paydayCountdown(from: day, payday: $0) }
@@ -100,6 +106,7 @@ extension Today {
             settlement = nil
             leave = nil
             monthToDate = settledSum
+            monthDeduction = pastDeduction
             unpaidWork = unpaidWorkToday(.restDay)
             return
         }
@@ -115,6 +122,7 @@ extension Today {
         settlement = todaySettlement
         leave = todayLeave
         monthToDate = settledSum + todayEarnings.earned
+        monthDeduction = pastDeduction + todaySettlement.deductionTotal
         unpaidWork = unpaidWorkToday(status)
     }
 }

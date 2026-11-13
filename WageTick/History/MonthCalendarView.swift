@@ -1,8 +1,9 @@
 import SwiftUI
 import WageCore
 
-/// 月日历 (PRD F11，设计稿 P5 月日历 · 760)：页头月份与上下月切换，月薪条 (可改该月月薪)，日历格子与图例，底部月小结。
-/// 颜色类型、格子金额与小字、月薪条、月小结的文字都取自快照的 `HistoryMonth`；点某天进单日详情。
+/// 月日历 (PRD F11，设计稿「历史-月日历」)：墨色头图写「2026年11月 · 已结算」与已结算金额、应出勤与日薪，
+/// 标题栏右侧是改工资与上下月切换；下面日历格子与图例，最底下固定一行本月扣款、请假、白干。
+/// 颜色类型、格子金额与小字、各项文字都取自快照的 `HistoryMonth`；点某天进单日详情。
 struct MonthCalendarView: View {
     let month: HistoryMonth
     /// 能看的月份 (安装当月至本月，倒序)，上下月切换按它判断有没有上一个、下一个月。
@@ -15,81 +16,72 @@ struct MonthCalendarView: View {
 
     @State private var editingSalary = false
 
-    private static let columnSpacing: CGFloat = Spacing.s4
-    private static let rowSpacing = Spacing.s5
+    private static let columnSpacing: CGFloat = 4.5
+    private static let rowSpacing: CGFloat = 7
     private static let columns = Array(repeating: GridItem(.flexible(), spacing: columnSpacing), count: 7)
+
+    private var summary: HistoryMonthSummary { month.summary }
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader(month.summary.title, back: back) { monthSwitcher }
-            ScrollBody {
+            HeroScroll { collapse in
+                hero(collapse)
+            } content: {
                 VStack(spacing: 0) {
-                    salaryRow
+                    // 排满 6 行的月份 (如 2026 年 11 月) 也要一屏放下、不能空滑：上下留白收紧到 12 / 12 / 10。
                     calendarGrid
-                        .padding(.horizontal, Spacing.s14)
-                        .padding(.top, Spacing.s16)
+                        .padding(.horizontal, Spacing.s16)
+                        .padding(.top, Spacing.s12)
+                    CalendarLegend(showsOverride: month.days.contains { $0.kind == .override })
+                        .padding(.horizontal, Spacing.s16)
+                        .padding(.top, Spacing.s12)
                         .padding(.bottom, Spacing.s10)
-                    CalendarLegend()
-                        .padding(.horizontal, Spacing.screen)
-                        .padding(.top, Spacing.s8)
-                        .padding(.bottom, Spacing.s18)
                 }
             }
-            HistoryFiguresRow(figures: month.footer, valueFont: AppFont.num(14, .semibold))
-                .padding(.horizontal, Spacing.screen)
-                .padding(.top, Spacing.s14)
-                .padding(.bottom, Spacing.s16)
-                .background(Palette.surface)
-                .overlay(alignment: .top) { CardDivider() }
+            // 已结算在头图里，底部只放扣款、请假、白干。
+            HistoryStatsBar(figures: [summary.deduction, summary.leave, summary.unpaidWork])
         }
-    }
-
-    /// 上一个月 (更早)、下一个月 (更晚)；到头了变淡、点不动。
-    private var monthSwitcher: some View {
-        let index = months.firstIndex(of: month.summary.month)
-        let older = index.flatMap { months.indices.contains($0 + 1) ? months[$0 + 1] : nil }
-        let newer = index.flatMap { $0 > 0 ? months[$0 - 1] : nil }
-        return HStack(spacing: Spacing.s16) {
-            switchButton(.caretLeft, help: "上个月", target: older)
-            switchButton(.caretRight, help: "下个月", target: newer)
-        }
-    }
-
-    private func switchButton(_ icon: Phosphor, help: String, target: YearMonth?) -> some View {
-        Button {
-            if let target { switchMonth(target) }
-        } label: {
-            PhosphorIcon(icon, size: 16).foregroundStyle(Palette.muted)
-        }
-        .buttonStyle(.highlight(radius: Radius.r4, outset: Spacing.s3))
-        .help(help)
-        .disabled(target == nil)
-        .opacity(target == nil ? 0.35 : 1)
-    }
-
-    /// 该月工资：按月为「¥20000 → 日薪 ¥1000」，按天为「¥200 · 满勤 ¥4200」；点整条或铅笔改该月工资 (PRD 4.2.1 #2)，surface 底。
-    private var salaryRow: some View {
-        HStack(spacing: Spacing.s8) {
-            VStack(alignment: .leading, spacing: Spacing.s2) {
-                Text(month.salaryCaption).font(AppFont.caption).foregroundStyle(Palette.muted)
-                Text(month.salaryText).font(AppFont.num(15, .semibold)).foregroundStyle(Palette.ink)
-            }
-            Spacer(minLength: Spacing.s8)
-            PhosphorIcon(.pencilSimple, size: 15).foregroundStyle(Palette.muted)
-        }
-        .padding(.horizontal, Spacing.screen)
-        .padding(.vertical, Spacing.s14)
-        .background(Palette.surface)
-        .contentShape(Rectangle())
-        .onTapGesture { editingSalary = true }
-        .hoverFeedback()
-        .help("改这个月的工资")
         .sheet(isPresented: $editingSalary) {
             SalaryFormView(
-                month: month.summary.month, title: month.summary.title, isCurrentMonth: month.summary.isCurrentMonth,
+                month: summary.month, title: summary.title, isCurrentMonth: summary.isCurrentMonth,
                 current: month.salary, basis: month.payBasis, actions: actions,
                 dismiss: { editingSalary = false }
             )
+        }
+    }
+
+    /// 头图：标题「2026年11月 · 已结算」，大数字结算总额，说明「应出勤 20 天 · 日薪 ¥1000」；本月小牛说还早呢。
+    private func hero(_ collapse: CGFloat) -> some View {
+        let settledTitle = month.footer.first?.title ?? "已结算"
+        return BoldHero(
+            theme: .ledger,
+            back: HeroBack(label: "历史", action: back),
+            kicker: "\(summary.title) · \(settledTitle)",
+            caption: month.heroCaption,
+            captionIcon: .calendarBlank,
+            cow: .pose(.working),
+            bubble: HeroBubbleContent(value: summary.isCurrentMonth ? "还早呢" : "结清了", numeric: false),
+            collapse: collapse,
+            compactValue: heroCompactMoney(summary.total)
+        ) {
+            HeroAmount(text: summary.total, theme: .ledger, size: 76, maxWidth: 220)
+        }
+        .overlay(alignment: .topTrailing) { titlebarTools }
+    }
+
+    /// 标题栏右侧：改这个月的工资 (PRD 4.2.1 #2)，上一个月 (更早)、下一个月 (更晚)；到头了变淡、点不动。
+    private var titlebarTools: some View {
+        let index = months.firstIndex(of: summary.month)
+        let older = index.flatMap { months.indices.contains($0 + 1) ? months[$0 + 1] : nil }
+        let newer = index.flatMap { $0 > 0 ? months[$0 - 1] : nil }
+        return HeroTitlebarTrailing {
+            HeroChipButton(icon: .pencilSimple, title: "工资", help: "改这个月的工资", theme: .ledger) { editingSalary = true }
+            HeroChipButton(icon: .caretLeft, help: "上个月", isEnabled: older != nil, theme: .ledger) {
+                if let older { switchMonth(older) }
+            }
+            HeroChipButton(icon: .caretRight, help: "下个月", isEnabled: newer != nil, theme: .ledger) {
+                if let newer { switchMonth(newer) }
+            }
         }
     }
 
@@ -115,36 +107,29 @@ struct MonthCalendarView: View {
     }
 }
 
-/// 日历里的一天 (44×70、圆角 9)：日号 14 号等宽；被扣钱下面一个小圆点，请假、单日覆盖下面一行小字 (`HistoryDay.tag`)，
-/// 已过的应出勤日和今天最下面是当天金额 (`HistoryDay.amountText`)。
-/// 今天整格 ink 底，盖过当天的颜色类型 (设计稿)；小圆点、小字与金额照常显示。
-/// 悬停时描一圈 1.5 的边 (颜色见 `DayCellStyle.hoverStroke`)，按下再叠一层底；手型光标。
+/// 日历里的一天 (43 高、圆角 10)：日号 Archivo Black 14，下面一行小字：请假、单日覆盖写 `HistoryDay.tag`，
+/// 否则已过的应出勤日和今天写当天金额 (`HistoryDay.amountText`)。
+/// 悬停时描一圈 1.5 的边，按下再叠一层底；手型光标。
 private struct DayCell: View {
     let day: HistoryDay
     @Environment(\.dayCellInteraction) private var interaction
 
-    static let height: CGFloat = 70
-    private static let dotSize: CGFloat = 5
+    static let height: CGFloat = 43
 
     var body: some View {
         let style = DayCellStyle(kind: day.kind, isToday: day.isToday)
-        let shape = RoundedRectangle(cornerRadius: Radius.r9)
-        VStack(spacing: Spacing.s4) {
+        let shape = RoundedRectangle(cornerRadius: Radius.r10)
+        VStack(spacing: 0) {
             Text(day.dayText)
-                .font(AppFont.num(14, style.isEmphasized ? .semibold : .regular))
+                .font(AppFont.heavy(14))
                 .foregroundStyle(style.text)
-            if day.kind == .deducted {
-                Circle().fill(Palette.lossDot).frame(width: Self.dotSize, height: Self.dotSize)
-            }
-            if let tag = day.tag {
-                Text(tag).font(AppFont.tiny).foregroundStyle(style.text).lineLimit(1)
-            }
-            if let amount = day.amountText {
-                Text(amount)
-                    .font(AppFont.num(10, .medium))
-                    .foregroundStyle(style.text)
+            if let note = day.tag ?? day.amountText {
+                Text(note)
+                    .font(day.tag == nil ? AppFont.num(9) : AppFont.ui(9, .medium))
+                    .foregroundStyle(style.note)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.7)
+                    .padding(.horizontal, Spacing.s2)
             }
         }
         .frame(maxWidth: .infinity)
@@ -154,7 +139,7 @@ private struct DayCell: View {
             if interaction.isHovered || interaction.isPressed {
                 shape.strokeBorder(style.hoverStroke, lineWidth: 1.5)
             } else if let stroke = style.stroke {
-                shape.strokeBorder(stroke, lineWidth: 1)
+                shape.strokeBorder(stroke.color, style: stroke.style)
             }
         }
         .overlay(interaction.isPressed ? shape.fill(Palette.pressedOverlay) : nil)
@@ -167,77 +152,61 @@ private extension EnvironmentValues {
     @Entry var dayCellInteraction = InteractionState()
 }
 
-/// 日历格子按颜色类型的样子 (设计稿 P5 月日历 · 760)：
-/// - 满勤 money-soft 底 money 字，被扣钱 loss-soft 底 loss 字，请假 accent-soft 底 accent 字
-/// - 未到 (未来的应出勤日) 白底 line 描边 ink 字
-/// - 休息日无底无框、muted 细字；改成不上班无底、muted 描边、muted 细字
-/// - 今天 ink 底、bg 字
+/// 日历格子按颜色类型的样子 (设计稿「历史-月日历」)，颜色只用墨色、高亮黄与头图橙：
+/// - 满勤墨色底白字白金额，被扣钱墨色底白字、金额用扣钱的红；请假高亮黄底墨字
+/// - 未到 (未来的应出勤日) surface 浅底墨字；休息日无底 muted 字；改成不上班无底 muted 字、muted 虚线框
+/// - 今天 bg 底、橙色 2pt 描边、金额橙色，盖过当天的颜色类型
 private struct DayCellStyle {
     let fill: Color
-    let stroke: Color?
+    let stroke: (color: Color, style: StrokeStyle)?
     let text: Color
-    /// 日号用 600 字重；休息日、改成不上班用 400。
-    let isEmphasized: Bool
-    /// 悬停时的描边：与日号同色 (满勤 money、扣钱 loss……)；今天 (ink 底) 用 accent，改成不上班 (本来就是 muted 框) 用 ink。
+    /// 日号下面那行小字 (金额或标签) 的颜色。
+    let note: Color
+    /// 悬停时的描边：墨色底的格子用橙色，其余用墨色。
     let hoverStroke: Color
 
     init(kind: CalendarDayKind, isToday: Bool) {
-        hoverStroke = isToday ? Palette.accent : kind == .override ? Palette.ink : Self.textColor(kind)
         if isToday {
-            (fill, stroke, text, isEmphasized) = (Palette.ink, nil, Palette.bg, true)
+            (fill, stroke, text, note, hoverStroke) = (Palette.bg, (Palette.accent, StrokeStyle(lineWidth: 2)), Palette.ink, Palette.accent, Palette.ink)
             return
         }
-        (fill, stroke, text, isEmphasized) = switch kind {
-        case .fullAttendance: (Palette.moneySoft, nil, Palette.money, true)
-        case .deducted: (Palette.lossSoft, nil, Palette.loss, true)
-        case .leave: (Palette.accentSoft, nil, Palette.accent, true)
-        case .upcoming: (Palette.card, Palette.line, Palette.ink, true)
-        case .rest: (.clear, nil, Palette.muted, false)
-        case .override: (.clear, Palette.muted, Palette.muted, false)
-        }
-    }
-
-    /// 非今天的日号颜色，与上面的表一致。
-    private static func textColor(_ kind: CalendarDayKind) -> Color {
-        switch kind {
-        case .fullAttendance: Palette.money
-        case .deducted: Palette.loss
-        case .leave: Palette.accent
-        case .upcoming: Palette.ink
-        case .rest, .override: Palette.muted
+        (fill, stroke, text, note, hoverStroke) = switch kind {
+        case .fullAttendance: (Palette.ink, nil, .white, .white.opacity(0.85), Palette.accent)
+        case .deducted: (Palette.ink, nil, .white, Palette.lossDot, Palette.accent)
+        case .leave: (Palette.highlight, nil, Palette.ink, Palette.ink, Palette.ink)
+        case .upcoming: (Palette.surface, nil, Palette.ink, Palette.muted, Palette.ink)
+        case .rest: (.clear, nil, Palette.muted.opacity(0.75), Palette.muted, Palette.ink)
+        case .override: (.clear, (Palette.muted, StrokeStyle(lineWidth: 1, dash: [3, 2])), Palette.muted.opacity(0.75), Palette.muted, Palette.ink)
         }
     }
 }
 
-/// 图例：核心 `CalendarDayKind.legend` 列出的类型 (顺序与文案取自核心) 与「今天」，一行两端对齐。
+/// 图例：满勤、被扣钱、请假 (文案取自核心 `CalendarDayKind`)、今天、休息日；这个月有改成不上班的日子时再加一项。
 private struct CalendarLegend: View {
-    private static let swatchSize: CGFloat = 10
+    let showsOverride: Bool
+
+    private static let swatchSize: CGFloat = 11
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(CalendarDayKind.legend, id: \.self) { kind in
-                item(kind.label) { swatch(kind) }
-                Spacer(minLength: Spacing.s8)
+        // 6 项时一行刚好放得下 (宽 328)，间距别再加大，否则撑宽整页。
+        HStack(spacing: Spacing.s8) {
+            item(CalendarDayKind.fullAttendance.label) { shape.fill(Palette.ink) }
+            item(CalendarDayKind.deducted.label) {
+                shape.fill(Palette.ink).overlay(shape.strokeBorder(Palette.lossDot, lineWidth: 1.5))
             }
-            item(CalendarDayKind.todayLabel) {
-                RoundedRectangle(cornerRadius: Radius.r2).fill(Palette.ink)
+            item(CalendarDayKind.leave.label) { shape.fill(Palette.highlight) }
+            item(CalendarDayKind.todayLabel) { shape.strokeBorder(Palette.accent, lineWidth: 1.5) }
+            item(CalendarDayKind.rest.label) { shape.strokeBorder(Palette.line, lineWidth: 1.5) }
+            if showsOverride {
+                item(CalendarDayKind.override.label) {
+                    shape.strokeBorder(Palette.muted, style: StrokeStyle(lineWidth: 1, dash: [2, 1.5]))
+                }
             }
+            Spacer(minLength: 0)
         }
     }
 
-    /// 色块与格子对应；被扣钱用小圆点的颜色 (设计稿)。
-    @ViewBuilder
-    private func swatch(_ kind: CalendarDayKind) -> some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.r2)
-        switch kind {
-        case .fullAttendance: shape.fill(Palette.moneySoft)
-        case .deducted: shape.fill(Palette.lossDot)
-        case .leave: shape.fill(Palette.accentSoft)
-        case .upcoming: shape.fill(Palette.card).overlay(shape.strokeBorder(Palette.line, lineWidth: 1))
-        case .rest: shape.strokeBorder(Palette.line, style: StrokeStyle(lineWidth: 1, dash: [2, 1.5]))
-        case .override: shape.strokeBorder(Palette.muted, lineWidth: 1)
-        }
-    }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: Radius.r2) }
 
     private func item(_ label: String, @ViewBuilder swatch: () -> some View) -> some View {
         HStack(spacing: Spacing.s4) {

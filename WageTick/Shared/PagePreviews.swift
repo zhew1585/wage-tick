@@ -3,7 +3,7 @@ import AppKit
 import SwiftUI
 import WageCore
 
-/// 离屏渲染目标、历史 (月列表、月日历、单日详情)、设置 (含休息模式表单) 几页，存成 PNG，和设计稿 (P3 至 P6 · 760) 对照用。只在 Debug 构建里。
+/// 离屏渲染目标 (攒钱队列、头图收起、没有目标、已到手、新建与编辑表单)、历史 (月列表、月日历、单日详情)、设置 (含休息模式表单) 几页，存成 PNG，和设计稿 (P3 至 P6 · 760) 对照用。只在 Debug 构建里。
 /// 目标与历史的状态在内存里用核心命令造出来 (2026 年 11 月 5 日 15:00，月薪 20000、10:00 至 18:00、饭点 12:00 至 13:00，
 /// 30 日改成不上班后应出勤 20 天、日薪 1000)；设置页要一个 `AppModel`，用临时目录里的状态文件 (此刻真实时间)。
 /// 不起菜单栏、不读写正在用的 state.json，可以和正在跑的 App 同时用。
@@ -50,17 +50,32 @@ private enum PagePreviews {
         let overnight = snapshot(of: try overnight(state), at: now)
         return [
             ("P3-goals", goals(snap)),
+            ("P3-goals-scrolled", goals(snap, scrolled: true)),
             ("P3-goals-empty", goals(snapshot(of: try onboarded(), at: now))),
+            ("P3-goals-earned", goals(snap, route: .earned)),
+            ("P3-goal-form", goals(snap, route: .form(.create))),
+            ("P3-goal-form-edit", goals(snap, route: try snap.goals?.queue.dropFirst().first.map { .form(.edit($0)) } ?? { throw MissingPreviewData() }())),
             ("P4-history", history(snap)),
             ("P5-calendar", history(snap, month: today.yearMonth)),
             ("P5-calendar-october", history(snap, month: YearMonth(year: 2026, month: 10))),
             ("P5-day-detail", history(snap, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 4))),
             ("P5-day-detail-today", history(snap, month: today.yearMonth, day: today)),
             ("P5-day-detail-leave", history(snap, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 11))),
+            ("P5-day-detail-future", history(snap, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 12))),
+            ("P5-day-detail-rest", history(snap, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 7))),
+            ("P5-day-detail-day-off", history(snap, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 30))),
             ("P5-day-detail-overnight", history(overnight, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 3))),
             ("P5-day-detail-auto-stopped", history(overnight, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 2))),
             ("P5-unpaid-work-form-overnight", try unpaidWorkForm(overnight, day: LocalDate(year: 2026, month: 11, day: 3))),
+            ("P5-salary-form", try salaryForm(snap)),
             ("P6-settings", page(SettingsView(form: try settingsForm(), updater: AppUpdater()))),
+            ("P6-settings-reset-confirm", page(SettingsView(form: try settingsForm(), updater: AppUpdater()).overlay {
+                BoldConfirm(
+                    title: "清空全部数据？",
+                    message: "月薪、作息、扣钱、请假、白干和目标都会清掉，App 重启后从引导开始。上一份数据会留一份备份。",
+                    confirmTitle: "清空并重启", confirm: {}, cancel: {}
+                )
+            })),
             ("P6-settings-rest-mode-sheet", try restModeSheet()),
             ("P6-settings-payday-sheet", try paydaySheet()),
             ("U1-update-found", update(.found(version: "0.1.1", current: "0.1.0", notes: updateNotes, later: {}, download: {}))),
@@ -146,10 +161,13 @@ private enum PagePreviews {
 
     // MARK: 视图
 
-    private static func goals(_ snap: Snapshot) -> AnyView {
+    /// 目标页的某一子页；`scrolled` 时滚到底，看头图收起的样子。
+    private static func goals(_ snap: Snapshot, route: GoalsRoute = .queue, scrolled: Bool = false) -> AnyView {
         let content = GoalsContent()
         content.update(from: snap)
-        return page(GoalsView(content: content, send: { _ throws(CommandError) in }))
+        content.route = route
+        let view = GoalsView(content: content, send: { _ throws(CommandError) in }, close: {})
+        return page(view.defaultScrollAnchor(scrolled ? .bottom : .top))
     }
 
     private static func history(_ snap: Snapshot, month: YearMonth? = nil, day: LocalDate? = nil) -> AnyView {
@@ -158,7 +176,7 @@ private enum PagePreviews {
         content.selectedMonth = month
         content.selectedDay = day
         let actions = PanelActions(dryRun: { _ in .success(snap) }, send: { _ throws(CommandError) in })
-        return page(HistoryView(content: content, actions: actions))
+        return page(HistoryView(content: content, actions: actions, close: {}))
     }
 
     /// 白干段的修改表单 (单独画，不是从详情里弹出的 sheet)：`day` 这天最后一段，带结束日期。
@@ -173,6 +191,22 @@ private enum PagePreviews {
                 .overlay(RoundedRectangle(cornerRadius: Radius.r14).strokeBorder(Palette.line, lineWidth: 1))
                 .padding(24)
                 .background(Color.white)
+        )
+    }
+
+    /// 月日历里改本月工资的表单 (单独画，不是从日历里弹出的 sheet)。
+    private static func salaryForm(_ snap: Snapshot) throws -> AnyView {
+        guard let month = snap.historyMonth(today.yearMonth) else { throw MissingPreviewData() }
+        let actions = PanelActions(dryRun: { _ in .success(snap) }, send: { _ throws(CommandError) in })
+        return AnyView(
+            SalaryFormView(
+                month: month.summary.month, title: month.summary.title, isCurrentMonth: true,
+                current: month.salary, basis: month.payBasis, actions: actions, dismiss: {}
+            )
+            .clipShape(RoundedRectangle(cornerRadius: Radius.r14))
+            .overlay(RoundedRectangle(cornerRadius: Radius.r14).strokeBorder(Palette.line, lineWidth: 1))
+            .padding(24)
+            .background(Color.white)
         )
     }
 

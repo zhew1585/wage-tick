@@ -78,8 +78,29 @@ extension CowScene {
 
     /// `day` 这天的台词：按日期算一个固定的伪随机下标，不用 `Hasher` (每次启动的种子不同)。
     func quip(on day: LocalDate) -> String {
-        let quips = quips
-        return quips[Int(Self.mix(UInt64(bitPattern: Int64(day.days(since: Self.epoch)))) % UInt64(quips.count))]
+        Self.pick(quips, on: day)
+    }
+
+    /// 首页头图气泡里的短台词 (设计稿「大胆风格」，三到五个字，不压到左边的大数字)；
+    /// 只给不写倒计时的场景 (未上班、已下班、休息日、发薪当天)，其余场景为空，气泡写倒计时。挑法同 `quip(on:)`。
+    var heroQuips: [String] {
+        switch self {
+        case .beforeWork: ["再睡五分钟", "还没睡醒", "马上就到"]
+        case .offWork: ["躺平！", "收工！", "下班啦"]
+        case .restDay: ["谁也别找我", "今天不营业", "晒太阳中"]
+        case .payday: ["发工资啦", "钱到账啦", "今天最值钱"]
+        default: []
+        }
+    }
+
+    /// `day` 这天的头图短台词；这个场景没有短台词时为 nil。
+    func heroQuip(on day: LocalDate) -> String? {
+        heroQuips.isEmpty ? nil : Self.pick(heroQuips, on: day)
+    }
+
+    /// 按日期算一个固定的伪随机下标挑一句。
+    private static func pick(_ quips: [String], on day: LocalDate) -> String {
+        quips[Int(mix(UInt64(bitPattern: Int64(day.days(since: epoch)))) % UInt64(quips.count))]
     }
 
     private static let epoch = LocalDate(year: 1970, month: 1, day: 1)

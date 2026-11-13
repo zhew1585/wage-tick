@@ -10,12 +10,12 @@ enum WidgetSize: CaseIterable {
     case medium
     case large
 
-    /// 设计稿里的尺寸 (pt)，预览按它排版；桌面上由系统决定。
+    /// 预览用的尺寸 (pt)，桌面上由系统决定；大号按实测桌面上的约 351×351 (设计稿画的 364×382 比真机高)。
     var designSize: CGSize {
         switch self {
         case .small: CGSize(width: 170, height: 170)
         case .medium: CGSize(width: 364, height: 170)
-        case .large: CGSize(width: 364, height: 382)
+        case .large: CGSize(width: 351, height: 351)
         }
     }
 }
@@ -253,7 +253,7 @@ struct WidgetEmptyGoal: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
-            PhosphorIcon(.flagBanner, size: 11).iconOnTextBaseline().foregroundStyle(Palette.muted)
+            PhosphorIcon(.flagBanner, size: 11).iconOnTextBaseline(11).foregroundStyle(Palette.muted)
             Text(prompt).font(AppFont.ui(11)).foregroundStyle(Palette.muted).lineLimit(1)
         }
     }

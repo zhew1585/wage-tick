@@ -1,8 +1,8 @@
 import SwiftUI
 import WageCore
 
-/// 面板目标区「攒钱队列」(PRD F9，设计稿 P2 面板 · 上班中 · 攒钱队列改版 · 760)：文字和进度原样取自快照的 `GoalCard`、`GoalQueueSection`。
-/// 标题行「攒钱队列」+ 右侧目标总数；下面是累计中目标的卡片，再下面是排队中目标的紧凑列表 (与累计中合计最多 3 个)。
+/// 面板目标区「攒钱队列」(PRD F9，设计稿「首页 · 大胆版」)：文字和进度原样取自快照的 `GoalCard`、`GoalQueueSection`。
+/// 累计中目标是一张墨色大卡 (`BoldGoalCard`)，下面排队中的目标缩成并排的小胶囊 (与累计中合计最多 3 个)。
 /// 队列为空时换成描边的空状态卡：旗子、「给自己定个目标吧」、一行小字和「新目标」按钮，按钮进入目标管理。
 /// 面板放不下时按 `density` 收紧：先少列排队中目标，空状态换成一行可点的提示。
 struct GoalCardView: View {
@@ -15,8 +15,7 @@ struct GoalCardView: View {
     let openGoals: () -> Void
 
     var body: some View {
-        VStack(spacing: Spacing.s12) {
-            header
+        VStack(spacing: Spacing.s8) {
             switch card {
             case .empty(let prompt):
                 switch density {
@@ -25,25 +24,16 @@ struct GoalCardView: View {
                 case .minimal: EmptyGoalRow(prompt: prompt, openGoals: openGoals)
                 }
             case .active(let goal):
-                ActiveGoalCardView(goal: goal)
+                Button(action: openGoals) {
+                    BoldGoalCard(goal: goal, trailing: countText).contentShape(Rectangle())
+                }
+                .buttonStyle(.highlight(radius: Radius.r18))
                 let upcoming = (queue?.upcoming ?? []).prefix(density.queuedLimit)
                 if !upcoming.isEmpty {
-                    QueuedGoalList(goals: Array(upcoming))
+                    QueuedGoalChips(goals: Array(upcoming))
                 }
             }
         }
-        .padding(EdgeInsets(top: Spacing.s14, leading: Spacing.screen, bottom: Spacing.s10, trailing: Spacing.screen))
-    }
-
-    private var header: some View {
-        HStack {
-            Text("攒钱队列").font(AppFont.captionSemibold)
-            Spacer()
-            if let countText {
-                Text(countText).font(AppFont.small)
-            }
-        }
-        .foregroundStyle(Palette.muted)
     }
 }
 
@@ -66,89 +56,123 @@ enum GoalDensity {
     }
 }
 
-/// 累计中目标的卡片：accent-soft 底、圆角 12。
-/// 第一行旗子、名称 14/600、右侧百分比；第二行累计额 20/600 + 「/ 目标金额」、右侧短版预计；最下面 6pt 进度条。
-private struct ActiveGoalCardView: View {
+/// 累计中目标的墨色大卡 (设计稿「大胆版」Goal Card)：左上黄色「正在攒」标签与名称，右上目标总数 (或队列位置)；
+/// 中间累计额 (Archivo Black 24) + 「/ 目标金额」，右侧橙色大百分比；下面黄到橙的渐变进度条，最下一行预计。
+/// 目标页 (`GoalsView`) 也用这张卡。
+struct BoldGoalCard: View {
     let goal: ActiveGoalCard
+    /// 右上角的小字，如「3 个目标」「队列 1/4」。
+    var trailing: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s8) {
-            HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
-                PhosphorIcon(.flagBanner, size: 14).iconOnTextBaseline().foregroundStyle(Palette.accent)
-                Text(goal.name).font(AppFont.section).foregroundStyle(Palette.ink).lineLimit(1)
+        VStack(alignment: .leading, spacing: Spacing.s10) {
+            HStack(spacing: Spacing.s6) {
+                Text("正在攒")
+                    .font(AppFont.ui(10, .bold))
+                    .foregroundStyle(Palette.ink)
+                    .padding(.horizontal, Spacing.s6)
+                    .padding(.vertical, Spacing.s2)
+                    .background(Palette.highlight, in: RoundedRectangle(cornerRadius: Radius.r5))
+                Text(goal.name).font(AppFont.ui(15, .bold)).foregroundStyle(.white).lineLimit(1)
                 Spacer(minLength: Spacing.s8)
-                Text(goal.percentText).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.accent)
+                if let trailing {
+                    Text(trailing).font(AppFont.num(11)).foregroundStyle(.white.opacity(0.5))
+                }
             }
-            HStack(alignment: .firstTextBaseline, spacing: Spacing.s4) {
-                Text(goal.accumulatedText).font(AppFont.num(20, .semibold)).foregroundStyle(Palette.ink)
-                Text("/ \(goal.targetText)").font(AppFont.numCaption).foregroundStyle(Palette.muted)
+            HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
+                Text(BoldNumber.grouped(goal.accumulatedText)).font(AppFont.heavy(24)).foregroundStyle(.white)
+                Text("/ \(BoldNumber.grouped(goal.targetText).replacingOccurrences(of: "¥", with: ""))")
+                    .font(AppFont.num(12)).foregroundStyle(.white.opacity(0.5))
                 Spacer(minLength: Spacing.s8)
-                Text(goal.shortEstimate).font(AppFont.small).foregroundStyle(Palette.muted)
+                Text("\(Int((goal.progress * 100).rounded(.down)))%").font(AppFont.heavy(28)).foregroundStyle(Color(hex: 0xFF7A2E))
             }
             .lineLimit(1)
+            .minimumScaleFactor(0.7)
             GoalProgressBar(progress: goal.progress)
+            Text(goal.estimate).font(AppFont.small).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
         }
-        .padding(.vertical, Spacing.s12)
-        .padding(.horizontal, Spacing.s14)
-        .background(Palette.accentSoft, in: RoundedRectangle(cornerRadius: Radius.card))
+        .padding(.vertical, Spacing.s14)
+        .padding(.horizontal, Spacing.s16)
+        .background(Palette.ink, in: RoundedRectangle(cornerRadius: Radius.r18))
     }
 }
 
-/// 排队中目标：每行高 32，沙漏、名称 13/500，右侧目标金额与短版预计，行间细线。悬停显示完整预计。
-private struct QueuedGoalList: View {
+/// 排队中目标缩成并排的小胶囊：surface 底，名称 12/700，右侧预计到手的日期。悬停显示完整预计。
+private struct QueuedGoalChips: View {
     let goals: [QueuedGoalCard]
 
     var body: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(goals.enumerated()), id: \.element.id) { index, goal in
-                if index > 0 { Palette.line.frame(height: 1) }
-                HStack(spacing: Spacing.s8) {
-                    PhosphorIcon(.hourglassSimple, size: 13).foregroundStyle(Palette.muted)
-                    Text(goal.name).font(AppFont.bodyMedium).foregroundStyle(Palette.ink)
-                    Spacer(minLength: Spacing.s8)
-                    Text(goal.amountText).font(AppFont.numCaption).foregroundStyle(Palette.ink)
-                    Text(goal.shortEstimate).font(AppFont.small).foregroundStyle(Palette.muted)
+        HStack(spacing: Spacing.s8) {
+            ForEach(goals) { goal in
+                HStack(spacing: Spacing.s6) {
+                    Text(goal.name).font(AppFont.ui(12, .bold)).foregroundStyle(Palette.ink)
+                    Spacer(minLength: Spacing.s4)
+                    // 设计稿只写日期 (「11月26日」)，胶囊窄，去掉快照短版预计前面的「预计」。
+                    Text(goal.shortEstimate.replacingOccurrences(of: "预计 ", with: ""))
+                        .font(AppFont.num(10)).foregroundStyle(Palette.muted)
                 }
                 .lineLimit(1)
-                .padding(.horizontal, Spacing.s4)
-                .frame(height: 32)
+                .padding(.horizontal, Spacing.s12)
+                .padding(.vertical, Spacing.s8)
+                .frame(maxWidth: .infinity)
+                .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r12))
                 .help(goal.estimate)
             }
         }
     }
 }
 
-/// 队列为空：描边卡片居中放旗子 30、提示 14/600、小字 11 和「新目标」次要按钮。
-/// 不带按钮时 (面板放不下) 整张卡可点。两种都进入目标管理。
+/// 队列为空：和累计中目标的墨色大卡 (`BoldGoalCard`) 同一结构、同一高度，当成一张「什么都还没攒」的卡：
+/// 第一行黄色「还没目标」与「写下想要的东西」、右上「队列 0」；第二行「¥0 / ?」与橙色「0%」；空进度条；
+/// 最下面一行小字，右侧黄色「定个目标 ›」。整张卡可点，进入目标管理 (同有目标时)。
 private struct EmptyGoalCard: View {
     let prompt: String
     let showsButton: Bool
     let openGoals: () -> Void
 
     var body: some View {
-        if showsButton {
-            card
-        } else {
-            Button(action: openGoals) { card.contentShape(Rectangle()) }
-                .buttonStyle(.highlight(radius: Radius.card))
-        }
+        Button(action: openGoals) { card.contentShape(Rectangle()) }
+            .buttonStyle(.highlight(radius: Radius.r18))
+            .accessibilityLabel(prompt)
     }
 
     private var card: some View {
-        VStack(spacing: Spacing.s8) {
-            PhosphorIcon(.flagBanner, size: 30).foregroundStyle(Palette.accent)
-            Text(prompt).font(AppFont.section).foregroundStyle(Palette.ink)
-            Text("攒够了，给你放烟花").font(AppFont.small).foregroundStyle(Palette.muted)
-            if showsButton {
-                Button(action: openGoals) { Label { Text("新目标") } icon: { PhosphorIcon(.plus) } }
-                    .buttonStyle(.secondary(fullWidth: true, height: 34))
-                    .frame(width: 120)
-                    .padding(.top, Spacing.s4)
+        VStack(alignment: .leading, spacing: Spacing.s10) {
+            HStack(spacing: Spacing.s6) {
+                Text("还没目标")
+                    .font(AppFont.ui(10, .bold))
+                    .foregroundStyle(Palette.ink)
+                    .padding(.horizontal, Spacing.s6)
+                    .padding(.vertical, Spacing.s2)
+                    .background(Palette.highlight, in: RoundedRectangle(cornerRadius: Radius.r5))
+                Text("写下想要的东西").font(AppFont.ui(15, .bold)).foregroundStyle(.white).lineLimit(1)
+                Spacer(minLength: Spacing.s8)
+                Text("队列 0").font(AppFont.num(11)).foregroundStyle(.white.opacity(0.5))
             }
+            HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
+                Text("¥0").font(AppFont.heavy(24)).foregroundStyle(.white)
+                Text("/ ?").font(AppFont.num(12)).foregroundStyle(.white.opacity(0.5))
+                Spacer(minLength: Spacing.s8)
+                Text("0%").font(AppFont.heavy(28)).foregroundStyle(Color(hex: 0xFF7A2E))
+            }
+            .lineLimit(1)
+            GoalProgressBar(progress: 0)
+            HStack(alignment: .firstTextBaseline) {
+                Text("小牛帮你算哪天攒够").font(AppFont.small).foregroundStyle(.white.opacity(0.7))
+                Spacer(minLength: Spacing.s8)
+                if showsButton {
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.s2) {
+                        Text("定个目标").font(AppFont.ui(12, .bold))
+                        PhosphorIcon(.caretRight, size: 11).iconOnTextBaseline(12)
+                    }
+                    .foregroundStyle(Palette.highlight)
+                }
+            }
+            .lineLimit(1)
         }
-        .frame(maxWidth: .infinity)
-        .padding(EdgeInsets(top: Spacing.s18, leading: Spacing.screen, bottom: Spacing.s16, trailing: Spacing.screen))
-        .overlay(RoundedRectangle(cornerRadius: Radius.card).strokeBorder(Palette.line))
+        .padding(.vertical, Spacing.s14)
+        .padding(.horizontal, Spacing.s16)
+        .background(Palette.ink, in: RoundedRectangle(cornerRadius: Radius.r18))
     }
 }
 
@@ -172,7 +196,7 @@ private struct EmptyGoalRow: View {
     }
 }
 
-/// 目标进度条：高 6、圆角 3，line 底、accent 填充。
+/// 目标进度条：高 8，半透明白底、黄到橙渐变填充 (放在墨色卡上)。
 private struct GoalProgressBar: View {
     /// 进度条比例，0 至 1。
     let progress: Double
@@ -180,13 +204,13 @@ private struct GoalProgressBar: View {
     var body: some View {
         GeometryReader { geometry in
             Capsule()
-                .fill(Palette.line)
+                .fill(.white.opacity(0.12))
                 .overlay(alignment: .leading) {
                     Capsule()
-                        .fill(Palette.accent)
+                        .fill(LinearGradient(colors: [Palette.highlight, Color(hex: 0xFF7A2E)], startPoint: .leading, endPoint: .trailing))
                         .frame(width: geometry.size.width * min(max(progress, 0), 1))
                 }
         }
-        .frame(height: 6)
+        .frame(height: 8)
     }
 }

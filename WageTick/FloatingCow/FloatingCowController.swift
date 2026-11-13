@@ -109,7 +109,8 @@ final class FloatingCowController {
         if snapshot.floatingCow == nil { isFullScreenHidden = false }
         if content.cow != snapshot.floatingCow {
             content.cow = snapshot.floatingCow
-            if panel.isVisible { applyFrame() }
+            // 关掉 (变成 nil) 时只收起浮窗、不重排：没有内容时量出来是 0×0，窗口缩成 0 后再打开，小条上的字会被挤没。
+            if panel.isVisible, snapshot.floatingCow != nil { applyFrame() }
         }
         updateVisibility()
     }
@@ -266,7 +267,7 @@ final class FloatingCowController {
                 applyFrame()
             }
         case .expanded:
-            if FloatingCowLayout.figureRect(in: panel.frame).contains(mouse) {
+            if Self.hoverRect(of: panel.frame, spot: spot).contains(mouse) {
                 mouseLeftAt = nil
             } else if let left = mouseLeftAt {
                 if Date().timeIntervalSince(left) >= Self.collapseDelay, case .docked(let edge, _, _) = spot {
@@ -277,6 +278,17 @@ final class FloatingCowController {
             } else {
                 mouseLeftAt = Date()
             }
+        }
+    }
+
+    /// 展开时算「鼠标还在小牛上」的范围：小牛本体，再一直延伸到贴着的那条屏幕边。
+    /// 鼠标停在屏幕边缘的探头上展开后，落在小牛与屏幕边之间的透明留白里也不算离开，免得展开、收起来回跳。
+    private static func hoverRect(of frame: NSRect, spot: FloatingCowSpot?) -> NSRect {
+        let figure = FloatingCowLayout.figureRect(in: frame)
+        guard case .docked(let edge, let edgeX, _) = spot else { return figure }
+        switch edge {
+        case .right: return NSRect(x: figure.minX, y: figure.minY, width: max(figure.width, edgeX - figure.minX), height: figure.height)
+        case .left: return NSRect(x: min(edgeX, figure.minX), y: figure.minY, width: figure.maxX - min(edgeX, figure.minX), height: figure.height)
         }
     }
 

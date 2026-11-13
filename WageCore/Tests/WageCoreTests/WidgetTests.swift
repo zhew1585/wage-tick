@@ -123,12 +123,14 @@ struct WidgetSnapshotTests {
         ])
     }
 
-    @Test("休息日：小牛主体，下个上班日")
+    @Test("休息日：小牛主体，下个上班日与还有几天")
     func restDay() throws {
         let widget = try widget(try onboarded(), at: moment(2026, 2, 14, 10, 0))
         #expect(widget.statusLabel == "休息日")
         #expect(widget.tone == .rest)
-        #expect(widget.main == .rest(WidgetRest(headline: "今天休息", nextAttendanceText: "下个上班日 2月16日 周一")))
+        #expect(widget.main == .rest(WidgetRest(headline: "今天休息", nextAttendanceText: "下个上班日 2月16日 周一", daysUntilWork: 2)))
+        #expect(widget.scene == .restDay)
+        #expect(widget.blocks?.label.hasPrefix("本月已搬砖") == true)
         #expect(widget.sideStats.map(\.title) == ["距离周末", "本月累计"])
     }
 

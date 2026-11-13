@@ -217,7 +217,9 @@ struct LeaveFormSummaryTests {
 
         #expect(form.current == nil)
         #expect(form.currentText == nil)
+        #expect(form.shortText == nil)
         #expect(form.canRequest)
+        #expect(form.deductionText == "¥0")
         #expect(form.summary == [
             StatItem(title: "今天上班", value: "10:00–18:00"),
             StatItem(title: "请假扣薪", value: "¥0"),
@@ -232,8 +234,9 @@ struct LeaveFormSummaryTests {
 
         #expect(form.current == leave("14:00", "16:00", Decimal(string: "28.57")!))
         #expect(form.currentText == "已请假 14:00–16:00 · 扣薪 28.57%")
+        #expect(form.shortText == "请假 14:00–16:00")
         #expect(!form.canRequest)
-        #expect(form.deductionText == "= ¥285.70")
+        #expect(form.deductionText == "−¥285.70")
         #expect(form.summary == [
             StatItem(title: "今天上班", value: "10:00–14:00、16:00–18:00"),
             StatItem(title: "请假扣薪", value: "−¥285.70"),
@@ -254,6 +257,7 @@ struct LeaveFormSummaryTests {
         let form = try leaveForm(try onLeave(fullDayLeave(Decimal(string: "12.5")!)))
 
         #expect(form.currentText == "已请全天假 · 扣薪 12.50%")
+        #expect(form.shortText == "全天请假")
         #expect(!form.canRequest)
         #expect(form.summary == [
             StatItem(title: "今天上班", value: "全天请假"),

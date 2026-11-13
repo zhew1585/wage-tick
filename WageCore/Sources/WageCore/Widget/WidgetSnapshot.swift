@@ -37,6 +37,10 @@ public struct WidgetToday: Sendable, Equatable {
     public let goal: GoalCard
     /// 排队中目标，最多 2 个 (与累计中合计 3 个)，同面板攒钱队列。
     public let queued: [QueuedGoalCard]
+    /// 小牛此刻的场景，同面板头图：决定大胆版小组件的底色与小牛姿势。
+    public let scene: CowScene
+    /// 每小时一格的进度格，同面板；休息日没在白干时为 nil。
+    public let blocks: HourBlocks?
 }
 
 /// 状态色调，对应面板顶部状态的三种颜色：应出勤日 money、休息日 accent、白干中 loss。
@@ -75,6 +79,8 @@ public struct WidgetRest: Sendable, Equatable {
     public let headline: String
     /// 如「下个上班日 11月9日 周一」；一年内都没有时为 nil。
     public let nextAttendanceText: String?
+    /// 距下个上班日还有几天 (大胆版小组件的大数字)；一年内都没有时为 nil。
+    public let daysUntilWork: Int?
 }
 
 /// 一项标题 + 值，如「距离下班 3:00:00」「本月累计 ¥3571.43」。
@@ -134,6 +140,8 @@ extension WidgetToday {
         statusLabel = panel.statusLabel
         goal = panel.goal
         queued = panel.goalQueue?.upcoming ?? []
+        scene = panel.cowScene
+        blocks = panel.blocks
         switch panel.body {
         case .attendance(let attendance):
             tone = .attendance
@@ -142,7 +150,8 @@ extension WidgetToday {
             tone = .rest
             main = .rest(WidgetRest(
                 headline: rest.headline,
-                nextAttendanceText: today.nextAttendanceDay.map { "下个上班日 \(Format.date($0, relativeTo: today.date))" }
+                nextAttendanceText: today.nextAttendanceDay.map { "下个上班日 \(Format.date($0, relativeTo: today.date))" },
+                daysUntilWork: today.nextAttendanceDay.map { $0.days(since: today.date) }
             ))
             stats = rest.stats.map(WidgetStat.init)
             // 统计行为 [本月已上班, 本月累计, 距离周末]，右栏先放距离周末。

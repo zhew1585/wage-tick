@@ -411,9 +411,9 @@ struct HistoryEditGoalTests {
         let result = try apply(.setSalary(february, 40000), to: state, at: now)
 
         #expect(result.events == [.goalReached(message: "🎉 目标「键盘」达成")])
-        #expect(try #require(snapshot(of: result.state, at: now).goals) == GoalList(
-            queue: [], completed: [CompletedGoalRow(id: 1, name: "键盘", amountText: "¥1500", completedText: "2月3日 09:00 达成")]
-        ))
+        let list = try #require(snapshot(of: result.state, at: now).goals)
+        #expect(list.queue == [])
+        #expect(list.completed.map { [$0.name, $0.amountText, $0.completedText] } == [["键盘", "¥1500", "2月3日 09:00 达成"]])
     }
 }
 

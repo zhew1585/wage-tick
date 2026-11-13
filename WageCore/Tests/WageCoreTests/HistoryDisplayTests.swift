@@ -85,6 +85,52 @@ struct HistoryMonthDisplayTests {
         state = try editing(feb(4), .addUnpaidWork(UnpaidWorkInput(start: TimeOfDay(hour: 18, minute: 0), end: TimeOfDay(hour: 19, minute: 20))), in: state)
         #expect(try month(snapshot(of: state, at: standardDay(15, 0))).summary.figures.last?.value == "2h05m")
     }
+
+    @Test("大胆版月列表：3 月查看 2 月，月份大字「2月」，挣到满额的 97.25% (19450 ÷ 20000)，一行小字")
+    func boldRow() throws {
+        let summary = try month(snapshot(of: try februaryWithRecords(), at: moment(2026, 3, 10, 15, 0))).summary
+
+        #expect(summary.shortTitle == "2月")
+        #expect(abs(summary.progress - 0.9725) < 0.000_001)
+        #expect(summary.figuresLine == "应出勤 20 · 扣 ¥550 · 请假 0.71 · 白干 1h30m")
+    }
+
+    @Test("月份大字不在今年时带年份：2025 年 12 月安装，2026 年 1 月看")
+    func shortTitleAcrossYears() throws {
+        let snap = snapshot(of: try onboarded(at: moment(2025, 12, 1, 9, 0)), at: moment(2026, 1, 15, 15, 0))
+
+        #expect(snap.historyMonths().map(\.shortTitle) == ["1月", "2025年12月"])
+    }
+
+    @Test("本月刚开头还没挣钱时满额比例为 0；满勤的月份为 1")
+    func progressBounds() throws {
+        let snap = snapshot(of: try onboarded(at: moment(2026, 2, 2, 9, 0)), at: moment(2026, 3, 2, 9, 0))
+
+        #expect(snap.historyMonths().map(\.progress) == [0, 1])
+    }
+
+    @Test("月列表头图合计：3 月 2 日上班前看，2 月 ¥19450 + 3 月 ¥0，2 个月 · 扣款 ¥550")
+    func overview() throws {
+        let snap = snapshot(of: try februaryWithRecords(), at: moment(2026, 3, 2, 9, 0))
+        let overview = HistoryOverview(months: snap.historyMonths())
+
+        #expect(overview.total == "¥19450")
+        #expect(overview.caption == "2 个月 · 扣款 ¥550")
+    }
+
+    @Test("合计四舍五入到元：2 月 13 日 15:00 看，本月累计 ¥9571.43 记作 ¥9571")
+    func overviewRoundsToYuan() throws {
+        let snap = snapshot(of: try onboarded(), at: moment(2026, 2, 13, 15, 0))
+
+        #expect(snap.historyMonths().map(\.total) == ["¥9571.43"])
+        #expect(HistoryOverview(months: snap.historyMonths()).total == "¥9571")
+    }
+
+    @Test("没有月份时合计 ¥0、0 个月")
+    func emptyOverview() {
+        #expect(HistoryOverview(months: []) == HistoryOverview(months: snapshot(of: AppState(), at: standardDay(15, 0)).historyMonths()))
+        #expect(HistoryOverview(months: []).caption == "0 个月 · 扣款 ¥0")
+    }
 }
 
 @Suite("历史展示：月日历")
@@ -105,6 +151,22 @@ struct HistoryCalendarDisplayTests {
 
         #expect(try month(snap).salaryCaption == "本月月薪 · 应出勤 21 天")
         #expect(try month(snap).salaryText == "¥20000 → 日薪 ¥952.38")
+    }
+
+    @Test("大胆版头图说明：「应出勤 20 天 · 日薪 ¥1000」，周六改成上班后「应出勤 21 天 · 日薪 ¥952.38」")
+    func heroCaption() throws {
+        let state = try onboarded(at: moment(2026, 2, 2, 9, 0))
+        #expect(try month(snapshot(of: state, at: standardDay(15, 0))).heroCaption == "应出勤 20 天 · 日薪 ¥1000")
+
+        let changed = try editing(feb(7), .setOverride(.attendanceDay), in: state)
+        #expect(try month(snapshot(of: changed, at: standardDay(15, 0))).heroCaption == "应出勤 21 天 · 日薪 ¥952.38")
+    }
+
+    @Test("单日被扣金额：4 日扣钱 ¥50，3 日没扣、6 日只请假扣薪都没有")
+    func deducted() throws {
+        let snap = snapshot(of: try februaryWithRecords(), at: standardDay(15, 0))
+
+        #expect(try [3, 4, 6].map { try day(snap, feb($0)).detail.deducted } == [nil, "¥50", nil])
     }
 
     @Test("月小结：已结算 (同结算总额)、扣款、请假、白干")

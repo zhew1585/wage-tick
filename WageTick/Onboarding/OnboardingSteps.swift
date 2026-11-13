@@ -1,183 +1,109 @@
-import AppKit
 import SwiftUI
 import WageCore
 
-/// 第 1 步 · 工资 (设计稿 P1 引导 · 1 月薪 · 双休 / 大小周 · 760，按天见「按天算工资」方案 A)：大小牛、标题、
-/// 「月薪 | 日薪」小切换 + 工资大号输入框 (单位跟着变「元/月」「元/日」)，下面「怎么休」选休息模式 (默认双休)。
-/// 小牛照设计稿实例框画满 104，等比缩放。
-struct OnboardingSalaryStep: View {
-    private static let mascotSize: CGFloat = 104
-
+/// 第 1 步 · 工资的头图 (大胆版设计稿「引导-1工资」)：标题「嗨，牛马。一个月赚多少？」(按天时「一天赚多少？」)，
+/// 头图里就是大号工资输入，下面一行「只存在这台电脑上，谁也看不到」，打哈欠的小牛说「我先替你保密」。
+struct OnboardingSalaryHero: View {
     @Binding var salaryText: String
-    @Binding var payBasis: PayBasis
-    @Binding var restMode: RestModeChoice
-    let errorMessage: String?
+    let payBasis: PayBasis
+    let collapse: CGFloat
     let onSubmit: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Image(.cowMascot)
-                .resizable()
-                .scaledToFit()
-                .frame(width: Self.mascotSize, height: Self.mascotSize, alignment: .topLeading)
-                .padding(.top, OnboardingLayout.firstTop)
-                .padding(.horizontal, OnboardingLayout.side)
-            OnboardingIntro(
-                title: payBasis == .daily ? "嗨，牛马。\n一天赚多少？" : "嗨，牛马。\n一个月赚多少？", subtitle: "税前还是到手，你说了算。只存在这台电脑上，谁也看不到。",
-                top: OnboardingLayout.introAfterMascot
-            )
-            OnboardingBody(spacing: Spacing.s16, errorMessage: errorMessage) {
-                VStack(alignment: .leading, spacing: Spacing.s6) {
-                    PayBasisSwitch(selection: payBasis) { payBasis = $0 }
-                    Field(nil, text: $salaryText, suffix: payBasis.unit, size: .large)
-                        .onSubmit(onSubmit)
-                }
-                // 「怎么休」13/500 muted。
-                VStack(alignment: .leading, spacing: Spacing.s8) {
-                    Text("怎么休").font(AppFont.bodyMedium).foregroundStyle(Palette.muted)
-                    RestModePicker(selection: restMode) { restMode = $0 }
-                }
+        BoldHero(
+            theme: .orange,
+            kicker: payBasis == .daily ? "嗨，牛马。一天赚多少？" : "嗨，牛马。一个月赚多少？",
+            caption: "只存在这台电脑上，谁也看不到",
+            captionIcon: .lockSimple,
+            cow: .pose(.yawning),
+            bubble: HeroBubbleContent(value: "我先替你保密", numeric: false),
+            // 设计稿位置：说明行下方、离小牛约 20pt，不压到左上的五位数大号输入。
+            bubbleOffset: CGSize(width: -152, height: 129),
+            collapse: collapse,
+            compactValue: salaryText.isEmpty ? nil : "¥\(salaryText)"
+        ) {
+            HeroSalaryInput(text: $salaryText, theme: .orange, onSubmit: onSubmit)
+        }
+    }
+}
+
+/// 第 1 步 · 工资的正文：「按月薪 | 按日薪」切换，下面「怎么休」四个大块选休息模式 (默认双休)，最后是校验提示。
+struct OnboardingSalaryStep: View {
+    @Binding var payBasis: PayBasis
+    @Binding var restMode: RestModeChoice
+
+    var body: some View {
+        OnboardingBody {
+            PayBasisPills(selection: payBasis) { payBasis = $0 }
+            VStack(alignment: .leading, spacing: Spacing.s10) {
+                Text("怎么休").font(AppFont.ui(13, .bold)).foregroundStyle(Palette.ink)
+                RestModeTiles(selection: restMode) { restMode = $0 }
             }
         }
     }
 }
 
-/// 第 2 步 · 作息 (设计稿 P1 引导 · 2 作息 · 760)：上下班一行两格；饭点开关，打开后饭点时段一行两格；
-/// 分隔线下是「按这个作息算」的工资换算卡片。
-/// 字段名与尺寸照设计稿 (「上班」「饭点」、加高输入框)，与设置页共用的 `ScheduleFields` 不同，所以单独排。
+/// 第 2 步 · 作息的头图 (大胆版设计稿「引导-2作息」)：标题「几点上班，几点下班？」，大数字是标准工时 + 「小时一天」，
+/// 下面一行「按计划算钱，不用打卡」，干饭的小牛说「饭点不算钱哦」。标准工时来自核心的试算快照，作息不合法时为「—」。
+struct OnboardingScheduleHero: View {
+    let rates: WageRates?
+    let collapse: CGFloat
+
+    var body: some View {
+        // 作息算不出来 (如上下班同一时刻) 时写 0。
+        let hours = rates?.standardHoursNumber ?? "0"
+        BoldHero(
+            theme: .orange,
+            kicker: "几点上班，几点下班？",
+            caption: "按计划算钱，不用打卡",
+            captionIcon: .alarm,
+            cow: .pose(.eating),
+            bubble: HeroBubbleContent(value: "饭点不算钱哦", numeric: false),
+            collapse: collapse,
+            compactValue: hours
+        ) {
+            HeroAmount(text: hours, theme: .orange, unit: "小时一天")
+        }
+    }
+}
+
+/// 第 2 步 · 作息的正文：上班、下班两个粗描边时间框；饭点开关，打开后开饭、吃完两个时间框；
+/// 浅底汇总条 (满勤日薪、时薪、本月上班日)，最后是校验提示。
 struct OnboardingScheduleStep: View {
     @Binding var draft: ScheduleDraft
     let rates: WageRates?
-    let errorMessage: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            OnboardingIntro(
-                title: "几点上班，几点下班？", subtitle: "按计划时间算钱，不打卡。饭点时段数字会暂停。",
-                top: OnboardingLayout.firstTop
-            )
-            OnboardingBody(spacing: Spacing.s22, errorMessage: errorMessage) {
-                timeRow("上班", $draft.start, "下班", $draft.end)
-                VStack(alignment: .leading, spacing: Spacing.s12) {
-                    Toggle(isOn: $draft.lunchEnabled) {
-                        Text("饭点").font(AppFont.bodyMedium).foregroundStyle(Palette.muted)
-                    }
-                    .toggleStyle(.themeSwitch(verticalPadding: 0))
-                    if draft.lunchEnabled {
-                        timeRow("饭点开始", $draft.lunchStart, "饭点结束", $draft.lunchEnd)
-                    }
-                }
-                if let rates {
-                    OnboardingRatesSection(rates: rates)
+        OnboardingBody {
+            HStack(spacing: Spacing.s8) {
+                BoldTimeBox(label: "上班", selection: $draft.start)
+                BoldTimeBox(label: "下班", selection: $draft.end)
+            }
+            Toggle(isOn: $draft.lunchEnabled) {
+                Text("饭点").font(AppFont.ui(13, .bold)).foregroundStyle(Palette.ink)
+            }
+            .toggleStyle(.ink(verticalPadding: 0))
+            if draft.lunchEnabled {
+                HStack(spacing: Spacing.s8) {
+                    BoldTimeBox(label: "开饭", selection: $draft.lunchStart)
+                    BoldTimeBox(label: "吃完", selection: $draft.lunchEnd)
                 }
             }
-        }
-    }
-
-    private func timeRow(_ startLabel: String, _ start: Binding<Date>, _ endLabel: String, _ end: Binding<Date>) -> some View {
-        HStack(spacing: Spacing.s12) {
-            timeField(startLabel, start)
-            timeField(endLabel, end)
-        }
-    }
-
-    private func timeField(_ label: String, _ selection: Binding<Date>) -> some View {
-        Field(label, size: .medium) {
-            TimeInput(selection: selection, font: AppFont.numFieldMedium, caretSize: OnboardingLayout.caretSize)
+            if let rates {
+                OnboardingRatesBar(rates: rates)
+            }
         }
     }
 }
 
-/// 「按这个作息算」(设计稿 Summary)：上边一条分隔线、上 18，12 号 muted 小标题，下面 surface 底的 2×2 卡片。
-/// 数字全部来自核心的试算快照 (`WageRates`)，这里只排版。
-struct OnboardingRatesSection: View {
-    let rates: WageRates
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s10) {
-            Text("按这个作息算").font(AppFont.caption).foregroundStyle(Palette.muted)
-            VStack(spacing: 0) {
-                row(rates.attendanceDays, rates.dailyWage)
-                CardDivider()
-                row(rates.standardHours, rates.hourlyWage)
-            }
-            .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r10))
-        }
-        .padding(.top, Spacing.s18)
-        .overlay(alignment: .top) { CardDivider() }
-        .accessibilityElement(children: .combine)
-    }
-
-    /// 一行两项，中间一条 34 高的竖线；两项等宽，右项左边再空 14。
-    private func row(_ left: StatItem, _ right: StatItem) -> some View {
-        HStack(spacing: 0) {
-            cell(left).frame(maxWidth: .infinity, alignment: .leading)
-            Rectangle().fill(Palette.line).frame(width: 1, height: OnboardingLayout.statDividerHeight)
-            cell(right).padding(.leading, Spacing.s14).frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.vertical, Spacing.s14)
-        .padding(.horizontal, Spacing.s16)
-    }
-
-    private func cell(_ item: StatItem) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.s4) {
-            Text(item.title).font(AppFont.small).foregroundStyle(Palette.muted)
-            Text(item.value).font(AppFont.numStat).foregroundStyle(Palette.ink)
-        }
-    }
-}
-
-/// 设计稿 Intro：标题 28/700 行高 1.3 (`title` 里用 \n 分行)，副标题 14 muted 行高 1.5，间隔 10；左右 24，上边距按步不同。
-struct OnboardingIntro: View {
-    let title: String
-    let subtitle: String
-    let top: CGFloat
-
-    /// 设计稿行高是字号的倍数，SwiftUI 只能设行间距：目标行高减去字体自带的行高 (Noto Sans SC 约 1.45 倍)。
-    /// 结果可能为负 (标题 1.3 倍比字体自带的矮)，`lineSpacing` 不认负数，标题因此按行拆开、用负的行距叠。
-    private static func lineGap(fontSize: CGFloat, weight: AppFont.Weight = .regular, lineHeight: CGFloat = 1.5) -> CGFloat {
-        let natural = NSLayoutManager().defaultLineHeight(for: AppFont.nsFont(.ui, size: fontSize, weight: weight))
-        return fontSize * lineHeight - natural
-    }
-
-    /// 与 `AppFont.display`、`AppFont.lead` 的字号一致。
-    private static let titleSize: CGFloat = 28
-    private static let subtitleSize: CGFloat = 14
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s10) {
-            VStack(alignment: .leading, spacing: Self.lineGap(fontSize: Self.titleSize, weight: .bold, lineHeight: 1.3)) {
-                ForEach(title.split(separator: "\n").map(String.init), id: \.self) { line in
-                    Text(line).font(AppFont.display)
-                }
-            }
-            .foregroundStyle(Palette.ink)
-            Text(subtitle)
-                .font(AppFont.lead)
-                .lineSpacing(max(0, Self.lineGap(fontSize: Self.subtitleSize)))
-                .foregroundStyle(Palette.muted)
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(.top, top)
-        .padding(.horizontal, OnboardingLayout.side)
-    }
-}
-
-/// 设计稿 Body：上 36、下 22、左右 24，块间隔按步不同；最后是校验失败的提示。
+/// 头图下面的正文：上 20、左右 20、块间隔 16。校验失败的提示改成弹窗 (见 `OnboardingView`)。
 struct OnboardingBody<Content: View>: View {
-    let spacing: CGFloat
-    let errorMessage: String?
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: spacing) {
+        VStack(alignment: .leading, spacing: Spacing.s16) {
             content()
-            if let errorMessage {
-                Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
-            }
         }
-        .padding(.top, OnboardingLayout.bodyTop)
-        .padding(.bottom, OnboardingLayout.bodyBottom)
-        .padding(.horizontal, OnboardingLayout.side)
+        .padding(EdgeInsets(top: Spacing.s20, leading: Spacing.screen, bottom: Spacing.s16, trailing: Spacing.screen))
     }
 }

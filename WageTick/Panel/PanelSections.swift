@@ -5,12 +5,10 @@ import WageCore
 enum PanelMetrics {
     /// 面板、表单宽度。
     static let width: CGFloat = 360
+    /// 表单头图标题栏右侧小字离右边的距离，让开右上角的钉住按钮 (12 + 20 + 16)。
+    static let pinInset: CGFloat = 48
     /// 面板圆角。
     static let cornerRadius = Radius.r14
-    /// 底部操作按钮 (情绪按钮、表单的算了与保存) 高度。
-    static let actionButtonHeight: CGFloat = 44
-    /// 表单内容区各组之间的间距 (设计稿 F5、F6 Body)。
-    static let formSectionGap: CGFloat = 26
     /// 进度区位置上的白干计时按钮 (我还没走、终于下班了) 高度。
     static let unpaidWorkButtonHeight: CGFloat = 48
 }
@@ -60,7 +58,7 @@ struct PanelNoticeBanner: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
-            PhosphorIcon(.warning, size: 13).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 2 }
+            PhosphorIcon(.warning, size: 13).iconOnTextBaseline()
             Text(text).font(AppFont.caption).fixedSize(horizontal: false, vertical: true)
         }
         .foregroundStyle(Palette.accent)
@@ -212,5 +210,108 @@ struct PanelStatsRow: View {
                 .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// 大胆版进度格 (设计稿「大胆风格」)：左上说明 13/700，右上大字 (Archivo Black 22，白干用红色、平时橙色)；
+/// 下面一排圆角小格，每格 1 小时，已过的墨色 (白干填红)，当前这一小时填一部分；下班后白干在末尾多一格红色超时。
+/// 文字与格数原样取自快照的 `HourBlocks`。
+struct HourBlocksView: View {
+    let blocks: HourBlocks
+
+    private static let height: CGFloat = 18
+
+    var body: some View {
+        VStack(spacing: Spacing.s6) {
+            HStack(alignment: .lastTextBaseline) {
+                Text(blocks.label).font(AppFont.ui(13, .bold)).foregroundStyle(Palette.ink)
+                Spacer()
+                Text(blocks.value).font(AppFont.heavy(22)).foregroundStyle(blocks.isUnpaid ? Palette.hot : Palette.accent)
+            }
+            // 休息日按本月上班日排二十来格，格子窄，间隔也收一点。
+            HStack(spacing: blocks.count > 12 ? Spacing.s3 : Spacing.s4) {
+                ForEach(0..<blocks.count, id: \.self) { index in
+                    cell(fill: min(max(blocks.filled - Double(index), 0), 1))
+                }
+                if blocks.overtime {
+                    RoundedRectangle(cornerRadius: Radius.r5).fill(Palette.hot)
+                }
+            }
+            .frame(height: Self.height)
+            if blocks.startText != nil || blocks.endText != nil {
+                HStack {
+                    Text(blocks.startText ?? "")
+                    Spacer(minLength: Spacing.s4)
+                    if let middle = blocks.middleText { Text(middle) }
+                    Spacer(minLength: Spacing.s4)
+                    Text(blocks.endText ?? "")
+                }
+                .font(AppFont.num(10))
+                .foregroundStyle(Palette.muted)
+                .lineLimit(1)
+            }
+        }
+    }
+
+    /// 一格：`fill` 为这格填了多少 (0 至 1)。
+    private func cell(fill: Double) -> some View {
+        // 休息日被迫营业的格子填白干的红；下班后白干的工时格仍是墨色，超时那格才是红的。
+        let color = blocks.isUnpaid && !blocks.overtime ? Palette.hot : Palette.ink
+        return RoundedRectangle(cornerRadius: Radius.r5)
+            .fill(Palette.surface)
+            .overlay(alignment: .leading) {
+                GeometryReader { geometry in
+                    Rectangle().fill(color).frame(width: geometry.size.width * fill)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: Radius.r5))
+    }
+}
+
+/// 大胆版统计行 (设计稿「大胆风格」)：各项平分宽度、居中，项与项之间一条细竖线，没有上下分隔线。
+/// 数值：金额与数字用 Archivo Black 18；「11 天」拆成大数字 + 小单位；纯中文 (如「明天休息」) 用圆润的站酷快乐体。
+/// 扣款 (以「−」开头) 用 loss 色，本月累计用 money 色，高亮项 (距离周末) 用 accent。标题 11 muted。
+struct BoldStatsRow: View {
+    let stats: [StatItem]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(stats.enumerated()), id: \.offset) { index, item in
+                if index > 0 {
+                    Rectangle().fill(Palette.line).frame(width: 1, height: 34)
+                }
+                VStack(spacing: Spacing.s4) {
+                    value(item)
+                        .foregroundStyle(color(item))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text(item.title).font(AppFont.small).foregroundStyle(Palette.muted)
+                }
+                .padding(.horizontal, Spacing.s8)
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func value(_ item: StatItem) -> some View {
+        let parts = item.value.split(separator: " ", maxSplits: 1).map(String.init)
+        if parts.count == 2, parts[0].allSatisfy(\.isNumber) {
+            HStack(alignment: .lastTextBaseline, spacing: Spacing.s3) {
+                Text(parts[0]).font(AppFont.heavy(18))
+                Text(parts[1]).font(AppFont.ui(12, .bold))
+            }
+        } else if item.value.unicodeScalars.contains(where: { (0x4E00...0x9FFF).contains($0.value) }) {
+            Text(item.value).font(AppFont.round(18))
+        } else {
+            Text(item.value).font(AppFont.heavy(18))
+        }
+    }
+
+    private func color(_ item: StatItem) -> Color {
+        if item.value.hasPrefix("−") { return Palette.loss }
+        if item.isHighlighted { return Palette.accent }
+        if item.title == "本月累计" { return Palette.money }
+        return Palette.ink
     }
 }

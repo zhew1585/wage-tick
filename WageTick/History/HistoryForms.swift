@@ -1,7 +1,7 @@
 import SwiftUI
 import WageCore
 
-/// 补记或修改一段白干 (PRD 4.4.3 #5、F11)：这一天的开始时刻，结束时刻可以落在次日 (跨过零点)。
+/// 补记或修改一段白干 (PRD 4.4.3 #5、F11)，与改工资表单同一套大胆版样式 (站酷体标题、底部胶囊按钮)：这一天的开始时刻，结束时刻可以落在次日 (跨过零点)。
 /// 结束日期的选项、校验与提示都来自核心；只有当天一个选项时不显示结束日期。
 struct UnpaidWorkFormView: View {
     /// 新补记 (带预填时段) 还是修改第 `index` 段。
@@ -48,7 +48,7 @@ struct UnpaidWorkFormView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s14) {
-            Text(isEditing ? "改一段白干" : "补记白干").font(AppFont.sheetTitle).foregroundStyle(Palette.ink)
+            HistoryFormTitle(isEditing ? "改一段白干" : "补记白干")
             HStack(spacing: Spacing.s12) {
                 Field("开始") { TimeInput(selection: $start) }
                 Field("结束") { TimeInput(selection: $end) }
@@ -59,14 +59,7 @@ struct UnpaidWorkFormView: View {
             if let errorMessage {
                 Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
             }
-            HStack(spacing: Spacing.s8) {
-                Button("取消", action: dismiss)
-                    .keyboardShortcut(.cancelAction)
-                    .buttonStyle(.secondary(fullWidth: true))
-                Button(action: save) { Label("保存", systemImage: "checkmark") }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.primary(fullWidth: true))
-            }
+            HistoryFormButtons(cancel: dismiss, save: save)
         }
         .padding(Spacing.screen)
         .frame(width: 280)
@@ -123,7 +116,7 @@ private struct EndDayInput: View {
 }
 
 /// 改某个月的工资 (PRD 4.2.1 #2、4.6.1)：上方「月薪 | 日薪」切换 (issue #16)，下面金额，只影响该月。
-/// 校验与提示与设置页同一套 (`Validation.salary`)。
+/// 校验与提示与设置页同一套 (`Validation.salary`)；样式同补记白干表单。
 struct SalaryFormView: View {
     let month: YearMonth
     /// 如「2026年1月」。
@@ -152,7 +145,7 @@ struct SalaryFormView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s14) {
-            Text("\(title)的工资").font(AppFont.sheetTitle).foregroundStyle(Palette.ink)
+            HistoryFormTitle("\(title)的工资")
             Text(hint).font(AppFont.caption).foregroundStyle(Palette.muted)
             VStack(alignment: .leading, spacing: Spacing.s6) {
                 PayBasisSwitch(selection: basis) { basis = $0 }
@@ -162,14 +155,7 @@ struct SalaryFormView: View {
             if let errorMessage {
                 Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
             }
-            HStack(spacing: Spacing.s8) {
-                Button("取消", action: dismiss)
-                    .keyboardShortcut(.cancelAction)
-                    .buttonStyle(.secondary(fullWidth: true))
-                Button(action: save) { Label("保存", systemImage: "checkmark") }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.primary(fullWidth: true))
-            }
+            HistoryFormButtons(cancel: dismiss, save: save)
         }
         .padding(Spacing.screen)
         .frame(width: 280)
@@ -191,5 +177,38 @@ struct SalaryFormView: View {
         } catch {
             errorMessage = error.message
         }
+    }
+}
+
+/// 历史里小表单 (补记白干、改工资) 的标题：站酷体 20 号墨色。
+private struct HistoryFormTitle: View {
+    let text: String
+
+    init(_ text: String) {
+        self.text = text
+    }
+
+    var body: some View {
+        Text(text).font(AppFont.fun(20)).foregroundStyle(Palette.ink)
+    }
+}
+
+/// 历史里小表单底部的两颗胶囊按钮：「算了」墨色描边 (Esc)，「保存」墨色实心 (回车)，各占一半。
+private struct HistoryFormButtons: View {
+    let cancel: () -> Void
+    let save: () -> Void
+
+    var body: some View {
+        HStack(spacing: Spacing.s8) {
+            Button("算了", action: cancel)
+                .keyboardShortcut(.cancelAction)
+                .buttonStyle(.pill(.outline))
+            Button(action: save) {
+                Label { Text("保存") } icon: { PhosphorIcon(.check, size: 16) }
+            }
+            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.pill(.ink))
+        }
+        .padding(.top, Spacing.s4)
     }
 }
