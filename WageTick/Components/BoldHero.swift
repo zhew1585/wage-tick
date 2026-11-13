@@ -45,7 +45,7 @@ struct BoldHero<Number: View>: View {
             compact.opacity(compactOpacity)
             titlebar
         }
-        .frame(height: height)
+        .frame(height: height, alignment: .top)
         .frame(maxWidth: .infinity)
         .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: radius, bottomTrailingRadius: radius))
         .shadow(color: collapse > 0.95 ? theme.bottom.opacity(0.25) : .clear, radius: 8, y: 4)

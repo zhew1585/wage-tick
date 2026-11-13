@@ -3,7 +3,7 @@ import AppKit
 import SwiftUI
 import WageCore
 
-/// 离屏渲染目标、历史 (月列表、月日历、单日详情)、设置 (含休息模式表单) 几页，存成 PNG，和设计稿 (P3 至 P6 · 760) 对照用。只在 Debug 构建里。
+/// 离屏渲染目标 (攒钱队列、头图收起、没有目标、已到手、新建与编辑表单)、历史 (月列表、月日历、单日详情)、设置 (含休息模式表单) 几页，存成 PNG，和设计稿 (P3 至 P6 · 760) 对照用。只在 Debug 构建里。
 /// 目标与历史的状态在内存里用核心命令造出来 (2026 年 11 月 5 日 15:00，月薪 20000、10:00 至 18:00、饭点 12:00 至 13:00，
 /// 30 日改成不上班后应出勤 20 天、日薪 1000)；设置页要一个 `AppModel`，用临时目录里的状态文件 (此刻真实时间)。
 /// 不起菜单栏、不读写正在用的 state.json，可以和正在跑的 App 同时用。
@@ -50,7 +50,11 @@ private enum PagePreviews {
         let overnight = snapshot(of: try overnight(state), at: now)
         return [
             ("P3-goals", goals(snap)),
+            ("P3-goals-scrolled", goals(snap, scrolled: true)),
             ("P3-goals-empty", goals(snapshot(of: try onboarded(), at: now))),
+            ("P3-goals-earned", goals(snap, route: .earned)),
+            ("P3-goal-form", goals(snap, route: .form(.create))),
+            ("P3-goal-form-edit", goals(snap, route: try snap.goals?.queue.dropFirst().first.map { .form(.edit($0)) } ?? { throw MissingPreviewData() }())),
             ("P4-history", history(snap)),
             ("P5-calendar", history(snap, month: today.yearMonth)),
             ("P5-calendar-october", history(snap, month: YearMonth(year: 2026, month: 10))),
@@ -150,10 +154,13 @@ private enum PagePreviews {
 
     // MARK: 视图
 
-    private static func goals(_ snap: Snapshot) -> AnyView {
+    /// 目标窗口的某一页；`scrolled` 时滚到底，看头图收起的样子。
+    private static func goals(_ snap: Snapshot, route: GoalsRoute = .queue, scrolled: Bool = false) -> AnyView {
         let content = GoalsContent()
         content.update(from: snap)
-        return page(GoalsView(content: content, send: { _ throws(CommandError) in }))
+        content.route = route
+        let view = GoalsView(content: content, send: { _ throws(CommandError) in }, close: {})
+        return page(view.defaultScrollAnchor(scrolled ? .bottom : .top))
     }
 
     private static func history(_ snap: Snapshot, month: YearMonth? = nil, day: LocalDate? = nil) -> AnyView {

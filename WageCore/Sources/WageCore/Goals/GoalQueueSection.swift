@@ -32,16 +32,9 @@ extension GoalQueueSection {
     init?(state: AppState, active: ActiveGoalCard?, today: Today, holidays: HolidayTable) {
         let queued = state.goals.filter(\.status.isQueued)
         guard let active, !queued.isEmpty else { return nil }
-        let rule = AttendanceRule(holidays: holidays)
-        var previousFinish = active.finishDate
-        let cards = queued.prefix(Self.expandedLimit - 1).map { goal in
-            // 日薪为 0 时 (PRD 4.3.5 #19) 前一个没法预计，后面的也都没法预计。
-            let finish = previousFinish.flatMap { previous in
-                ActiveGoalCard.workDays(for: goal.amount, dailyWage: today.dailyWage).map { rule.attendanceDay($0, after: previous) }
-            }
-            previousFinish = finish
-            return QueuedGoalCard(goal: goal, finish: finish, today: today.date)
-        }
+        let shown = Array(queued.prefix(Self.expandedLimit - 1))
+        let finishes = AttendanceRule(holidays: holidays).queuedFinishDates(shown, after: active.finishDate, dailyWage: today.dailyWage)
+        let cards = zip(shown, finishes).map { goal, finish in QueuedGoalCard(goal: goal, finish: finish, today: today.date) }
         let expanded = state.settings.goalQueueExpanded
         self.init(
             queued: expanded ? cards : [],
@@ -64,13 +57,33 @@ extension QueuedGoalCard {
             estimate = "排队中 · \(shortEstimate)"
             return
         }
-        let date = finish.year == today.year ? Format.monthDay(finish) : Format.yearMonth(finish)
-        shortEstimate = "预计 \(date)"
+        shortEstimate = "预计 \(Format.estimateDate(finish, today: today))"
         estimate = "排队中 · \(shortEstimate)"
     }
 }
 
+extension AttendanceRule {
+    /// 排队中目标依次的预计完成日 (PRD 4.5.3 #5)：每个从前一个的预计完成日之后起，
+    /// 按当月日薪数 ceil(目标金额 ÷ 日薪) 个应出勤日，跨月、跨年都仍按当月日薪【D7】。
+    /// `first` 是排在它们前面那个目标 (累计中) 的预计完成日；日薪为 0 时 (PRD 4.3.5 #19) 前一个没法预计，后面的也都为 nil。
+    func queuedFinishDates(_ goals: [Goal], after first: LocalDate?, dailyWage: Decimal) -> [LocalDate?] {
+        var previous = first
+        return goals.map { goal in
+            let finish = previous.flatMap { day in
+                ActiveGoalCard.workDays(for: goal.amount, dailyWage: dailyWage).map { attendanceDay($0, after: day) }
+            }
+            previous = finish
+            return finish
+        }
+    }
+}
+
 extension Format {
+    /// 预计完成日：今年内「11月26日」，不在今年「2027年4月」(PRD 4.5.3 #5)。
+    static func estimateDate(_ day: LocalDate, today: LocalDate) -> String {
+        day.year == today.year ? monthDay(day) : yearMonth(day)
+    }
+
     /// 年月，如「2027年1月」。
     static func yearMonth(_ day: LocalDate) -> String {
         "\(day.year)年\(day.month)月"
