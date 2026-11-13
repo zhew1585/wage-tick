@@ -57,9 +57,13 @@ private enum PagePreviews {
             ("P5-day-detail", history(snap, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 4))),
             ("P5-day-detail-today", history(snap, month: today.yearMonth, day: today)),
             ("P5-day-detail-leave", history(snap, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 11))),
+            ("P5-day-detail-future", history(snap, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 12))),
+            ("P5-day-detail-rest", history(snap, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 7))),
+            ("P5-day-detail-day-off", history(snap, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 30))),
             ("P5-day-detail-overnight", history(overnight, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 3))),
             ("P5-day-detail-auto-stopped", history(overnight, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 2))),
             ("P5-unpaid-work-form-overnight", try unpaidWorkForm(overnight, day: LocalDate(year: 2026, month: 11, day: 3))),
+            ("P5-salary-form", try salaryForm(snap)),
             ("P6-settings", page(SettingsView(form: try settingsForm(), updater: AppUpdater()))),
             ("P6-settings-rest-mode-sheet", try restModeSheet()),
             ("P6-settings-payday-sheet", try paydaySheet()),
@@ -158,7 +162,7 @@ private enum PagePreviews {
         content.selectedMonth = month
         content.selectedDay = day
         let actions = PanelActions(dryRun: { _ in .success(snap) }, send: { _ throws(CommandError) in })
-        return page(HistoryView(content: content, actions: actions))
+        return page(HistoryView(content: content, actions: actions, close: {}))
     }
 
     /// 白干段的修改表单 (单独画，不是从详情里弹出的 sheet)：`day` 这天最后一段，带结束日期。
@@ -173,6 +177,22 @@ private enum PagePreviews {
                 .overlay(RoundedRectangle(cornerRadius: Radius.r14).strokeBorder(Palette.line, lineWidth: 1))
                 .padding(24)
                 .background(Color.white)
+        )
+    }
+
+    /// 月日历里改本月工资的表单 (单独画，不是从日历里弹出的 sheet)。
+    private static func salaryForm(_ snap: Snapshot) throws -> AnyView {
+        guard let month = snap.historyMonth(today.yearMonth) else { throw MissingPreviewData() }
+        let actions = PanelActions(dryRun: { _ in .success(snap) }, send: { _ throws(CommandError) in })
+        return AnyView(
+            SalaryFormView(
+                month: month.summary.month, title: month.summary.title, isCurrentMonth: true,
+                current: month.salary, basis: month.payBasis, actions: actions, dismiss: {}
+            )
+            .clipShape(RoundedRectangle(cornerRadius: Radius.r14))
+            .overlay(RoundedRectangle(cornerRadius: Radius.r14).strokeBorder(Palette.line, lineWidth: 1))
+            .padding(24)
+            .background(Color.white)
         )
     }
 

@@ -78,13 +78,13 @@ public struct HistoryMonthSummary: Sendable, Equatable, Identifiable {
 /// 月列表头图 (设计稿 P4 大胆版)：安装当月至今全部月份的合计。
 /// 用法：`HistoryOverview(months: snapshot.historyMonths())`，月份已经推导过，这里只做加总，不再推导一遍。
 public struct HistoryOverview: Sendable, Equatable {
-    /// 各月结算总额之和，如「¥114380」；本月按本月累计 (含今日已赚) 计入。
+    /// 各月结算总额之和，四舍五入到元 (头图大数字不放小数)，如「¥114380」；本月按本月累计 (含今日已赚) 计入。
     public let total: String
     /// 如「7 个月 · 扣款 ¥550」：月数与各月扣款合计 (扣钱 + 请假扣薪)。
     public let caption: String
 
     public init(months: [HistoryMonthSummary]) {
-        total = Format.money(months.map(\.settled).reduce(0, +))
+        total = Format.wholeMoney(months.map(\.settled).reduce(0, +))
         caption = "\(months.count) 个月 · 扣款 \(Format.money(months.map(\.deducted).reduce(0, +)))"
     }
 }

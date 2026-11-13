@@ -118,6 +118,14 @@ struct HistoryMonthDisplayTests {
         #expect(overview.caption == "2 个月 · 扣款 ¥550")
     }
 
+    @Test("合计四舍五入到元：2 月 13 日 15:00 看，本月累计 ¥9571.43 记作 ¥9571")
+    func overviewRoundsToYuan() throws {
+        let snap = snapshot(of: try onboarded(), at: moment(2026, 2, 13, 15, 0))
+
+        #expect(snap.historyMonths().map(\.total) == ["¥9571.43"])
+        #expect(HistoryOverview(months: snap.historyMonths()).total == "¥9571")
+    }
+
     @Test("没有月份时合计 ¥0、0 个月")
     func emptyOverview() {
         #expect(HistoryOverview(months: []) == HistoryOverview(months: snapshot(of: AppState(), at: standardDay(15, 0)).historyMonths()))

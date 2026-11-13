@@ -17,7 +17,7 @@ final class HistoryContent {
     var selectedDay: LocalDate?
 }
 
-/// 历史窗口 (PRD F10、F11，页面 P4、P5)，从左键菜单或主菜单「历史 ⌘3」打开，可编辑历史 (#15)。外观见 `PageWindow`。
+/// 历史窗口 (PRD F10、F11，设计稿「历史-月列表」「历史-月日历」「历史-单日详情」)，从左键菜单或主菜单「历史 ⌘3」打开，可编辑历史 (#15)。外观见 `PageWindow`。
 /// 只在窗口可见时每秒刷新一次：本月结算总额含今日已赚，要跟着本月累计走 (AC-HIS-01)。
 @MainActor
 final class HistoryWindowController: NSObject, NSWindowDelegate {
@@ -73,7 +73,8 @@ final class HistoryWindowController: NSObject, NSWindowDelegate {
                 onStateChange()
             }
         )
-        let view = HistoryView(content: content, actions: actions)
+        // 月列表的返回胶囊关窗；窗口是懒加载的，闭包里弱引用控制器，点的时候窗口早已建好。
+        let view = HistoryView(content: content, actions: actions, close: { [weak self] in self?.window.close() })
         return PageWindow.make(title: "历史", rootView: view, delegate: self)
     }
 }
