@@ -7,6 +7,9 @@ enum HeroNumberInput {
     static let size: CGFloat = 60
     /// 前缀 (¥、−¥、−) 与后缀 (%) 的字号。
     static let affixSize: CGFloat = 26
+    /// 输入框上面多留的高度：光标按整行高 (60 号约 79) 画，比数字字面 (约 41) 高出一截；
+    /// `BoldHero` 又把数字往上提了 10 贴近标题，不留的话光标会伸进标题。
+    static let caretClearance: CGFloat = 24
 
     /// 只留数字与一个小数点：整数加小数最多 `maxDigits` 位，小数最多 `maxDecimals` 位 (0 时不收小数点)。
     /// 多打的字直接吞掉，粘贴进来的非数字字符也去掉。

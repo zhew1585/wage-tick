@@ -97,6 +97,7 @@ struct GoalFormView: View {
                 .heroNumberLimit($amountText, maxDigits: 6)
         }
         .frame(width: 270, alignment: .leading)
+        .padding(.top, HeroNumberInput.caretClearance)
     }
 
     /// 名称输入框 (高 50、圆角 14、2pt 墨色描边、surface 底，右边字数) 与一行说明；校验失败的提示接在说明下面。

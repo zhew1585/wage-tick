@@ -146,6 +146,7 @@ struct DeductionFormView: View {
         }
         .heroNumberLimit($valueText, maxDigits: method == .fixed ? 5 : 3, maxDecimals: 2)
         .frame(height: 76, alignment: .bottomLeading)
+        .padding(.top, HeroNumberInput.caretClearance)
         .contentShape(Rectangle())
         .onTapGesture { focus = .value }
         .cursor(.iBeam)

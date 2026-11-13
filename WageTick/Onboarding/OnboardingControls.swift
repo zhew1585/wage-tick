@@ -35,6 +35,7 @@ struct HeroSalaryInput: View {
                 .heroNumberLimit($text, maxDigits: Self.maxDigits)
         }
         .frame(width: 240, alignment: .leading)
+        .padding(.top, HeroNumberInput.caretClearance)
         .accessibilityLabel("工资")
         // 打开就聚焦，可以直接输。
         .onAppear { focused = true }
