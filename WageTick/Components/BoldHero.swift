@@ -126,7 +126,7 @@ struct BoldHero<Number: View>: View {
         ZStack(alignment: .topTrailing) {
             HStack(alignment: .center, spacing: Spacing.s8) {
                 if let compactValue {
-                    Text(compactValue).font(AppFont.heavy(34)).foregroundStyle(theme.number).lineLimit(1).minimumScaleFactor(0.6)
+                    Text(BoldNumber.grouped(compactValue)).font(AppFont.heavy(34)).foregroundStyle(theme.number).lineLimit(1).minimumScaleFactor(0.6)
                 }
                 Text(kicker).font(AppFont.fun(20)).foregroundStyle(theme.kicker).lineLimit(1)
             }

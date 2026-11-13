@@ -19,21 +19,15 @@ struct SettingsView: View {
         var id: Self { self }
     }
 
+    /// 设置页的头图固定用收起后的窄栏 (Allen 定：完整头图在这里太占地方)，下面的分组照常滚动。
     var body: some View {
-        HeroScroll { collapse in
-            hero(collapse)
-        } content: {
-            VStack(alignment: .leading, spacing: Spacing.s24) {
-                moneySection
-                menuBarSection
-                notificationSection
-                if form.notificationDenied {
-                    notificationWarning
-                }
-                updateSection
-                dataSection
+        VStack(spacing: 0) {
+            hero(1)
+                .frame(height: HeroMetrics.collapsedHeight)
+                .zIndex(1)
+            ScrollBody {
+                settingsSections
             }
-            .padding(EdgeInsets(top: Spacing.s24, leading: Spacing.screen, bottom: Spacing.s24, trailing: Spacing.screen))
         }
         .frame(width: Spacing.pageWidth)
         .background(Palette.bg)
@@ -45,6 +39,20 @@ struct SettingsView: View {
             case .schedule: ScheduleSettingSheet(form: form, dismiss: { self.sheet = nil })
             }
         }
+    }
+
+    private var settingsSections: some View {
+            VStack(alignment: .leading, spacing: Spacing.s24) {
+                moneySection
+                menuBarSection
+                notificationSection
+                if form.notificationDenied {
+                    notificationWarning
+                }
+                updateSection
+                dataSection
+            }
+            .padding(EdgeInsets(top: Spacing.s24, leading: Spacing.screen, bottom: Spacing.s24, trailing: Spacing.screen))
     }
 
     private func hero(_ collapse: CGFloat) -> some View {
