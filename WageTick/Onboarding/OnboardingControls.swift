@@ -3,42 +3,38 @@ import SwiftUI
 import WageCore
 
 /// 引导第 1 步头图里的大号工资输入 (大胆版设计稿「引导-1工资」)：小号 ¥ + Archivo Black 白色大字，空着时显示半透明的「0」。
-/// 位数多了字号自动缩小，整行不超过 `maxWidth` (给右下角小牛留位置)。
+/// 最多五位整数 (到 9 万多)，字号固定 60：Archivo Black 的数字等宽，五位正好 200 宽，输入过程中不缩放，也不压到右下角小牛。
 struct HeroSalaryInput: View {
     @Binding var text: String
     let theme: HeroTheme
     let onSubmit: () -> Void
 
-    private static let size: CGFloat = 96
-    private static let minSize: CGFloat = 40
-    private static let maxWidth: CGFloat = 205
+    private static let size: CGFloat = 60
+    /// 最多几位数字。
+    static let maxDigits = 5
 
     var body: some View {
-        let size = fittedSize
         HStack(alignment: .lastTextBaseline, spacing: Spacing.s2) {
-            Text("¥").font(AppFont.heavy(Self.size * 0.34)).foregroundStyle(theme.kicker)
+            Text("¥").font(AppFont.heavy(26)).foregroundStyle(theme.kicker)
             // 占位「0」自己画：`prompt` 的颜色在 macOS 上会被系统占位色盖掉，橙底上看着发黑。
             TextField("工资", text: $text, prompt: Text(""))
                 .textFieldStyle(.plain)
-                .font(AppFont.heavy(size))
+                .font(AppFont.heavy(Self.size))
                 .foregroundStyle(theme.number)
                 .onSubmit(onSubmit)
                 .background(alignment: .leading) {
                     if text.isEmpty {
-                        Text("0").font(AppFont.heavy(size)).foregroundStyle(theme.number.opacity(0.45)).allowsHitTesting(false)
+                        Text("0").font(AppFont.heavy(Self.size)).foregroundStyle(theme.number.opacity(0.45)).allowsHitTesting(false)
                     }
                 }
+                // 只留数字、最多五位：多打的字直接吞掉。
+                .onChange(of: text) { _, newValue in
+                    let digits = String(newValue.filter(\.isWholeNumber).prefix(Self.maxDigits))
+                    if digits != newValue { text = digits }
+                }
         }
-        .frame(maxWidth: Self.maxWidth + Self.size * 0.34, alignment: .leading)
+        .frame(width: 240, alignment: .leading)
         .accessibilityLabel("工资")
-    }
-
-    /// 按当前文字的实际宽度缩小字号，至少 `minSize`。
-    private var fittedSize: CGFloat {
-        let sample = text.isEmpty ? "0" : text
-        let width = (sample as NSString).size(withAttributes: [.font: AppFont.nsFont(.heavy, size: Self.size)]).width
-        guard width > Self.maxWidth else { return Self.size }
-        return max(Self.minSize, (Self.size * Self.maxWidth / width).rounded(.down))
     }
 }
 

@@ -28,6 +28,9 @@ struct BoldHero<Number: View>: View {
     var captionIcon: Phosphor?
     var cow: CowAct?
     var bubble: HeroBubbleContent?
+    /// 气泡相对小牛头顶右侧的位置；nil 时按默认 (倒计时在头顶上方，台词贴着耳朵)。
+    /// 头图左边放了很宽的内容 (如引导页的大号输入) 时，挪到小牛左边、说明行下面。
+    var bubbleOffset: CGSize?
     /// 发薪日在头图上撒几片彩纸。
     var confetti = false
     /// 收起程度：0 为完整头图，1 为窄栏。
@@ -109,7 +112,7 @@ struct BoldHero<Number: View>: View {
             .padding(EdgeInsets(top: WindowChrome.Titlebar.standard.height + Spacing.s8, leading: Spacing.screen, bottom: 0, trailing: Spacing.screen))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             if let cow {
-                HeroCow(act: cow, bubble: bubble, theme: theme)
+                HeroCow(act: cow, bubble: bubble, bubbleOffset: bubbleOffset, theme: theme)
             }
         }
     }
@@ -197,6 +200,7 @@ struct HeroStatusPill: View {
 private struct HeroCow: View {
     let act: CowAct
     let bubble: HeroBubbleContent?
+    let bubbleOffset: CGSize?
     let theme: HeroTheme
 
     var body: some View {
@@ -207,20 +211,23 @@ private struct HeroCow: View {
                 if let bubble {
                     // 设计稿：两行的倒计时气泡在头顶上方，一行的台词贴着耳朵；躺平的小牛头低，气泡跟着往下。
                     // 台词最宽 150，长的折成两行，不压到左边的大数字。
-                    HeroBubble(content: bubble, accent: theme.bubbleAccent)
+                    // 气泡挪到小牛左边时，尖角改到右下，指向小牛。
+                    HeroBubble(content: bubble, accent: theme.bubbleAccent, tailOnRight: (bubbleOffset?.width ?? 0) < -50)
                         .frame(maxWidth: bubble.numeric ? nil : 150, alignment: .trailing)
                         .fixedSize(horizontal: bubble.numeric, vertical: true)
-                        .offset(x: -6, y: act == .pose(.lyingFlat) ? 70 : (bubble.prefix == nil ? -6 : -30))
+                        .offset(bubbleOffset ?? CGSize(width: -6, height: act == .pose(.lyingFlat) ? 70 : (bubble.prefix == nil ? -6 : -30)))
                 }
             }
             .allowsHitTesting(false)
     }
 }
 
-/// 白色气泡：左下角是尖角，有一层淡投影。
+/// 白色气泡：左下角 (在小牛左边时右下角) 是尖角，有一层淡投影。
 struct HeroBubble: View {
     let content: HeroBubbleContent
     let accent: Color
+    /// 尖角在右下 (气泡在小牛左边时)；默认在左下。
+    var tailOnRight = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -236,7 +243,10 @@ struct HeroBubble: View {
         }
         .padding(.horizontal, Spacing.s12)
         .padding(.vertical, Spacing.s6)
-        .background(.white, in: UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 4, bottomTrailingRadius: 14, topTrailingRadius: 14))
+        .background(.white, in: UnevenRoundedRectangle(
+            topLeadingRadius: 14, bottomLeadingRadius: tailOnRight ? 14 : 4,
+            bottomTrailingRadius: tailOnRight ? 4 : 14, topTrailingRadius: 14
+        ))
         .shadow(color: .black.opacity(0.15), radius: 6, y: 4)
     }
 }

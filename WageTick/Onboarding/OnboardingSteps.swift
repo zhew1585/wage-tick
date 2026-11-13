@@ -17,6 +17,8 @@ struct OnboardingSalaryHero: View {
             captionIcon: .lockSimple,
             cow: .pose(.yawning),
             bubble: HeroBubbleContent(value: "我先替你保密", numeric: false),
+            // 头图左边是五位数的大号输入，气泡挪到小牛左边、说明行下面，不压到数字。
+            bubbleOffset: CGSize(width: -112, height: 100),
             collapse: collapse,
             compactValue: salaryText.isEmpty ? nil : "¥\(salaryText)"
         ) {
