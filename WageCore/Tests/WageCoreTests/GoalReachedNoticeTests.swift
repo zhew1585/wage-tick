@@ -16,7 +16,7 @@ private func applied(_ command: Command, to state: AppState, at now: Moment = st
 }
 
 private let reachedNotice = DomainEvent.goalReached(message: "🎉 目标「键盘」达成")
-private let celebration = GoalCelebration(goalID: 1, message: "🎉 目标「键盘」达成")
+private let celebration = GoalCelebration(goalID: 1, goalName: "键盘")
 
 @Suite("目标达成通知")
 struct GoalReachedNoticeTests {
@@ -101,6 +101,12 @@ struct GoalReachedNoticeSwitchTests {
 
 @Suite("目标达成：庆祝动画")
 struct GoalCelebrationTests {
+    @Test("动画卡片放大的目标名与通知同一句文案")
+    func nameAndMessage() {
+        #expect(celebration.goalName == "键盘")
+        #expect(celebration.message == "🎉 目标「键盘」达成")
+    }
+
     @Test("AC-GPRG-04 达成后打开面板播放一次庆祝动画：确认前每次取快照都有，确认后没有")
     func playsOnceAfterAcknowledged() throws {
         let done = try apply(.advance, to: try goalOf500(), at: standardDay(15, 0)).state
@@ -146,7 +152,7 @@ struct GoalCelebrationTests {
 
         #expect(result.events == [.goalReached(message: "🎉 目标「耳机」达成")])
         #expect(snapshot(of: result.state, at: moment(2026, 2, 12, 15, 0)).celebration
-            == GoalCelebration(goalID: 2, message: "🎉 目标「耳机」达成"))
+            == GoalCelebration(goalID: 2, goalName: "耳机"))
     }
 
     @Test("上一个目标的动画还没播放、下一个又达成：按达成先后各播放一次")
@@ -154,7 +160,7 @@ struct GoalCelebrationTests {
         let first = try apply(.advance, to: try goalOf500(), at: standardDay(15, 0)).state
         let second = try creatingGoal("耳机", 300, in: first, at: standardDay(15, 0))
         let both = try apply(.advance, to: second, at: moment(2026, 2, 12, 15, 0)).state
-        let earphones = GoalCelebration(goalID: 2, message: "🎉 目标「耳机」达成")
+        let earphones = GoalCelebration(goalID: 2, goalName: "耳机")
 
         #expect(snapshot(of: both, at: moment(2026, 2, 12, 15, 0)).celebration == celebration)
         let firstPlayed = try applied(.acknowledgeCelebration(goalID: 1), to: both, at: moment(2026, 2, 12, 15, 1))
@@ -200,7 +206,7 @@ struct GoalReachedQueueTests {
 
         #expect(result.events == [.goalReached(message: "🎉 目标「A」达成")])
         #expect(snapshot(of: result.state, at: standardDay(16, 36)).celebration
-            == GoalCelebration(goalID: 1, message: "🎉 目标「A」达成"))
+            == GoalCelebration(goalID: 1, goalName: "A"))
         #expect(try apply(.advance, to: result.state, at: standardDay(16, 37)).events.isEmpty)
     }
 
@@ -224,9 +230,9 @@ struct GoalReachedQueueTests {
             .goalReached(message: "🎉 目标「A」达成"),
             .goalReached(message: "🎉 目标「B」达成"),
         ])
-        #expect(celebration(result.state) == GoalCelebration(goalID: 1, message: "🎉 目标「A」达成"))
+        #expect(celebration(result.state) == GoalCelebration(goalID: 1, goalName: "A"))
         let aPlayed = try applied(.acknowledgeCelebration(goalID: 1), to: result.state, at: standardDay(18, 0))
-        #expect(celebration(aPlayed) == GoalCelebration(goalID: 2, message: "🎉 目标「B」达成"))
+        #expect(celebration(aPlayed) == GoalCelebration(goalID: 2, goalName: "B"))
         let bothPlayed = try applied(.acknowledgeCelebration(goalID: 2), to: aPlayed, at: standardDay(18, 0))
         #expect(celebration(bothPlayed) == nil)
     }

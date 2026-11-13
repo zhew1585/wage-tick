@@ -39,7 +39,7 @@ public struct LeaveBar: Sendable, Equatable {
         public let range: LeaveRange
     }
 
-    /// 时间条上方右侧的时段说明：时段如「14:00 – 16:00」，时长 (请掉的有效工时，不含饭点) 如「2 小时」。
+    /// 时段说明 (请假表单头图里的大数字与说明行)：时段如「14:00 – 16:00」，时长 (请掉的有效工时，不含饭点) 如「2 小时」。
     public struct Title: Sendable, Equatable {
         public let range: String
         public let duration: String

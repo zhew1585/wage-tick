@@ -18,6 +18,19 @@ enum FieldEditorTheme {
         }
     }
 
+    /// 彩色头图里的输入框 (扣钱表单的大号金额) 用另一套：光标高亮黄，选中文字墨色半透明底 (白字在 accent-soft 上看不清)。
+    /// 字段编辑器是整个窗口共用的，离开那个输入框时传 false 换回来。作用在当前 key window。
+    static func useHeroStyle(_ on: Bool) {
+        guard let window = NSApp.keyWindow else { return }
+        if on {
+            guard let editor = window.fieldEditor(true, for: nil) as? NSTextView else { return }
+            editor.insertionPointColor = NSColor(Palette.highlight)
+            editor.selectedTextAttributes = [.backgroundColor: NSColor(Palette.ink).withAlphaComponent(0.25)]
+        } else {
+            apply(to: window)
+        }
+    }
+
     private static func apply(to window: NSWindow) {
         guard let editor = window.fieldEditor(true, for: nil) as? NSTextView else { return }
         editor.insertionPointColor = NSColor(Palette.accent)

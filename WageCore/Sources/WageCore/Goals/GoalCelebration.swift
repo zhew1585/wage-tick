@@ -6,12 +6,15 @@ import Foundation
 public struct GoalCelebration: Sendable, Equatable {
     /// 达成的目标编号，确认时原样带回。
     public let goalID: Int
-    /// 动画里的文字，与达成通知同一句，如「🎉 目标「Switch 2」达成」。
+    /// 达成的目标名，如「Switch 2」：动画卡片上放大显示。
+    public let goalName: String
+    /// 与达成通知同一句，如「🎉 目标「Switch 2」达成」(辅助功能朗读用)。
     public let message: String
 
-    public init(goalID: Int, message: String) {
+    public init(goalID: Int, goalName: String) {
         self.goalID = goalID
-        self.message = message
+        self.goalName = goalName
+        message = NotificationCopy.goalReached(name: goalName)
     }
 }
 
@@ -22,7 +25,7 @@ extension GoalCelebration {
         guard let goal = state.pendingCelebrations.lazy.compactMap({ id in completed.first { $0.id == id } }).first else {
             return nil
         }
-        self.init(goalID: goal.id, message: NotificationCopy.goalReached(name: goal.name))
+        self.init(goalID: goal.id, goalName: goal.name)
     }
 }
 

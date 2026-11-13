@@ -19,6 +19,12 @@ public struct DeductionEntry: Sendable, Equatable {
         return "扣 \(Format.money(amount.money(dailyWage: dailyWage))) · \(capTitle)"
     }
 
+    /// 这一笔折算后扣多少，如「−¥50」「−¥95.24」(按日薪百分比时按当月日薪折算)：表单头图与保存按钮上用。
+    /// 只管折算，数值是否合法交给核心校验 (外壳在草稿试算通过后才显示)。
+    public func amountText(_ amount: DeductionAmount) -> String {
+        Format.deduction(amount.money(dailyWage: dailyWage))
+    }
+
     /// 预览文案「今日上限 ¥x → ¥y」；草稿试算失败 (如金额还没填) 时只显示起点「今日上限 ¥x」。
     public func previewLine(to draft: DeductionEntry?) -> String {
         guard let draft else { return "\(capTitle) \(capText)" }

@@ -7,10 +7,6 @@ enum PanelMetrics {
     static let width: CGFloat = 360
     /// 面板圆角。
     static let cornerRadius = Radius.r14
-    /// 底部操作按钮 (情绪按钮、表单的算了与保存) 高度。
-    static let actionButtonHeight: CGFloat = 44
-    /// 表单内容区各组之间的间距 (设计稿 F5、F6 Body)。
-    static let formSectionGap: CGFloat = 26
     /// 进度区位置上的白干计时按钮 (我还没走、终于下班了) 高度。
     static let unpaidWorkButtonHeight: CGFloat = 48
 }
