@@ -166,10 +166,18 @@ private struct LargeWidgetView: View {
     let theme: HeroTheme
     let clock: WidgetClock
 
+    /// 头图约占整体高度的 46% (桌面上大号约 351 高，头图 160)，下半放进度格、统计行、目标卡。
     var body: some View {
-        VStack(spacing: 0) {
-            hero
-            VStack(spacing: Spacing.s12) {
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                hero.frame(height: (geometry.size.height * 0.46).rounded())
+                lower
+            }
+        }
+    }
+
+    private var lower: some View {
+            VStack(spacing: Spacing.s10) {
                 if let blocks = today.blocks {
                     VStack(spacing: Spacing.s6) {
                         HStack(alignment: .lastTextBaseline) {
@@ -185,9 +193,8 @@ private struct LargeWidgetView: View {
                 Spacer(minLength: 0)
                 WidgetGoalCard(goal: today.goal)
             }
-            .padding(EdgeInsets(top: 14, leading: 16, bottom: 16, trailing: 16))
+            .padding(EdgeInsets(top: 12, leading: 16, bottom: 14, trailing: 16))
             .frame(maxHeight: .infinity)
-        }
     }
 
     private var hero: some View {
@@ -196,20 +203,20 @@ private struct LargeWidgetView: View {
                 WidgetStatusPill(today: today)
                 Text(today.dateText).font(.system(size: 11, weight: .semibold)).foregroundStyle(theme.secondary)
             }
-            .padding(.bottom, 10)
+            .padding(.bottom, 6)
             WidgetKicker(text: WidgetText.kicker(today), theme: theme, size: 14)
-            WidgetBigNumber(today: today, theme: theme, size: 58)
+            WidgetBigNumber(today: today, theme: theme, size: 50)
             if let caption = WidgetText.caption(today) {
                 Text(caption).font(.system(size: 11, weight: .bold)).foregroundStyle(theme.secondary)
                     .lineLimit(1).frame(maxWidth: 200, alignment: .leading)
             }
         }
-        .padding(16)
+        .padding(EdgeInsets(top: 14, leading: 16, bottom: 12, trailing: 16))
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay(alignment: .topTrailing) {
             WidgetCowImage(scene: today.scene)
-                .frame(width: 130, height: 173)
-                .padding(.top, today.scene == .offWork ? 20 : 46)
+                .frame(width: 120, height: 160)
+                .padding(.top, today.scene == .offWork ? 14 : 40)
                 .padding(.trailing, Spacing.s2)
         }
         .overlay(alignment: .topTrailing) {
@@ -217,7 +224,7 @@ private struct LargeWidgetView: View {
                 .padding(.top, 14)
                 .padding(.trailing, 22)
         }
-        .frame(height: 178)
+        .clipped()
         .background(theme.gradient)
         .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 24, bottomTrailingRadius: 24))
     }
@@ -293,7 +300,7 @@ private struct WidgetBigNumber: View {
             case .amount(let amount):
                 let parts = Self.split(amount.amount)
                 Text("¥").font(.system(size: size * 0.42, weight: .black)).foregroundStyle(theme.kicker)
-                Text(parts.integer).font(.system(size: size, weight: .black)).tracking(-size * 0.04).foregroundStyle(theme.number)
+                Text(Self.grouped(parts.integer)).font(.system(size: size, weight: .black)).tracking(-size * 0.04).foregroundStyle(theme.number)
                 if let decimals = parts.decimals {
                     Text("." + decimals).font(.system(size: size * 0.42, weight: .black)).foregroundStyle(theme.number)
                 }
@@ -307,6 +314,17 @@ private struct WidgetBigNumber: View {
         }
         .lineLimit(1)
         .minimumScaleFactor(0.6)
+    }
+
+    /// 整数部分加千分位，如「1000」→「1,000」。
+    private static func grouped(_ integer: String) -> String {
+        guard integer.count > 3, integer.allSatisfy(\.isNumber) else { return integer }
+        var result = ""
+        for (index, character) in integer.enumerated() {
+            if index > 0, (integer.count - index) % 3 == 0 { result.append(",") }
+            result.append(character)
+        }
+        return result
     }
 
     /// 「571.43」拆成 571 与 43。
