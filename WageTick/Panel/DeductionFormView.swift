@@ -83,6 +83,7 @@ struct DeductionFormView: View {
                 theme: .red,
                 back: HeroBack(label: "返回", action: dismiss),
                 titlebarTrailing: subtitle,
+                titlebarTrailingInset: PanelMetrics.pinInset,
                 kicker: title,
                 caption: caption(draft),
                 captionIcon: .wallet,

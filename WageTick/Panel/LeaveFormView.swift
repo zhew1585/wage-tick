@@ -61,6 +61,7 @@ struct LeaveFormView: View {
                 theme: .sun,
                 back: HeroBack(label: "返回", action: dismiss),
                 titlebarTrailing: subtitle,
+                titlebarTrailingInset: PanelMetrics.pinInset,
                 kicker: mode == .request ? "请个假，歇一歇" : "修改请假",
                 caption: caption(range: title.range, deduction: deduction),
                 captionIcon: .clock,

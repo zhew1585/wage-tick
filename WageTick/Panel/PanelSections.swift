@@ -5,6 +5,8 @@ import WageCore
 enum PanelMetrics {
     /// 面板、表单宽度。
     static let width: CGFloat = 360
+    /// 表单头图标题栏右侧小字离右边的距离，让开右上角的钉住按钮 (12 + 20 + 16)。
+    static let pinInset: CGFloat = 48
     /// 面板圆角。
     static let cornerRadius = Radius.r14
     /// 进度区位置上的白干计时按钮 (我还没走、终于下班了) 高度。

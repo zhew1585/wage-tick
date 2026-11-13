@@ -18,6 +18,8 @@ struct BoldHero<Number: View>: View {
     var back: HeroBack?
     /// 标题栏一行右侧的小字 (如表单的日期)。
     var titlebarTrailing: String?
+    /// 标题栏右侧小字离右边的距离；今日概览右上角有钉住按钮，表单里要让开它。
+    var titlebarTrailingInset: CGFloat = Spacing.screen
     /// 标题上方一行：左边日期、右边状态胶囊 (首页)。
     var topLeading: String?
     var status: HeroStatus?
@@ -65,7 +67,7 @@ struct BoldHero<Number: View>: View {
             }
         }
         .padding(.leading, WindowChrome.Titlebar.standard.leadingInset - Spacing.s4)
-        .padding(.trailing, Spacing.screen)
+        .padding(.trailing, titlebarTrailingInset)
         .frame(height: WindowChrome.Titlebar.standard.height)
     }
 
