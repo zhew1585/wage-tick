@@ -2,13 +2,13 @@ import SwiftUI
 import WageCore
 
 /// 历史 (PRD F10、F11)：月列表 → 月日历 → 单日详情，三级页面 (设计稿「历史-月列表」「历史-月日历」「历史-单日详情」大胆版)。
-/// 三页都是墨色「账本」头图 (`HeroTheme.ledger`)，头图标题栏的返回胶囊逐级退回，月列表的返回关窗。
+/// 三页都是墨色「账本」头图 (`HeroTheme.ledger`)，下一级从右边推进来，头图标题栏的返回胶囊逐级退回，月列表的返回退回概览。
 /// 日历里可改该月月薪，单日详情里可编辑那一天。所有文字取自快照，这里只管排版、导航与发命令。
 struct HistoryView: View {
     let content: HistoryContent
     /// 单日编辑、改月薪发命令的口子 (#15)。
     let actions: PanelActions
-    /// 月列表的返回：关掉历史窗口。
+    /// 月列表的返回：退回今日概览。
     let close: () -> Void
 
     var body: some View {
@@ -21,25 +21,36 @@ struct HistoryView: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
-    @ViewBuilder
+    /// 月列表在最底下，月日历、单日详情依次从右边推进来盖在上面；返回时往右滑出去。
+    /// 日历里切换上下月只换内容，不播推入动画 (动画只跟着「有没有打开日历 / 单日」走)。
     private func page(_ snapshot: Snapshot) -> some View {
-        if let date = content.selectedDay, let day = snapshot.historyDay(date) {
-            DayDetailView(day: day, actions: actions, back: { content.selectedDay = nil })
-                // 换一天时丢掉上一天的表单与提示。
-                .id(day.date)
-        } else if let month = content.selectedMonth.flatMap(snapshot.historyMonth) {
-            let months = snapshot.historyMonths().map(\.month)
-            MonthCalendarView(
-                month: month, months: months, actions: actions,
-                open: { content.selectedDay = $0 },
-                switchMonth: { content.selectedMonth = $0 },
-                back: { content.selectedMonth = nil }
-            )
-            // 换月时丢掉上个月的表单。
-            .id(month.summary.month)
-        } else {
+        let month = content.selectedMonth.flatMap(snapshot.historyMonth)
+        let day = month == nil ? nil : content.selectedDay.flatMap(snapshot.historyDay)
+        return ZStack {
             MonthListView(months: snapshot.historyMonths(), open: { content.selectedMonth = $0 }, close: close)
+            if let month {
+                let months = snapshot.historyMonths().map(\.month)
+                MonthCalendarView(
+                    month: month, months: months, actions: actions,
+                    open: { content.selectedDay = $0 },
+                    switchMonth: { content.selectedMonth = $0 },
+                    back: { content.selectedMonth = nil }
+                )
+                // 换月时丢掉上个月的表单。
+                .id(month.summary.month)
+                .background(Palette.bg)
+                .pushed(level: 1)
+            }
+            if let day {
+                DayDetailView(day: day, actions: actions, back: { content.selectedDay = nil })
+                    // 换一天时丢掉上一天的表单与提示。
+                    .id(day.date)
+                    .background(Palette.bg)
+                    .pushed(level: 2)
+            }
         }
+        .animation(.push, value: month != nil)
+        .animation(.push, value: day != nil)
     }
 }
 

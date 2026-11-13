@@ -111,7 +111,7 @@ final class SettingsFormModel {
         launchMessage = nil
     }
 
-    /// 按最新快照刷新显示模式预览，设置窗口可见时每秒调一次。
+    /// 按最新快照刷新显示模式预览，设置页显示时每秒调一次。
     func refreshMenuBarPreviews() {
         updatePreviews(from: model.currentSnapshot())
     }

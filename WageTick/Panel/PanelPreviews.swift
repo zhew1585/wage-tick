@@ -155,7 +155,7 @@ private enum PanelPreviews {
         )
         let navigation = PanelNavigation(openHistory: {}, openGoals: {}, openSettings: {})
         return AnyView(
-            TodayPanelView(content: content, actions: actions, navigation: navigation)
+            TodayPanelView(content: content, actions: actions, navigation: navigation, page: { _ in AnyView(EmptyView()) })
                 // 面板内容顶到窗口上沿 (头图垫在红绿灯下面)，按整个窗口高排。
                 .frame(height: WindowMetrics.size.height)
                 .clipShape(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius))

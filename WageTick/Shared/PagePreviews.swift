@@ -161,7 +161,7 @@ private enum PagePreviews {
 
     // MARK: 视图
 
-    /// 目标窗口的某一页；`scrolled` 时滚到底，看头图收起的样子。
+    /// 目标页的某一子页；`scrolled` 时滚到底，看头图收起的样子。
     private static func goals(_ snap: Snapshot, route: GoalsRoute = .queue, scrolled: Bool = false) -> AnyView {
         let content = GoalsContent()
         content.update(from: snap)

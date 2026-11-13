@@ -1,7 +1,7 @@
 import AppKit
 import WageCore
 
-/// 组装外壳各部件：状态存储、菜单栏条目、主菜单、引导窗口、今日概览面板、设置窗口、目标管理、历史窗口、系统通知、桌面悬浮小牛。
+/// 组装外壳各部件：状态存储、菜单栏条目、主菜单、引导窗口、今日概览面板 (历史、目标、设置在它里面推进来)、系统通知、桌面悬浮小牛。
 /// 普通 App + 菜单栏常驻 (ADR-0005)：点 Dock 图标找回窗口，关掉所有窗口不退出，小牛继续在菜单栏跑。
 /// 设置里可以隐藏 Dock 图标 (`DockIcon`)，这时只从菜单栏小牛找回窗口。
 @MainActor
@@ -11,10 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboarding: OnboardingWindowController!
     private var todayPanel: TodayPanelWindowController!
     private var holidayUpdater: HolidayUpdater!
-    private var settings: SettingsWindowController!
-    private var goals: GoalsWindowController!
     private var notifier: SystemNotifier!
-    private var history: HistoryWindowController!
     private var mainMenu: MainMenu!
     private var updater: AppUpdater!
     private var floatingCow: FloatingCowController!
@@ -37,17 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         holidayUpdater = HolidayUpdater(model: model)
         holidayUpdater.start()
         updater = AppUpdater()
-        goals = GoalsWindowController(model: model)
-        todayPanel = TodayPanelWindowController(
-            model: model,
-            navigation: PanelNavigation(
-                openHistory: { [weak self] in self?.history.show() },
-                openGoals: { [weak self] in self?.goals.show() },
-                openSettings: { [weak self] in self?.settings.show() }
-            )
-        ) { [weak self] in
-            self?.statusItem.refresh()
-        }
+
         // 引导最后一步 (作息) 完成后在引导窗口原位打开今日概览，不让界面凭空消失，也不跳位置。
         onboarding = OnboardingWindowController(model: model) { [weak self] frame in
             self?.statusItem.refresh()
@@ -57,33 +44,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             model: model,
             openOnboarding: { [weak self] in self?.onboarding.show() },
             openTodayPanel: { [weak self] in self?.todayPanel.show() },
-            openSettings: { [weak self] in self?.settings.show() },
-            openGoals: { [weak self] in self?.goals.show() },
-            openHistory: { [weak self] in self?.history.show() },
+            openSettings: { [weak self] in self?.todayPanel.show(page: .settings) },
+            openGoals: { [weak self] in self?.todayPanel.show(page: .goals) },
+            openHistory: { [weak self] in self?.todayPanel.show(page: .history) },
             installUpdate: { [weak self] in self?.updater.installPendingUpdate() }
         )
         updater.onPendingVersionChange = { [weak self] version in self?.statusItem.setPendingUpdate(version) }
         // 悬浮小牛跟着菜单栏的刷新走：设置里改了开关、发薪日后菜单栏立即刷新，浮窗也随之出现或收起。
         floatingCow = FloatingCowController(model: model, actions: FloatingCowController.Actions(
             openTodayPanel: { [weak self] in self?.todayPanel.show() },
-            openSettings: { [weak self] in self?.settings.show() },
+            openSettings: { [weak self] in self?.todayPanel.show(page: .settings) },
             stateChanged: { [weak self] in self?.statusItem.refresh() }
         ))
         statusItem.onSnapshot = { [weak self] snapshot in self?.floatingCow.update(snapshot) }
         statusItem.refresh()
-        history = HistoryWindowController(model: model) { [weak self] in
+        // 历史、目标、设置都在今日概览窗口里推进来 (`PanelPage`)。
+        let pages = PanelPages(
+            history: HistoryPage(model: model) { [weak self] in self?.statusItem.refresh() },
+            goals: GoalsPage(model: model),
+            settings: SettingsPage(
+                form: SettingsFormModel(model: model, menuBar: statusItem, notifier: notifier),
+                updater: updater
+            )
+        )
+        todayPanel = TodayPanelWindowController(model: model, pages: pages) { [weak self] in
             self?.statusItem.refresh()
         }
-        settings = SettingsWindowController(
-            form: SettingsFormModel(model: model, menuBar: statusItem, notifier: notifier),
-            updater: updater
-        )
         mainMenu = MainMenu(actions: MainMenu.Actions(
             isOnboarded: { [weak self] in self?.model.isOnboarded == true },
             openTodayPanel: { [weak self] in self?.todayPanel.show() },
-            openGoals: { [weak self] in self?.goals.show() },
-            openHistory: { [weak self] in self?.history.show() },
-            openSettings: { [weak self] in self?.settings.show() },
+            openGoals: { [weak self] in self?.todayPanel.show(page: .goals) },
+            openHistory: { [weak self] in self?.todayPanel.show(page: .history) },
+            openSettings: { [weak self] in self?.todayPanel.show(page: .settings) },
             checkForUpdates: { [weak self] in self?.updater.checkForUpdates() }
         ))
         mainMenu.install()

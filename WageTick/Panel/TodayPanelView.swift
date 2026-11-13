@@ -24,29 +24,43 @@ struct TodayPanelView: View {
     let content: TodayPanelContent
     let actions: PanelActions
     let navigation: PanelNavigation
+    /// 推进来的页面 (历史、目标、设置) 的视图。
+    let page: (PanelPage) -> AnyView
 
+    /// 概览在最底下，表单、推进来的页面依次从右边滑进来盖在上面 (`pushed`)。
     var body: some View {
-        Group {
-            switch content.route {
-            case .home:
-                home
-            case .deduction(let request):
-                DeductionFormView(
-                    request: request, entry: content.panel?.deductionEntry, actions: actions,
-                    subtitle: content.panel?.dateText, dismiss: goHome
-                )
-            case .leave(let mode):
-                // 请假入口只在有请假表单时出现；表单在打开期间消失 (如过了零点) 时回到概览。
-                if let form = content.leaveForm {
-                    LeaveFormView(mode: mode, form: form, actions: actions, subtitle: content.panel?.dateText, dismiss: goHome)
-                } else {
-                    home
-                }
+        ZStack {
+            home
+            form.map { $0.pushed(level: 1) }
+            if let current = content.page {
+                page(current)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .background(Palette.bg)
+                    .pushed(level: 2)
             }
         }
+        .animation(.push, value: content.route)
+        .animation(.push, value: content.page)
         .frame(width: PanelMetrics.width)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Palette.bg)
+    }
+
+    /// 原地打开的扣钱、请假表单；概览上为 nil。请假表单在打开期间消失 (如过了零点) 时也是 nil，即回到概览。
+    private var form: AnyView? {
+        switch content.route {
+        case .home:
+            return nil
+        case .deduction(let request):
+            return AnyView(DeductionFormView(
+                request: request, entry: content.panel?.deductionEntry, actions: actions,
+                subtitle: content.panel?.dateText, dismiss: goHome
+            ).background(Palette.bg))
+        case .leave(let mode):
+            guard let form = content.leaveForm else { return nil }
+            return AnyView(LeaveFormView(mode: mode, form: form, actions: actions, subtitle: content.panel?.dateText, dismiss: goHome)
+                .background(Palette.bg))
+        }
     }
 
     /// 概览 (设计稿「大胆风格」)：头图与进度格、统计行、攒钱队列一起放进滚动区，放不下时往下滑，头图收成窄栏钉在顶上；
