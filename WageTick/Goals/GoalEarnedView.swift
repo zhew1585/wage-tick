@@ -77,7 +77,7 @@ struct GoalEarnedView: View {
 }
 
 /// 已到手的一行：左边时间线圆点 (最近一件实心绿、其余空心) 与竖线，名称与到手日期，右边金额与折合搬砖天数，下沿一条分隔线。
-/// 悬停时金额前出现删除按钮。
+/// 悬停时金额左边出现删除按钮。
 private struct EarnedGoalRow: View {
     let row: CompletedGoalRow
     let isNewest: Bool
@@ -93,25 +93,25 @@ private struct EarnedGoalRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             timeline.frame(width: Self.rail)
-            HStack(alignment: .top, spacing: Spacing.s8) {
-                VStack(alignment: .leading, spacing: Spacing.s4) {
+            // 两行各自按基线对齐：名称与金额一行、到手日期与折合天数一行；删除按钮悬停时贴在金额左边。
+            VStack(spacing: Spacing.s4) {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
                     Text(row.name).font(AppFont.ui(14, .bold)).foregroundStyle(Palette.ink)
+                    Spacer(minLength: Spacing.s4)
+                    if hovering {
+                        IconButton(systemName: "trash", help: "删除", action: delete).iconOnTextBaseline(14)
+                    }
+                    Text(BoldNumber.grouped(row.amountText)).font(AppFont.heavy(15)).foregroundStyle(Palette.ink).fixedSize()
+                }
+                HStack(alignment: .firstTextBaseline) {
                     Text(row.receivedText).font(AppFont.small).foregroundStyle(Palette.muted)
-                }
-                .lineLimit(1)
-                Spacer(minLength: Spacing.s4)
-                if hovering {
-                    IconButton(systemName: "trash", help: "删除", action: delete).padding(.top, Spacing.s2)
-                }
-                VStack(alignment: .trailing, spacing: Spacing.s4) {
-                    Text(BoldNumber.grouped(row.amountText)).font(AppFont.heavy(15)).foregroundStyle(Palette.ink)
+                    Spacer(minLength: Spacing.s4)
                     if let workDays = row.workDaysText {
-                        Text(workDays).font(AppFont.num(10)).foregroundStyle(Palette.muted)
+                        Text(workDays).font(AppFont.num(10)).foregroundStyle(Palette.muted).fixedSize()
                     }
                 }
-                .lineLimit(1)
-                .fixedSize()
             }
+            .lineLimit(1)
             .padding(.vertical, Spacing.s12)
             .overlay(alignment: .bottom) { Palette.line.frame(height: 1) }
         }
