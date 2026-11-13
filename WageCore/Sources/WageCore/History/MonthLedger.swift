@@ -62,7 +62,7 @@ extension HistoryLedger {
         return MonthLedger(month: month, dailyWage: wage, days: days)
     }
 
-    /// 月汇总 (PRD 4.6.1)：结算总额、应出勤日数、扣款合计、请假天数、白干时长合计。
+    /// 月汇总 (PRD 4.6.1)：结算总额、应出勤日数、扣款合计、请假天数、白干时长合计，以及挣到满额工资的比例。
     /// 结算总额 = 当月各应出勤日结算之和；本月直接取本月累计 (今天之前的结算 + 今日已赚)。
     /// 扣款、请假、白干与结算总额同口径，只算到今天 (PRD 4.3.4「未来日子不计入」)；过去的月份即整月。
     func summary(_ ledger: MonthLedger) -> HistoryMonthSummary {
@@ -75,16 +75,28 @@ extension HistoryLedger {
         let deducted = happened.compactMap(\.settlement).map(\.deductionTotal).reduce(0, +)
         let leaveDays = happened.map(\.leaveDays).reduce(0, +)
         let unpaid = happened.map(\.unpaidWorkMilliseconds).reduce(0, +)
+        let unpaidText = Format.compactDuration(milliseconds: unpaid)
+        let full = ledger.dailyWage * Decimal(ledger.attendanceDayCount)
+        let progress = full > 0 ? min(max(NSDecimalNumber(decimal: settled / full).doubleValue, 0), 1) : 0
+        let figuresLine = [
+            "应出勤 \(ledger.attendanceDayCount)", "扣 \(Format.money(deducted))",
+            "请假 \(Format.trimmed(leaveDays))", "白干 \(unpaidText)",
+        ].joined(separator: " · ")
         return HistoryMonthSummary(
             month: month,
             title: "\(month.year)年\(month.month)月",
+            shortTitle: month.year == today.year ? "\(month.month)月" : "\(month.year)年\(month.month)月",
             isCurrentMonth: isCurrent,
             isInstallMonth: month == inputs.profile.installDate.yearMonth,
             total: Format.money(settled),
             attendance: HistoryFigure(title: "应出勤", value: "\(ledger.attendanceDayCount) 天"),
             deduction: HistoryFigure(title: "扣款", value: Format.money(deducted), isLoss: deducted > 0),
             leave: HistoryFigure(title: "请假", value: "\(Format.trimmed(leaveDays)) 天"),
-            unpaidWork: HistoryFigure(title: "白干", value: Format.compactDuration(milliseconds: unpaid))
+            unpaidWork: HistoryFigure(title: "白干", value: unpaidText),
+            progress: progress,
+            figuresLine: figuresLine,
+            settled: settled,
+            deducted: deducted
         )
     }
 }

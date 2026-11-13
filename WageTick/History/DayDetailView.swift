@@ -2,10 +2,10 @@ import OSLog
 import SwiftUI
 import WageCore
 
-/// 单日详情 (PRD 4.6.1、F11，设计稿 P5 单日详情 · 760)：页头日期与判定来源，当天结算 (大号数字与算式)，
-/// 扣钱、请假、白干三段与「这天上不上班」，各段上沿一条分隔线。
+/// 单日详情 (PRD 4.6.1、F11，设计稿「历史-单日详情」)：墨色头图写日期与当天结算 (大数字与算式)，有扣钱那天小牛大哭；
+/// 下面扣钱、请假、白干、这天上不上班四块，每块右上角橙色「+ 补记…」，记录是描边圆角卡。
 /// 哪些入口可用、不可用的原因、表单预填都取自快照的 `DayEditing`，这里只管排版和发命令 (#15)。
-/// 扣钱、白干的一行点一下修改，悬停时出现删除；不可用的入口不显示，改为在该段下面列出原因 (PRD 4.3.5 #8)。
+/// 扣钱、白干的卡点一下修改，悬停时出现删除；不可用的入口不显示，改为在该块里写出原因 (PRD 4.3.5 #8)。
 struct DayDetailView: View {
     let day: HistoryDay
     let actions: PanelActions
@@ -22,36 +22,24 @@ struct DayDetailView: View {
     private var target: FormTarget { .day(day.date) }
 
     var body: some View {
-        VStack(spacing: 0) {
-            PageHeader(detail.title, back: back) { sourceChip }
-            ScrollBody {
-                VStack(spacing: 0) {
-                    if let notice = detail.notice {
-                        Text(notice)
-                            .font(AppFont.caption)
-                            .foregroundStyle(Palette.accent)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, Spacing.screen)
-                            .padding(.vertical, Spacing.s10)
-                            .background(Palette.accentSoft)
-                    }
-                    if let settled = detail.stats.first {
-                        settlement(settled, rest: Array(detail.stats.dropFirst()))
-                    }
-                    deductionSection
-                    leaveSection
-                    unpaidWorkSection
-                    overrideSection
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(AppFont.caption)
-                            .foregroundStyle(Palette.loss)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, Spacing.screen)
-                            .padding(.bottom, Spacing.s14)
-                    }
+        HeroScroll { collapse in
+            hero(collapse)
+        } content: {
+            VStack(alignment: .leading, spacing: Spacing.s22) {
+                if let notice = detail.notice {
+                    PanelNoticeBanner(text: notice)
+                }
+                deductionSection
+                leaveSection
+                unpaidWorkSection
+                overrideSection
+                if let errorMessage {
+                    Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
                 }
             }
+            .padding(.horizontal, Spacing.screen)
+            .padding(.top, Spacing.s18)
+            .padding(.bottom, Spacing.s24)
         }
         .sheet(item: $deductionForm) { request in
             DeductionFormView(
@@ -66,34 +54,39 @@ struct DayDetailView: View {
         }
     }
 
-    /// 页头右边的判定来源，如「判定来源：法定节假日」。
-    private var sourceChip: some View {
-        Text("\(detail.sourceItem.title)：\(detail.sourceItem.value)")
-            .font(AppFont.ui(10, .medium))
-            .foregroundStyle(Palette.muted)
-            .padding(.horizontal, Spacing.s8)
-            .padding(.vertical, Spacing.s3)
-            .background(Palette.surface, in: Capsule())
+    // MARK: 头图
+
+    /// 头图：标题「11月4日 周三 · 当天结算」，大数字是第一项结算 (当天结算、今日已赚或预计结算)，
+    /// 说明行是其余项 (今日上限) 与算式 (「日薪 1000 − 扣款 50」)，都没有时写判定来源。
+    /// 不应出勤的日子没有结算：标题写「休息日」或「改成不上班」，大数字 ¥0。
+    private func hero(_ collapse: CGFloat) -> some View {
+        let settled = detail.stats.first
+        let notes = detail.stats.dropFirst().map { "\($0.title) \($0.value)" } + [detail.breakdown].compactMap { $0 }
+        let source = "\(detail.sourceItem.title)：\(detail.sourceItem.value)"
+        let number = settled?.value ?? "¥0"
+        return BoldHero(
+            theme: .ledger,
+            back: HeroBack(label: monthLabel, action: back),
+            kicker: "\(detail.title) · \(settled?.title ?? day.kind.label)",
+            caption: notes.isEmpty ? source : notes.joined(separator: " · "),
+            captionIcon: .coins,
+            cow: cow.act,
+            bubble: HeroBubbleContent(value: cow.line, numeric: false),
+            collapse: collapse,
+            compactValue: heroCompactMoney(number)
+        ) {
+            HeroAmount(text: number, theme: .ledger, size: 96, maxWidth: 220)
+        }
     }
 
-    /// 当天结算：第一项大号展示 (当天结算、今日已赚或预计结算)，下面一行是其余项 (今日上限) 与算式 (「日薪 1000 − 扣款 50」)。
-    private func settlement(_ settled: StatItem, rest: [StatItem]) -> some View {
-        let notes = rest.map { "\($0.title) \($0.value)" } + [detail.breakdown].compactMap { $0 }
-        return VStack(alignment: .leading, spacing: Spacing.s6) {
-            Text(settled.title).font(AppFont.body).foregroundStyle(Palette.muted)
-            Text(settled.value)
-                .font(AppFont.num(44, .bold))
-                .foregroundStyle(Palette.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-            if !notes.isEmpty {
-                Text(notes.joined(separator: " · ")).font(AppFont.numCaption).foregroundStyle(Palette.muted)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, Spacing.screen)
-        .padding(.top, Spacing.s26)
-        .padding(.bottom, Spacing.s24)
+    /// 返回胶囊写这一天所在的月份，如「11月」。
+    private var monthLabel: String { "\(day.date.month)月" }
+
+    /// 小牛：有扣钱那天大哭、说被扣了多少；不上班的日子晒太阳；其余端着咖啡。
+    private var cow: (act: CowAct, line: String) {
+        if let deducted = detail.deducted { return (.crying, "被扣了 \(deducted)") }
+        if detail.stats.isEmpty { return (.pose(.sunbathing), "歇着呢") }
+        return (.pose(.working), "都记着呢")
     }
 
     // MARK: 扣钱
@@ -101,46 +94,46 @@ struct DayDetailView: View {
     /// 扣钱：能记扣钱的日子可补记、可改；变成不上班日的那天已有的只能删 (#14 遗留)。
     private var deductionSection: some View {
         let available = editing.deduction.isAvailable
-        return DetailSection(
-            "扣钱", icon: .trendDown,
-            add: available ? DetailSection.Add(title: "补记一笔") { deductionForm = .add } : nil
+        return HistorySection(
+            "扣钱",
+            add: available ? HistorySection.Add(title: "补记一笔") { deductionForm = .add } : nil
         ) {
             ForEach(detail.deductions) { item in
-                DetailLine(
-                    title: item.title, detail: item.detail, value: item.amount, tone: .loss,
+                RecordCard(
+                    title: item.title, detail: item.detail, value: item.amount, valueColor: Palette.loss,
                     edit: available ? { deductionForm = .edit(item) } : nil,
                     delete: { send(.editDay(day.date, .deleteDeduction(id: item.id))) }
                 )
             }
             if detail.deductions.isEmpty {
-                EmptyLine(editing.deduction.reason ?? "没扣钱")
+                EmptyRecord(editing.deduction.reason ?? "没扣钱")
             }
         }
     }
 
     // MARK: 请假
 
-    /// 请假：能请假的日子点那一行进表单修改 (撤销在表单里)；变成不上班日的那天只能直接撤销。
+    /// 请假：能请假的日子点那张卡进表单修改 (撤销在表单里)；变成不上班日的那天只能直接撤销。
     private var leaveSection: some View {
         let form = editing.leave.content
-        return DetailSection(
-            "请假", icon: .umbrella,
-            add: form?.canRequest == true ? DetailSection.Add(title: "请假") { leaveForm = .request } : nil
+        return HistorySection(
+            "请假",
+            add: form?.canRequest == true ? HistorySection.Add(title: "请假") { leaveForm = .request } : nil
         ) {
             if let leave = detail.leave {
                 if let current = form?.current {
-                    DetailLine(
-                        title: leave.title, detail: leave.detail, value: leave.value, tone: .accent,
+                    RecordCard(
+                        title: leave.title, detail: leave.detail, value: leave.value, valueColor: Palette.loss,
                         edit: { leaveForm = .edit(current) }, delete: nil
                     )
                 } else {
-                    DetailLine(
-                        title: leave.title, detail: leave.detail, value: leave.value, tone: .accent,
+                    RecordCard(
+                        title: leave.title, detail: leave.detail, value: leave.value, valueColor: Palette.loss, deleteHelp: "撤销",
                         edit: nil, delete: { send(.editDay(day.date, .cancelLeave)) }
                     )
                 }
             } else {
-                EmptyLine(editing.leave.reason ?? "没请假")
+                EmptyRecord(editing.leave.reason ?? "没请假")
             }
         }
         // 与扣钱表单分开挂，避免同一视图上挂两个以上 sheet 互相干扰。
@@ -153,40 +146,46 @@ struct DayDetailView: View {
 
     // MARK: 白干
 
-    /// 白干：每段一行，右边是这一段倒贴的钱。
+    /// 白干：每段一张卡，标题是时段，说明是倒贴的钱 (可能忘了停、计时中接在后面)，右边时长。
     private var unpaidWorkSection: some View {
-        DetailSection(
-            "白干", icon: .drop,
-            add: editing.unpaidWork.content.map { draft in DetailSection.Add(title: "补记一段") { unpaidWorkForm = .add(draft) } }
+        HistorySection(
+            "白干",
+            add: editing.unpaidWork.content.map { draft in HistorySection.Add(title: "补记一段") { unpaidWorkForm = .add(draft) } }
         ) {
             ForEach(editing.unpaidWorkItems) { item in
-                UnpaidWorkLine(
-                    item: item,
+                RecordCard(
+                    title: item.line.title,
+                    detail: ([item.loss] + [item.line.detail].compactMap { $0 }).joined(separator: " · "),
+                    value: item.line.value,
+                    monospacedTitle: true,
                     edit: item.input.map { input in { unpaidWorkForm = .edit(index: item.index, input) } },
                     delete: { send(.editDay(day.date, .deleteUnpaidWork(index: item.index))) }
                 )
             }
             if editing.unpaidWorkItems.isEmpty {
-                EmptyLine(editing.unpaidWork.reason ?? "没白干")
+                EmptyRecord(editing.unpaidWork.reason ?? "没白干")
             }
         }
     }
 
     // MARK: 单日覆盖
 
+    /// 这天上不上班：按规则、改成上班、改成不上班三段，下面一行判定来源与改了会怎样。
     private var overrideSection: some View {
         let choices = OverrideChoices(editing: editing)
-        return DetailSection("这天上不上班", icon: .swap, add: nil) {
-            ThemeSegmented(
+        return HistorySection("这天上不上班") {
+            PillSegmented(
                 options: OverrideChoices.Choice.allCases.map { choice in
                     .init(id: choice, title: choice.title, isEnabled: choices.command(for: choice) != nil)
                 },
-                selection: choices.selected,
-                size: .large
+                selection: choices.selected
             ) { choice in
                 if let command = choices.command(for: choice) { send(command) }
             }
-            Text(editing.overrideNote).font(AppFont.caption).foregroundStyle(Palette.muted)
+            Text("\(detail.sourceItem.title)：\(detail.sourceItem.value)。\(editing.overrideNote)")
+                .font(AppFont.caption)
+                .foregroundStyle(Palette.muted)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -240,155 +239,5 @@ private struct OverrideChoices {
 
     func command(for choice: Choice) -> Command? {
         actionable?.choice == choice ? actionable?.command : nil
-    }
-}
-
-/// 详情里的一段：小标题 (16 号图标 + 14/600 标题)，右边 accent 色「+ 补记」入口 (13/500)，下面是内容；上沿一条分隔线。
-private struct DetailSection<Content: View>: View {
-    struct Add {
-        let title: String
-        let action: () -> Void
-    }
-
-    let title: String
-    let icon: Phosphor
-    let add: Add?
-    @ViewBuilder let content: () -> Content
-
-    init(_ title: String, icon: Phosphor, add: Add?, @ViewBuilder content: @escaping () -> Content) {
-        self.title = title
-        self.icon = icon
-        self.add = add
-        self.content = content
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s12) {
-            HStack(spacing: Spacing.s6) {
-                PhosphorIcon(icon, size: 16).foregroundStyle(Palette.muted)
-                Text(title).font(AppFont.ui(14, .semibold)).foregroundStyle(Palette.ink)
-                Spacer(minLength: Spacing.s8)
-                if let add {
-                    Button(action: add.action) {
-                        HStack(spacing: Spacing.s4) {
-                            PhosphorIcon(.plus, size: 12)
-                            Text(add.title).font(AppFont.bodyMedium)
-                        }
-                        .foregroundStyle(Palette.accent)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.highlight(radius: Radius.r6, outset: Spacing.s4))
-                }
-            }
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, Spacing.screen)
-        .padding(.vertical, Spacing.s18)
-        .overlay(alignment: .top) { CardDivider() }
-    }
-}
-
-/// 段里没有记录时的一行 muted 说明，如「没请假」或入口不可用的原因。
-private struct EmptyLine: View {
-    let text: String
-
-    init(_ text: String) {
-        self.text = text
-    }
-
-    var body: some View {
-        Text(text).font(AppFont.body).foregroundStyle(Palette.muted)
-    }
-}
-
-/// 扣钱、请假的一行 (圆角 10 色底)：标题 13/600、说明 13 muted，右边 13/600 等宽数值；点一下修改，悬停时出现删除。
-private struct DetailLine: View {
-    enum Tone {
-        case loss, accent
-    }
-
-    let title: String
-    let detail: String?
-    let value: String
-    let tone: Tone
-    let edit: (() -> Void)?
-    let delete: (() -> Void)?
-
-    @State private var hovering = false
-
-    var body: some View {
-        HStack(spacing: Spacing.s8) {
-            Text(title).font(AppFont.bodySemibold).foregroundStyle(Palette.ink)
-            if let detail {
-                Text(detail).font(AppFont.body).foregroundStyle(Palette.muted).lineLimit(1)
-            }
-            Spacer(minLength: Spacing.s8)
-            if hovering, let delete {
-                IconButton(systemName: edit == nil ? "arrow.uturn.backward" : "trash", help: edit == nil ? "撤销" : "删除", action: delete)
-            }
-            Text(value).font(AppFont.num(13, .semibold)).foregroundStyle(tone == .loss ? Palette.loss : Palette.accent)
-        }
-        .padding(.horizontal, Spacing.s14)
-        .padding(.vertical, Spacing.s12)
-        .background(tone == .loss ? Palette.lossSoft : Palette.accentSoft, in: RoundedRectangle(cornerRadius: Radius.r10))
-        .contentShape(Rectangle())
-        .onTapGesture { edit?() }
-        .hoverFeedback(cornerRadius: Radius.r10, isEnabled: edit != nil)
-        .onHover { hovering = $0 }
-        .help(edit == nil ? "" : "点一下修改")
-    }
-}
-
-/// 白干的一行 (surface 底，圆角 10)：时段 13/600 等宽 (跨过零点如「23:00 – 次日 01:30」)，后面时长 muted、可能忘了停或计时中 accent，右边这一段倒贴 (loss)；
-/// 一行放不下时 (跨过零点的时段较长) 时长与标记换到时段下面。点一下修改，悬停时出现删除。
-private struct UnpaidWorkLine: View {
-    let item: UnpaidWorkItem
-    let edit: (() -> Void)?
-    let delete: () -> Void
-
-    @State private var hovering = false
-
-    var body: some View {
-        HStack(spacing: Spacing.s8) {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: Spacing.s8) {
-                    title
-                    duration
-                }
-                VStack(alignment: .leading, spacing: Spacing.s4) {
-                    title
-                    duration
-                }
-            }
-            // 倒贴金额不缩，剩下的宽度先给时段，放得下就排成一行。
-            .layoutPriority(1)
-            Spacer(minLength: Spacing.s8)
-            if hovering {
-                IconButton(systemName: "trash", help: "删除", action: delete)
-            }
-            Text(item.loss).font(AppFont.num(13)).foregroundStyle(Palette.loss).fixedSize()
-        }
-        .padding(.horizontal, Spacing.s14)
-        .padding(.vertical, Spacing.s12)
-        .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r10))
-        .contentShape(Rectangle())
-        .onTapGesture { edit?() }
-        .hoverFeedback(cornerRadius: Radius.r10, isEnabled: edit != nil)
-        .onHover { hovering = $0 }
-    }
-
-    private var title: some View {
-        Text(item.line.title).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.ink).fixedSize()
-    }
-
-    private var duration: some View {
-        HStack(spacing: Spacing.s8) {
-            Text(item.line.value).font(AppFont.body).foregroundStyle(Palette.muted)
-            if let flag = item.line.detail {
-                Text(flag).font(AppFont.small).foregroundStyle(Palette.accent)
-            }
-        }
-        .fixedSize()
     }
 }

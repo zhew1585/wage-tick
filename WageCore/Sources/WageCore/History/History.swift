@@ -39,6 +39,8 @@ public struct HistoryMonthSummary: Sendable, Equatable, Identifiable {
     public let month: YearMonth
     /// 如「2026年2月」。
     public let title: String
+    /// 月列表里的月份大字，如「11月」；不在今年时带年份，如「2025年12月」。
+    public let shortTitle: String
     /// 是否本月：本月结算总额等于本月累计 (AC-HIS-01)。
     public let isCurrentMonth: Bool
     /// 是否安装当月：最早的一个月，月中安装时前面的日子按满勤补齐 (AC-PRE-01)。
@@ -53,6 +55,13 @@ public struct HistoryMonthSummary: Sendable, Equatable, Identifiable {
     public let leave: HistoryFigure
     /// 白干时长合计，如「白干」「1h30m」。
     public let unpaidWork: HistoryFigure
+    /// 这个月挣到满额工资的比例 (0 至 1)：结算总额 ÷ (日薪 × 应出勤日数)；没有应出勤日时为 0。月列表的细横条按它画。
+    public let progress: Double
+    /// 月列表里月份下面的一行小字 (设计稿 P4 大胆版)，如「应出勤 20 · 扣 ¥100 · 请假 0.5 · 白干 1h42m」。
+    public let figuresLine: String
+    /// 结算总额与扣款合计的金额，合计全部月份 (`HistoryOverview`) 用。
+    let settled: Decimal
+    let deducted: Decimal
 
     /// 结算总额以外的四项，按设计稿顺序：应出勤、扣款、请假、白干。
     public var figures: [HistoryFigure] { [attendance, deduction, leave, unpaidWork] }
@@ -63,6 +72,20 @@ public struct HistoryMonthSummary: Sendable, Equatable, Identifiable {
     public var badge: String? {
         if isCurrentMonth { return "本月 · 进行中" }
         return isInstallMonth ? "安装当月" : nil
+    }
+}
+
+/// 月列表头图 (设计稿 P4 大胆版)：安装当月至今全部月份的合计。
+/// 用法：`HistoryOverview(months: snapshot.historyMonths())`，月份已经推导过，这里只做加总，不再推导一遍。
+public struct HistoryOverview: Sendable, Equatable {
+    /// 各月结算总额之和，四舍五入到元 (头图大数字不放小数)，如「¥114380」；本月按本月累计 (含今日已赚) 计入。
+    public let total: String
+    /// 如「7 个月 · 扣款 ¥550」：月数与各月扣款合计 (扣钱 + 请假扣薪)。
+    public let caption: String
+
+    public init(months: [HistoryMonthSummary]) {
+        total = Format.wholeMoney(months.map(\.settled).reduce(0, +))
+        caption = "\(months.count) 个月 · 扣款 \(Format.money(months.map(\.deducted).reduce(0, +)))"
     }
 }
 

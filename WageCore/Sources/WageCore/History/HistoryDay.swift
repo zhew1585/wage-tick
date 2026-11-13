@@ -16,6 +16,8 @@ public struct HistoryMonth: Sendable, Equatable {
     public let salaryCaption: String
     /// 工资条的数值：按月如「¥20000 → 日薪 ¥1000」，按天如「¥200 · 满勤 ¥4200」(满勤 = 应出勤天数 × 日薪，方便对工资条)。
     public let salaryText: String
+    /// 月日历头图的说明行 (设计稿 P5 大胆版)，如「应出勤 20 天 · 日薪 ¥1000」；按天算时日薪就是填的工资。
+    public let heroCaption: String
 
     /// 日历底部的月小结：已结算 (同结算总额) 与扣款、请假、白干。
     public var footer: [HistoryFigure] {
@@ -89,6 +91,8 @@ public struct HistoryDayDetail: Sendable, Equatable {
     public let stats: [StatItem]
     /// 结算的算式，如「日薪 1000 − 请假 500 − 扣款 50」；没扣钱也没请假扣薪、或不应出勤时为 nil。
     public let breakdown: String?
+    /// 这天扣钱记录的合计 (不含请假扣薪)，如「¥50」；没有扣钱或不应出勤时为 nil。详情头图的小牛据此大哭、气泡写「被扣了 ¥50」。
+    public let deducted: String?
     /// 扣款明细，按记录先后。不应出勤的日子 (单日覆盖或节假日表更新后变成不上班) 已有的也列出，不计入结算，可删除。
     public let deductions: [DeductionItem]
     /// 请假，如「请假 14:00–16:00 · 扣薪 28.57% · −¥285.71」，请掉全部工时时标题为「全天请假」；没请假为 nil。不应出勤的日子已有的同样列出。
@@ -145,7 +149,8 @@ extension HistoryLedger {
             salary: pay.amount,
             payBasis: pay.basis,
             salaryCaption: "\(salaryTitle) · 应出勤 \(monthLedger.attendanceDayCount) 天",
-            salaryText: salaryText
+            salaryText: salaryText,
+            heroCaption: "应出勤 \(monthLedger.attendanceDayCount) 天 · 日薪 \(Format.money(monthLedger.dailyWage))"
         )
     }
 
@@ -165,6 +170,7 @@ extension HistoryLedger {
                 source: day.source,
                 stats: stats(day),
                 breakdown: day.settlement.flatMap(breakdown),
+                deducted: day.settlement.flatMap(deductedText),
                 deductions: shown?.deductions.map(DeductionItem.init) ?? [],
                 leave: leaveLine(day, settlement: shown),
                 unpaidWork: unpaidWork,
@@ -211,6 +217,12 @@ extension HistoryLedger {
         let leave = settlement.leaveDeduction > 0 ? ["请假 \(Format.amount(settlement.leaveDeduction))"] : []
         let fine = fines > 0 ? ["扣款 \(Format.amount(fines))"] : []
         return (["日薪 \(Format.amount(settlement.dailyWage))"] + leave + fine).joined(separator: " − ")
+    }
+
+    /// 扣钱记录的合计，没有时为 nil。
+    private func deductedText(_ settlement: DaySettlement) -> String? {
+        let fines = settlement.deductions.map(\.money).reduce(0, +)
+        return fines > 0 ? Format.money(fines) : nil
     }
 
     private func stats(_ day: DayLedger) -> [StatItem] {
