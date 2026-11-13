@@ -204,9 +204,9 @@ private struct HeroCow: View {
             .overlay(alignment: .topTrailing) {
                 if let bubble {
                     HeroBubble(content: bubble, accent: theme.bubbleAccent)
-                        .frame(maxWidth: 150, alignment: .trailing)
+                        .frame(maxWidth: bubble.numeric ? 150 : 124, alignment: .trailing)
                         .fixedSize(horizontal: false, vertical: true)
-                        .offset(x: -6, y: act == .pose(.lyingFlat) ? 0 : -30)
+                        .offset(x: -6, y: act == .pose(.lyingFlat) ? 30 : -30)
                 }
             }
             .allowsHitTesting(false)
@@ -224,7 +224,7 @@ struct HeroBubble: View {
                 Text(prefix).font(AppFont.ui(10)).foregroundStyle(Palette.muted)
             }
             Text(content.value)
-                .font(content.numeric ? AppFont.heavy(20) : AppFont.fun(18))
+                .font(content.numeric ? AppFont.heavy(20) : AppFont.fun(16))
                 .foregroundStyle(accent)
                 .monospacedDigit()
                 .lineLimit(2)

@@ -60,6 +60,7 @@
 				Components/Phosphor.swift,
 				Shared/WidgetPayload.swift,
 				Theme/AppFont.swift,
+				Theme/HeroTheme.swift,
 				Theme/Metrics.swift,
 				Theme/Palette.swift,
 				Theme/StatStyle.swift,

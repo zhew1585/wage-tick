@@ -118,13 +118,12 @@ private enum WidgetPreviews {
 
     // MARK: 视图
 
-    /// 设计稿尺寸、bg 底、圆角 22、line 描边，外面留白，和设计稿导出图一样摆。
+    /// 设计稿尺寸、底色同桌面 (`WidgetBackground`)、圆角 22，外面留白，和设计稿导出图一样摆。
     private static func render(_ snapshot: WidgetSnapshot, size: WidgetSize, now: Date, to file: URL) throws {
         let view = WidgetContentView(snapshot: snapshot, size: size, clock: WidgetClock(now: now, frozen: true))
             .frame(width: size.designSize.width, height: size.designSize.height)
-            .background(Palette.bg)
+            .background(WidgetBackground(snapshot: snapshot, size: size))
             .clipShape(RoundedRectangle(cornerRadius: 22))
-            .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(Palette.line, lineWidth: 1))
             .padding(24)
             .background(Color.white)
             .environment(\.colorScheme, .light)

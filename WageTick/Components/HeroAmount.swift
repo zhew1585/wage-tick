@@ -13,7 +13,7 @@ struct HeroAmount: View {
     /// 整数部分的字号，位数多时由视图自己缩小。
     var size: CGFloat = 96
     /// 整数部分最宽多少 (给右下角小牛留位置)。
-    var maxWidth: CGFloat = 240
+    var maxWidth: CGFloat = 220
 
     var body: some View {
         let parts = Self.split(text)

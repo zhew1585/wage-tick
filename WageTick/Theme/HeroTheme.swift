@@ -118,3 +118,19 @@ extension HeroTheme {
         }
     }
 }
+
+extension HeroTheme {
+    /// 桌面小组件按小牛场景取主色，同首页 (`forPanel`)。
+    static func forWidget(_ today: WidgetToday) -> HeroTheme {
+        switch today.tone {
+        case .unpaidWork: return .night
+        case .rest: return today.scene == .payday ? .mint : .sun
+        case .attendance:
+            return switch today.scene {
+            case .beforeWork: .sky
+            case .offWork: .violet
+            default: .orange
+            }
+        }
+    }
+}
