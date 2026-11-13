@@ -20,7 +20,7 @@ struct PanelFooter: View {
             }
         }
         .padding(.horizontal, Spacing.s12)
-        .padding(.vertical, Spacing.s8)
+        .padding(.vertical, 5)
         .background(Palette.bg)
         .overlay(alignment: .top) { PanelDivider() }
     }

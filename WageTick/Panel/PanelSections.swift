@@ -222,7 +222,7 @@ struct HourBlocksView: View {
     private static let height: CGFloat = 18
 
     var body: some View {
-        VStack(spacing: Spacing.s8) {
+        VStack(spacing: Spacing.s6) {
             HStack(alignment: .lastTextBaseline) {
                 Text(blocks.label).font(AppFont.ui(13, .bold)).foregroundStyle(Palette.ink)
                 Spacer()

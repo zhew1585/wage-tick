@@ -78,7 +78,7 @@ struct TodayPanelView: View {
 
     /// 头图下面：提示条、进度格 (休息日没在白干时没有)、扣款超过日薪的提示、统计行、攒钱队列。
     private func homeSections(_ panel: TodayPanel) -> some View {
-        VStack(spacing: Spacing.s18) {
+        VStack(spacing: Spacing.s16) {
             notices(panel.notices)
             if let blocks = panel.blocks {
                 HourBlocksView(blocks: blocks)
@@ -121,7 +121,7 @@ struct TodayPanelView: View {
 
     // MARK: 情绪按钮
 
-    /// 底部按钮区 (设计稿「大胆风格」Actions)：固定在入口栏上方，胶囊按钮高 46、间距 10，内边距 12 / 20 / 14。
+    /// 底部按钮区 (设计稿「大胆风格」Actions)：固定在入口栏上方，胶囊按钮高 46、间距 10，内边距 4 / 20 / 12。
     /// 今天已请假时按钮上面多一行描述与「修改」。都没有时整段不显示。
     @ViewBuilder
     private func actionsSection(_ panel: TodayPanel) -> some View {
@@ -138,7 +138,8 @@ struct TodayPanelView: View {
                     }
                 }
             }
-            .padding(EdgeInsets(top: Spacing.s12, leading: Spacing.screen, bottom: Spacing.s14, trailing: Spacing.screen))
+            // 设计稿：按钮紧跟在攒钱队列下面，上边只留一点。
+            .padding(EdgeInsets(top: Spacing.s4, leading: Spacing.screen, bottom: Spacing.s12, trailing: Spacing.screen))
         }
     }
 
