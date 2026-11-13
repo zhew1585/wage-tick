@@ -62,6 +62,7 @@ struct TodayPanelView: View {
                 actionsSection(panel)
                 PanelFooter(
                     payday: panel.payday,
+                    leave: footerLeave,
                     openHistory: navigation.openHistory,
                     openGoals: navigation.openGoals,
                     openSettings: navigation.openSettings
@@ -120,21 +121,13 @@ struct TodayPanelView: View {
     // MARK: 情绪按钮
 
     /// 底部按钮区 (设计稿「大胆风格」Actions)：固定在入口栏上方，胶囊按钮高 46、间距 10，内边距 4 / 20 / 12。
-    /// 今天已请假时按钮上面多一行描述与「修改」。都没有时整段不显示。
+    /// 没有按钮时整段不显示。今天已请假的描述与「修改」放在底部入口栏右侧 (`footerLeave`)，不占这里的高度。
     @ViewBuilder
     private func actionsSection(_ panel: TodayPanel) -> some View {
         let buttons = moodButtons(panel)
-        let leave = currentLeave
-        if !buttons.isEmpty || leave != nil {
-            VStack(spacing: Spacing.s10) {
-                if let leave {
-                    currentLeaveRow(leave.current, text: leave.text)
-                }
-                if !buttons.isEmpty {
-                    HStack(spacing: Spacing.s10) {
-                        ForEach(buttons, content: moodButton)
-                    }
-                }
+        if !buttons.isEmpty {
+            HStack(spacing: Spacing.s10) {
+                ForEach(buttons, content: moodButton)
             }
             // 设计稿：按钮紧跟在攒钱队列下面，上边只留一点。
             .padding(EdgeInsets(top: Spacing.s4, leading: Spacing.screen, bottom: Spacing.s12, trailing: Spacing.screen))
@@ -187,29 +180,11 @@ struct TodayPanelView: View {
         }
     }
 
-    /// 今天已有的请假与描述；没请假时为 nil。
-    private var currentLeave: (current: Leave, text: String)? {
-        guard let form = content.leaveForm, let current = form.current, let text = form.currentText else { return nil }
-        return (current, text)
-    }
 
-    /// 今天已请假时一句描述和「修改」入口，撤销在修改表单里 (F6)。
-    private func currentLeaveRow(_ leave: Leave, text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
-            PhosphorIcon(.umbrella, size: 13).iconOnTextBaseline(12).foregroundStyle(Palette.muted)
-            Text(text).font(AppFont.caption).foregroundStyle(Palette.muted)
-            Spacer()
-            Button { content.route = .leave(.edit(leave)) } label: {
-                Text("修改")
-                    .font(AppFont.label)
-                    .foregroundStyle(Palette.ink)
-                    .padding(.horizontal, Spacing.s8)
-                    .padding(.vertical, 3)
-                    .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r6))
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.highlight(radius: Radius.r6))
-        }
+    /// 底部入口栏右侧的今天请假 (F6)：短描述 (如「全天请假」「请假 14:00–16:00」)，点一下进入修改，撤销在修改表单里。
+    private var footerLeave: PanelFooter.LeaveEntry? {
+        guard let form = content.leaveForm, let current = form.current, let text = form.shortText else { return nil }
+        return PanelFooter.LeaveEntry(text: text) { content.route = .leave(.edit(current)) }
     }
 
     /// 面板上直接发出的命令 (如删除)。正常操作下不会失败，失败时只记日志，面板不变。

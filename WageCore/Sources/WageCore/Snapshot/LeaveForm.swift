@@ -9,6 +9,8 @@ public struct LeaveForm: Sendable, Equatable {
     public let current: Leave?
     /// 已有请假的一句话描述，如「已请假 14:00–16:00 · 扣薪 28.57%」「已请全天假 · 扣薪 100.00%」；没请假时为 nil。
     public let currentText: String?
+    /// 今天请假的短描述，放在面板底部入口栏右侧：「全天请假」或「请假 14:00–16:00」；没请假时为 nil。
+    public let shortText: String?
     /// 汇总：当日计划 (今天为「今天上班 10:00–14:00、16:00–18:00」，全天请假为「全天请假」)、
     /// 请假扣薪 (有时如「−¥500」)、收入项 (今天为今日上限，历史里的过去日子为结算，未来为预计结算)。
     public let summary: [StatItem]
@@ -40,6 +42,7 @@ extension LeaveForm {
     init(leave: Leave?, settlement: DaySettlement, schedule: WorkSchedule, planTitle: String, capTitle: String) {
         current = leave
         canRequest = leave == nil
+        shortText = leave.map { $0.isFullDay(schedule) ? "全天请假" : "请假 \(Format.span($0.range.span))" }
         currentText = leave.map { leave in
             let percent = "扣薪 \(Format.percent(leave.deductionPercent / 100))"
             return leave.isFullDay(schedule) ? "已请全天假 · \(percent)" : "已请假 \(Format.span(leave.range.span)) · \(percent)"

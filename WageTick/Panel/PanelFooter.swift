@@ -2,9 +2,16 @@ import SwiftUI
 import WageCore
 
 /// 面板底部入口栏 (PRD F4 第 8 条，设计稿「大胆风格」Footer)：bg 底、上边一条细线，历史、目标、设置靠左排开；
-/// 设了发薪日时右侧是距发薪 (issue #20，设计稿「发薪日倒计时 · 方案」E8IYR / pyihH)。
+/// 右侧：今天请了假时是请假入口 (点一下修改)，否则设了发薪日时是距发薪 (issue #20，设计稿「发薪日倒计时 · 方案」E8IYR / pyihH)。
 struct PanelFooter: View {
+    /// 今天的请假：短描述与进入修改的动作。
+    struct LeaveEntry {
+        let text: String
+        let edit: () -> Void
+    }
+
     let payday: PaydayFooter?
+    var leave: LeaveEntry?
     let openHistory: () -> Void
     let openGoals: () -> Void
     let openSettings: () -> Void
@@ -15,7 +22,9 @@ struct PanelFooter: View {
             FooterItem(icon: .flagBanner, title: "目标", action: openGoals)
             FooterItem(icon: .gearSix, title: "设置", action: openSettings)
             Spacer()
-            if let payday {
+            if let leave {
+                LeaveIndicator(leave: leave)
+            } else if let payday {
                 PaydayIndicator(payday: payday)
             }
         }
@@ -71,6 +80,29 @@ private struct PaydayIndicator: View {
         } else {
             Text(payday.value).font(AppFont.ui(12, .bold)).foregroundStyle(Palette.ink)
         }
+    }
+}
+
+/// 今天的请假：伞 + 短描述，muted；整条可点 (手型光标、悬停加底)，进入修改。悬停时文字变 ink、叠一层底。
+private struct LeaveIndicator: View {
+    let leave: PanelFooter.LeaveEntry
+
+    var body: some View {
+        Button(action: leave.edit) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.s4) {
+                PhosphorIcon(.umbrella, size: 13).iconOnTextBaseline(12)
+                Text(leave.text).font(AppFont.caption).lineLimit(1).minimumScaleFactor(0.85)
+            }
+            .padding(.horizontal, Spacing.s8)
+            .padding(.vertical, Spacing.s6)
+        }
+        .buttonStyle(InteractiveButtonStyle { label, state in
+            label
+                .foregroundStyle(state.isHovered || state.isPressed ? Palette.ink : Palette.muted)
+                .background(state.overlay, in: RoundedRectangle(cornerRadius: Radius.r6))
+                .contentShape(Rectangle())
+        })
+        .help("修改今天的请假")
     }
 }
 
