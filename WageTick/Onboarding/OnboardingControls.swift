@@ -184,8 +184,8 @@ struct HeroStepChip: View {
             .foregroundStyle(theme.onChip)
             .padding(EdgeInsets(top: 3, leading: Spacing.s10, bottom: 3, trailing: Spacing.s10))
             .background(theme.chip, in: Capsule())
-            .padding(.leading, WindowChrome.Titlebar.standard.leadingInset - Spacing.s4)
-            .frame(height: WindowChrome.Titlebar.standard.height)
+            .padding(.leading, WindowChrome.Titlebar.hero.leadingInset - Spacing.s4)
+            .frame(height: WindowChrome.Titlebar.hero.height)
             .accessibilityLabel("第 \(text) 步")
     }
 }

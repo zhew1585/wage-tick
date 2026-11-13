@@ -91,6 +91,9 @@ final class UpdateWindowController: NSObject, NSWindowDelegate {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.titlebarSeparatorStyle = .none
+        // 同其他窗口的紧凑标题栏 (`WindowChrome.Titlebar.compact`)：红绿灯离窗口边留出 8 以上。
+        window.toolbar = NSToolbar()
+        window.toolbarStyle = .unifiedCompact
         window.backgroundColor = NSColor(Palette.bg)
         window.isReleasedWhenClosed = false
         window.delegate = self

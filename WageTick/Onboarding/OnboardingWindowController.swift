@@ -29,6 +29,6 @@ final class OnboardingWindowController {
             window.close()
         }
         // 设计稿是一整张卡片：标题栏透明、内容铺满，红绿灯齐全 (中途关闭见 AC-ONB-04)，步骤条在标题栏下面。
-        return WindowChrome.makeWindow(title: "牛马鼓励器", titlebar: .standard, rootView: view)
+        return WindowChrome.makeWindow(title: "牛马鼓励器", titlebar: .hero, rootView: view)
     }
 }

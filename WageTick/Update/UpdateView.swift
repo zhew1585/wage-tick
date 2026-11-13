@@ -143,7 +143,7 @@ private struct UpdateHero: View {
                     .padding(.top, number == nil ? Spacing.s10 : Spacing.s2)
             }
             .frame(maxWidth: 210, alignment: .leading)
-            .padding(EdgeInsets(top: WindowChrome.Titlebar.standard.height + Spacing.s16, leading: Spacing.screen, bottom: 0, trailing: 0))
+            .padding(EdgeInsets(top: WindowChrome.Titlebar.hero.height + Spacing.s16, leading: Spacing.screen, bottom: 0, trailing: 0))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             FloatingCowBody(act: .pose(pose), motion: .live)
                 .frame(width: 130, height: 173)

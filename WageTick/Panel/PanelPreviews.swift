@@ -155,7 +155,7 @@ private enum PanelPreviews {
         let navigation = PanelNavigation(openHistory: {}, openGoals: {}, openSettings: {})
         return AnyView(
             TodayPanelView(content: content, actions: actions, navigation: navigation)
-                .frame(height: WindowMetrics.size.height - WindowChrome.Titlebar.standard.height)
+                .frame(height: WindowMetrics.size.height - WindowChrome.Titlebar.hero.height)
                 .clipShape(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius))
                 .overlay(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius).strokeBorder(Palette.line, lineWidth: 1))
                 .padding(24)

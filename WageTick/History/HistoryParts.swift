@@ -45,7 +45,7 @@ struct HeroTitlebarTrailing<Content: View>: View {
 
     var body: some View {
         HStack(spacing: Spacing.s6) { content() }
-            .frame(height: WindowChrome.Titlebar.standard.height)
+            .frame(height: WindowChrome.Titlebar.hero.height)
             .padding(.trailing, Spacing.screen)
     }
 }

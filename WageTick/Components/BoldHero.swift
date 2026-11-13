@@ -69,9 +69,9 @@ struct BoldHero<Number: View>: View {
                 Text(titlebarTrailing).font(AppFont.num(12)).foregroundStyle(theme.secondary)
             }
         }
-        .padding(.leading, WindowChrome.Titlebar.standard.leadingInset - Spacing.s4)
+        .padding(.leading, WindowChrome.Titlebar.hero.leadingInset - Spacing.s4)
         .padding(.trailing, titlebarTrailingInset)
-        .frame(height: WindowChrome.Titlebar.standard.height)
+        .frame(height: WindowChrome.Titlebar.hero.height)
     }
 
     /// 完整头图：标题栏下面是日期与状态、标题、数字、说明；小牛与气泡贴右下角。
@@ -113,7 +113,7 @@ struct BoldHero<Number: View>: View {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(EdgeInsets(top: WindowChrome.Titlebar.standard.height + Spacing.s8, leading: Spacing.screen, bottom: 0, trailing: Spacing.screen))
+            .padding(EdgeInsets(top: WindowChrome.Titlebar.hero.height + Spacing.s8, leading: Spacing.screen, bottom: 0, trailing: Spacing.screen))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             if let cow {
                 HeroCow(act: cow, bubble: bubble, bubbleOffset: bubbleOffset, theme: theme)
@@ -131,7 +131,7 @@ struct BoldHero<Number: View>: View {
                 Text(kicker).font(AppFont.fun(20)).foregroundStyle(theme.kicker).lineLimit(1)
             }
             .padding(.leading, Spacing.screen)
-            .padding(.top, WindowChrome.Titlebar.standard.height + Spacing.s8)
+            .padding(.top, WindowChrome.Titlebar.hero.height + Spacing.s8)
             .frame(maxWidth: .infinity, alignment: .leading)
             if let cow {
                 FloatingCowBody(act: cow, motion: .rest)

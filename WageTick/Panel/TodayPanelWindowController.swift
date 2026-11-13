@@ -150,10 +150,10 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         let view = TodayPanelView(content: content, actions: actions, navigation: navigation)
             .overlay(alignment: .topTrailing) {
                 PinButton(content: content) { [weak self] in self?.togglePin() }
-                    .frame(height: WindowChrome.Titlebar.standard.height)
+                    .frame(height: WindowChrome.Titlebar.hero.height)
                     .padding(.trailing, Spacing.s12)
             }
-        let panel = WindowChrome.makeWindow(PanelWindow.self, title: "今日概览", titlebar: .standard, rootView: view)
+        let panel = WindowChrome.makeWindow(PanelWindow.self, title: "今日概览", titlebar: .hero, rootView: view)
         panel.delegate = self
         content.isPinned = UserDefaults.standard.bool(forKey: Self.pinnedKey)
         applyPin(to: panel)
