@@ -67,11 +67,12 @@ private struct PillLabelStyle: LabelStyle {
     let iconColor: Color?
 
     func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: Spacing.s6) {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
             configuration.icon
                 .font(.system(size: 14, weight: .bold))
                 .frame(width: 16, height: 16)
                 .foregroundStyle(iconColor ?? Palette.ink)
+                .iconOnTextBaseline(14)
             configuration.title
         }
     }

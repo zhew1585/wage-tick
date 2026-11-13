@@ -22,8 +22,8 @@ struct HeroChipButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: Spacing.s3) {
-                PhosphorIcon(icon, size: 13)
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.s3) {
+                PhosphorIcon(icon, size: 13).iconOnTextBaseline(12)
                 if let title { Text(title).font(AppFont.ui(12, .bold)) }
             }
             .foregroundStyle(theme.onChip)
@@ -74,8 +74,8 @@ struct HistorySection<Content: View>: View {
                 Spacer(minLength: Spacing.s8)
                 if let add {
                     Button(action: add.action) {
-                        HStack(spacing: Spacing.s4) {
-                            PhosphorIcon(.plus, size: 12)
+                        HStack(alignment: .firstTextBaseline, spacing: Spacing.s4) {
+                            PhosphorIcon(.plus, size: 12).iconOnTextBaseline(13)
                             Text(add.title).font(AppFont.ui(13, .bold))
                         }
                         .foregroundStyle(Palette.accent)

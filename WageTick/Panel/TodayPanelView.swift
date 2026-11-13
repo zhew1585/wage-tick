@@ -195,8 +195,8 @@ struct TodayPanelView: View {
 
     /// 今天已请假时一句描述和「修改」入口，撤销在修改表单里 (F6)。
     private func currentLeaveRow(_ leave: Leave, text: String) -> some View {
-        HStack(spacing: Spacing.s6) {
-            PhosphorIcon(.umbrella, size: 13).foregroundStyle(Palette.muted)
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
+            PhosphorIcon(.umbrella, size: 13).iconOnTextBaseline(12).foregroundStyle(Palette.muted)
             Text(text).font(AppFont.caption).foregroundStyle(Palette.muted)
             Spacer()
             Button { content.route = .leave(.edit(leave)) } label: {

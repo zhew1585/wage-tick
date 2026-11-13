@@ -90,9 +90,10 @@ struct PhosphorIcon: View {
 }
 
 extension View {
-    /// 图标和旁边的文字放进 `HStack(alignment: .firstTextBaseline)` 时用：图标底边落在文字基线下 1pt，
-    /// 两者视觉上在同一水平线 (按中心对齐时 Noto Sans SC 的行框偏高，文字看起来比图标低)。
-    func iconOnTextBaseline() -> some View {
-        alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
+    /// 图标和旁边的文字放进 `HStack(alignment: .firstTextBaseline)` 时用：图标的中心对准文字字面的中心
+    /// (基线往上约 0.36 个字号，中文与等宽数字都差不多)，两者在同一水平线上。
+    /// `textSize` 是旁边文字的字号；按图标底边对基线时图标会偏上一点。
+    func iconOnTextBaseline(_ textSize: CGFloat = 12) -> some View {
+        alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + textSize * 0.36 }
     }
 }

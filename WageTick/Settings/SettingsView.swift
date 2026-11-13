@@ -179,8 +179,8 @@ struct SettingsView: View {
     /// 系统拒绝了通知权限 (AC-SET-05)：点一下打开系统设置的通知页。
     private var notificationWarning: some View {
         Button(action: form.openNotificationSettings) {
-            HStack(spacing: Spacing.s8) {
-                PhosphorIcon(.bellSlash, size: 14)
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.s8) {
+                PhosphorIcon(.bellSlash, size: 14).iconOnTextBaseline(12)
                 Text(NotificationCopy.permissionDenied).font(AppFont.ui(12, .medium))
                 Spacer(minLength: 0)
             }

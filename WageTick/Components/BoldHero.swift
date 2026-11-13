@@ -169,8 +169,8 @@ private struct HeroBackButton: View {
 
     var body: some View {
         Button(action: back.action) {
-            HStack(spacing: Spacing.s2) {
-                PhosphorIcon(.caretLeft, size: 13)
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.s2) {
+                PhosphorIcon(.caretLeft, size: 13).iconOnTextBaseline(12)
                 Text(back.label).font(AppFont.ui(12, .bold))
             }
             .foregroundStyle(theme.onChip)

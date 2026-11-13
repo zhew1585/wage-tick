@@ -57,8 +57,8 @@ private struct PaydayIndicator: View {
     @ViewBuilder
     private var label: some View {
         if payday.isPayday {
-            HStack(spacing: Spacing.s3) {
-                PhosphorIcon(.coins, size: 13)
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.s3) {
+                PhosphorIcon(.coins, size: 13).iconOnTextBaseline(12)
                 Text(payday.value).font(AppFont.ui(12, .bold))
             }
             .foregroundStyle(Palette.money)
@@ -82,8 +82,8 @@ private struct FooterItem: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                PhosphorIcon(icon, size: 14)
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                PhosphorIcon(icon, size: 14).iconOnTextBaseline(12)
                 Text(title).font(AppFont.caption)
             }
             .padding(.horizontal, Spacing.s8)

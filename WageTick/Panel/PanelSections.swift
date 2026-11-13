@@ -58,7 +58,7 @@ struct PanelNoticeBanner: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
-            PhosphorIcon(.warning, size: 13).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 2 }
+            PhosphorIcon(.warning, size: 13).iconOnTextBaseline()
             Text(text).font(AppFont.caption).fixedSize(horizontal: false, vertical: true)
         }
         .foregroundStyle(Palette.accent)

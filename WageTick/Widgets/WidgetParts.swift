@@ -253,7 +253,7 @@ struct WidgetEmptyGoal: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
-            PhosphorIcon(.flagBanner, size: 11).iconOnTextBaseline().foregroundStyle(Palette.muted)
+            PhosphorIcon(.flagBanner, size: 11).iconOnTextBaseline(11).foregroundStyle(Palette.muted)
             Text(prompt).font(AppFont.ui(11)).foregroundStyle(Palette.muted).lineLimit(1)
         }
     }
