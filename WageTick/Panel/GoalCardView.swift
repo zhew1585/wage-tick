@@ -120,7 +120,7 @@ private struct QueuedGoalChips: View {
     }
 }
 
-/// 队列为空：描边卡片居中放旗子 30、提示 14/600、小字 11 和「新目标」次要按钮。
+/// 队列为空：描边卡片居中放旗子 24、提示 14/600、小字 11 和「新目标」次要按钮 (高 30)，上下内边距 14 / 12。
 /// 不带按钮时 (面板放不下) 整张卡可点。两种都进入目标管理。
 private struct EmptyGoalCard: View {
     let prompt: String
@@ -137,19 +137,19 @@ private struct EmptyGoalCard: View {
     }
 
     private var card: some View {
-        VStack(spacing: Spacing.s8) {
-            PhosphorIcon(.flagBanner, size: 30).foregroundStyle(Palette.accent)
+        VStack(spacing: Spacing.s6) {
+            PhosphorIcon(.flagBanner, size: 24).foregroundStyle(Palette.accent)
             Text(prompt).font(AppFont.section).foregroundStyle(Palette.ink)
             Text("攒够了，给你放烟花").font(AppFont.small).foregroundStyle(Palette.muted)
             if showsButton {
                 Button(action: openGoals) { Label { Text("新目标") } icon: { PhosphorIcon(.plus) } }
-                    .buttonStyle(.secondary(fullWidth: true, height: 34))
+                    .buttonStyle(.secondary(fullWidth: true, height: 30))
                     .frame(width: 120)
-                    .padding(.top, Spacing.s4)
+                    .padding(.top, Spacing.s2)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(EdgeInsets(top: Spacing.s18, leading: Spacing.screen, bottom: Spacing.s16, trailing: Spacing.screen))
+        .padding(EdgeInsets(top: Spacing.s14, leading: Spacing.screen, bottom: Spacing.s12, trailing: Spacing.screen))
         .overlay(RoundedRectangle(cornerRadius: Radius.card).strokeBorder(Palette.line))
     }
 }
