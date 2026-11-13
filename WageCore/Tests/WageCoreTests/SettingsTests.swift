@@ -347,4 +347,16 @@ struct SettingsFormTests {
 
         #expect(MenuBarMode.allCases.map(form.menuBarPreview) == ["—", "—", "—"])
     }
+
+    @Test("设置页头图：大数字是当月工资金额，下面一行写按月还是按天、休息模式与上下班")
+    func heroValues() throws {
+        let form = try #require(snapshot(of: try onboarded(), at: standardDay(15, 0)).settingsForm)
+        #expect(form.salaryAmount == "¥20000")
+        #expect(form.summary == "月薪 · 双休 · 10:00–18:00")
+
+        let daily = try applied(.changeSalary(200, basis: .daily), to: try onboarded(restMode: .bigWeekNow), at: standardDay(15, 0))
+        let dailyForm = try #require(snapshot(of: daily, at: standardDay(15, 0)).settingsForm)
+        #expect(dailyForm.salaryAmount == "¥200")
+        #expect(dailyForm.summary == "日薪 · 大小周 · 10:00–18:00")
+    }
 }

@@ -11,13 +11,16 @@ final class UpdateUserDriver: NSObject, SPUUserDriver {
 
     private let window = UpdateWindowController.shared
     private let currentVersion: String
+    /// 当前构建号，「已经是最新版」那屏写在版本号下面。
+    private let currentBuild: String
     private var version = ""
     private var received: UInt64 = 0
     private var expected: UInt64 = 0
     private var cancelDownload: () -> Void = {}
 
-    init(currentVersion: String) {
+    init(currentVersion: String, build: String) {
         self.currentVersion = currentVersion
+        currentBuild = build
     }
 
     /// 更新内容：appcast 条目的纯文本说明，一行一条 (CI 按提交标题生成，见 scripts/ci/release-notes.sh)。
@@ -58,7 +61,7 @@ final class UpdateUserDriver: NSObject, SPUUserDriver {
     func showUpdateReleaseNotesFailedToDownloadWithError(_ error: any Error) {}
 
     func showUpdateNotFoundWithError(_ error: any Error, acknowledgement: @escaping () -> Void) {
-        window.show(.upToDate(current: currentVersion, ok: acknowledgement))
+        window.show(.upToDate(current: currentVersion, build: currentBuild, ok: acknowledgement))
     }
 
     func showUpdaterError(_ error: any Error, acknowledgement: @escaping () -> Void) {

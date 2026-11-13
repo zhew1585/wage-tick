@@ -51,6 +51,8 @@ enum Phosphor: String {
     case door
     case dotsThree = "dots-three"
     case wallet
+    // 大胆版引导头图的说明行：第 1 步锁 (只存在这台电脑上)、第 2 步闹钟 (按计划算钱)。
+    case lockSimple = "lock-simple"
 
     var image: Image {
         Image("Phosphor/\(rawValue)").renderingMode(.template)

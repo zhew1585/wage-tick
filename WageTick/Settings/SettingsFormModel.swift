@@ -18,6 +18,10 @@ final class SettingsFormModel {
     private(set) var savedSalaryText = ""
     /// 已保存的当月工资，如「月薪 ¥20000」「日薪 ¥200」；设置页「本月工资」一行展示。
     private(set) var savedSalaryDisplay = ""
+    /// 头图大数字：已保存的当月工资金额，如「¥20000」。
+    private(set) var heroAmount = ""
+    /// 头图大数字下面一行，如「月薪 · 双休 · 10:00–18:00」；改了工资、休息模式、作息都跟着变。
+    private(set) var heroSummary = ""
     /// 已保存的当月工资按月还是按天；打开工资表单时预先选中。
     private(set) var savedPayBasis = PayBasis.monthly
     /// 工资表单里「月薪 | 日薪」的选择 (issue #16)。
@@ -91,6 +95,7 @@ final class SettingsFormModel {
             updatePayday(from: form)
             schedule = form.schedule
             launchAtLogin = form.launchAtLogin
+            updateHero(from: form)
         }
         menuBarMode = snap.settings.menuBarMode
         updatePreviews(from: snap)
@@ -191,13 +196,20 @@ final class SettingsFormModel {
         return true
     }
 
+    private func updateHero(from form: SettingsForm) {
+        heroAmount = form.salaryAmount
+        heroSummary = form.summary
+    }
+
     private func updateSalary(from form: SettingsForm) {
+        updateHero(from: form)
         savedSalaryText = form.salaryText
         savedSalaryDisplay = form.salaryDisplay
         savedPayBasis = form.payBasis
     }
 
     private func updateRestMode(from form: SettingsForm) {
+        updateHero(from: form)
         savedRestMode = form.restModeChoice
         savedRestModeText = form.restModeText
     }
@@ -208,6 +220,7 @@ final class SettingsFormModel {
         guard scheduleMessage == .saved else { return false }
         if let form = model.currentSnapshot().settingsForm {
             schedule = form.schedule
+            updateHero(from: form)
         }
         return true
     }

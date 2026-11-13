@@ -28,6 +28,7 @@ struct WageRatesTests {
         #expect(rates.attendanceDays == StatItem(title: "本月上班日", value: "20 天"))
         #expect(rates.dailyWage == StatItem(title: "满勤日薪", value: "¥1000"))
         #expect(rates.standardHours == StatItem(title: "标准工时", value: "7 小时"))
+        #expect(rates.standardHoursNumber == "7")
         #expect(rates.hourlyWage == StatItem(title: "时薪", value: "¥142.86"))
     }
 
@@ -55,6 +56,7 @@ struct WageRatesTests {
         let rates = try #require(try rates(schedule: schedule((9, 0), (17, 30))))
 
         #expect(rates.standardHours.value == "7.5 小时")
+        #expect(rates.standardHoursNumber == "7.5")
         // 1000 ÷ 7.5 = 133.3333…
         #expect(rates.hourlyWage.value == "¥133.33")
     }
