@@ -135,11 +135,9 @@ private struct UpdateHero: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
                 }
-                Text(caption)
+                SegmentedText(caption)
                     .font(AppFont.num(12, .bold))
                     .foregroundStyle(Palette.ink)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, number == nil ? Spacing.s10 : Spacing.s2)
             }
             .frame(maxWidth: 210, alignment: .leading)

@@ -103,8 +103,8 @@ struct BoldHero<Number: View>: View {
                 if let caption {
                     HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
                         if let captionIcon { PhosphorIcon(captionIcon, size: 13).iconOnTextBaseline() }
-                        Text(BoldNumber.groupedAll(caption)).font(AppFont.num(12, .bold))
-                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        // 放不下时只在「 · 」处换行，每段 (如「时薪 ¥119.05」) 不拆开。
+                        SegmentedText(BoldNumber.groupedAll(caption)).font(AppFont.num(12, .bold))
                     }
                     .foregroundStyle(theme.kicker)
                     // 小牛从 x≈200 起，说明行限宽 180 不钻到小牛后面，放不下折成两行。

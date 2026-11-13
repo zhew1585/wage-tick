@@ -37,7 +37,7 @@ struct HeroInkCaption: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
             PhosphorIcon(icon, size: 13).iconOnTextBaseline()
-            Text(text).font(AppFont.num(12, .bold)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            SegmentedText(text).font(AppFont.num(12, .bold))
         }
         .foregroundStyle(Palette.ink)
         .frame(maxWidth: 190, alignment: .leading)
