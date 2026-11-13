@@ -388,6 +388,9 @@ private struct WidgetBubble: View {
                     .font(.system(size: 15, weight: .black))
                     .monospacedDigit()
                     .foregroundStyle(theme.bubbleAccent)
+                    .multilineTextAlignment(.leading)
+                    // 桌面上的计时文字 (`Text(timerInterval:)`) 会占满能给的宽度，把气泡撑成整行；按最长的「10:00:00」给定宽。
+                    .frame(width: content.isTimer ? 72 : nil, alignment: .leading)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
@@ -395,17 +398,18 @@ private struct WidgetBubble: View {
         }
     }
 
-    private var content: (label: String?, value: Text)? {
+    private var content: (label: String?, value: Text, isTimer: Bool)? {
         switch today.main {
         case .amount(let amount):
             // 未上班时没有倒计时 (值是「-」)，气泡就不出来。
             guard let value = amount.footer.value, value != .text("-") else { return nil }
             let title = amount.footer.title.replacingOccurrences(of: "距离", with: "距")
-            if case .elapsed = value { return ("已白干", clock.text(value)) }
-            return (title, clock.text(value))
+            let isTimer: Bool = if case .text = value { false } else { true }
+            if case .elapsed = value { return ("已白干", clock.text(value), isTimer) }
+            return (title, clock.text(value), isTimer)
         case .rest(let rest):
             guard let days = rest.daysUntilWork else { return nil }
-            return ("距上班", Text(days == 1 ? "明天" : "\(days) 天"))
+            return ("距上班", Text(days == 1 ? "明天" : "\(days) 天"), false)
         }
     }
 }
@@ -421,7 +425,13 @@ private struct WidgetStatsRow: View {
                 if index > 0 { Rectangle().fill(Palette.line).frame(width: 1, height: 26) }
                 VStack(spacing: 1) {
                     Group {
-                        if let value = stat.value { clock.text(value) } else { Text("-") }
+                        if case .text(let text) = stat.value {
+                            Text(Self.grouped(text))
+                        } else if let value = stat.value {
+                            clock.text(value)
+                        } else {
+                            Text("-")
+                        }
                     }
                     .font(.system(size: 15, weight: .black))
                     .monospacedDigit()
@@ -433,6 +443,20 @@ private struct WidgetStatsRow: View {
                 .frame(maxWidth: .infinity)
             }
         }
+    }
+
+    /// 金额加千分位，如「¥4472.56」→「¥4,472.56」(同 App 里的大胆版统计行)；不是金额原样。
+    private static func grouped(_ text: String) -> String {
+        guard let yen = text.firstIndex(of: "¥") else { return text }
+        let rest = text[text.index(after: yen)...]
+        let integer = rest.prefix { $0.isNumber }
+        guard integer.count > 3 else { return text }
+        var result = ""
+        for (index, character) in integer.enumerated() {
+            if index > 0, (integer.count - index) % 3 == 0 { result.append(",") }
+            result.append(character)
+        }
+        return String(text[...yen]) + result + rest.dropFirst(integer.count)
     }
 
     private func color(_ stat: WidgetStat) -> Color {
