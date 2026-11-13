@@ -68,7 +68,7 @@ struct SettingsNavigationRow: View {
     }
 }
 
-/// 菜单栏显示模式三个并排小块：上面是此刻会显示的数字 (粗体)，下面是模式名；选中的墨底黄字，其余浅底。
+/// 菜单栏显示模式三个并排小块：上面是此刻会显示的数字 (粗体)，下面是模式名；选中的橙底白字，其余浅底。
 struct MenuBarModeTiles: View {
     let previews: [MenuBarMode: String]
     let selection: MenuBarMode
@@ -87,19 +87,20 @@ struct MenuBarModeTiles: View {
             VStack(spacing: Spacing.s2) {
                 Text(previews[mode] ?? "—")
                     .font(AppFont.heavy(13))
-                    .foregroundStyle(selected ? Palette.highlight : Palette.ink)
+                    .foregroundStyle(selected ? Color.white : Palette.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                 Text(mode.label)
                     .font(AppFont.ui(11))
-                    .foregroundStyle(selected ? Color.white : Palette.muted)
+                    .foregroundStyle(selected ? Color.white.opacity(0.85) : Palette.muted)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 46)
         }
         .buttonStyle(InteractiveButtonStyle { label, state in
             label
-                .background(selected ? Palette.ink : Palette.surface, in: shape)
+                // 选中的用主题橙 (同设置页的开关、头图)，不用墨底黄字。
+                .background(selected ? Palette.accent : Palette.surface, in: shape)
                 .overlay(shape.fill(selected ? .clear : state.overlay))
                 .contentShape(shape)
         })
