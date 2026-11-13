@@ -46,6 +46,11 @@ enum Phosphor: String {
     case confettiBold = "confetti-bold"
     case sparkleBold = "sparkle-bold"
     case starFourBold = "star-four-bold"
+    // 大胆版扣钱表单：原因方块 (迟到、早退、其他) 与头图里的余额行。
+    case alarm
+    case door
+    case dotsThree = "dots-three"
+    case wallet
 
     var image: Image {
         Image("Phosphor/\(rawValue)").renderingMode(.template)

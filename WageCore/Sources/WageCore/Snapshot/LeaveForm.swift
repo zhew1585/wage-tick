@@ -12,7 +12,7 @@ public struct LeaveForm: Sendable, Equatable {
     /// 汇总：当日计划 (今天为「今天上班 10:00–14:00、16:00–18:00」，全天请假为「全天请假」)、
     /// 请假扣薪 (有时如「−¥500」)、收入项 (今天为今日上限，历史里的过去日子为结算，未来为预计结算)。
     public let summary: [StatItem]
-    /// 比例输入框右侧的请假扣薪，如「= ¥500」。
+    /// 按当前比例扣多少，如「−¥285.70」；扣 0% 时为「¥0」。表单头图、「扣多少」一行与请假按钮上用。
     public let deductionText: String
     /// 「请哪段」时间条：这天的计划上下班、饭点、刻度与快捷时段。
     public let bar: LeaveBar
@@ -49,7 +49,7 @@ extension LeaveForm {
             StatItem(title: "请假扣薪", value: Format.deductionOrZero(settlement.leaveDeduction)),
             StatItem(title: capTitle, value: Format.money(settlement.cap)),
         ]
-        deductionText = "= \(Format.money(settlement.leaveDeduction))"
+        deductionText = Format.deductionOrZero(settlement.leaveDeduction)
         bar = LeaveBar(schedule: schedule)
     }
 

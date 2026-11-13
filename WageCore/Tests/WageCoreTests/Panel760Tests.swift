@@ -156,4 +156,14 @@ struct Panel760DeductionTests {
         #expect(may.previewTitle(.percentOfDailyWage(10)) == "扣 ¥95.24 · 今日上限")
         #expect(feb.previewTitle(.fixed(50)) == "今日上限")
     }
+
+    @Test("这一笔扣多少：按金额原样，按日薪百分比按当月日薪折算 (表单头图与保存按钮用)")
+    func amountText() throws {
+        let feb = try #require(try panel(try onboarded(), at: standardDay(15, 0)).deductionEntry)
+        let may = try #require(try panel(try onboarded(), at: moment(2026, 5, 6, 15, 0)).deductionEntry)
+
+        #expect(feb.amountText(.fixed(50)) == "−¥50")
+        #expect(feb.amountText(.percentOfDailyWage(10)) == "−¥100")
+        #expect(may.amountText(.percentOfDailyWage(10)) == "−¥95.24")
+    }
 }

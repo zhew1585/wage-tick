@@ -65,6 +65,8 @@ private enum PanelPreviews {
             ("P2-payday-countdown", panel(payday, day: 5, 15, 0)),
             ("P2-payday-tomorrow", panel(payday, day: 12, 15, 0)),
             ("P2-payday-today", panel(payday, day: 13, 15, 0)),
+            // 目标达成庆祝动画 (设计稿「弹窗-目标达成」)：截在弹出后约 0.3 秒，彩纸还在落。
+            ("P2-goal-celebration", panel(base, day: 5, 15, 0, celebration: GoalCelebration(goalID: 1, goalName: "Switch 2"))),
             ("F5-add", panel(base, day: 5, 15, 0, route: .deduction(.add))),
             ("F5-edit-fixed", panel(fined, day: 5, 15, 0, route: .deduction(.edit(firstDeduction(fined, day: 5))))),
             ("F5-edit-percent", panel(percentItem, day: 5, 15, 0, route: .deduction(.edit(firstDeduction(percentItem, day: 5))))),
@@ -131,7 +133,8 @@ private enum PanelPreviews {
 
     /// 与 `TodayPanelWindowController` 相同的面板尺寸 (窗口固定尺寸减去标题栏)，加圆角描边便于对照；命令只试算，不保存。
     private static func panel(
-        _ state: AppState, day: Int, _ hour: Int, _ minute: Int, _ second: Int = 0, route: PanelRoute = .home
+        _ state: AppState, day: Int, _ hour: Int, _ minute: Int, _ second: Int = 0, route: PanelRoute = .home,
+        celebration: GoalCelebration? = nil
     ) -> AnyView {
         let now = moment(day: day, hour, minute, second)
         let snap = snapshot(of: state, at: now)
@@ -140,6 +143,7 @@ private enum PanelPreviews {
         content.status = snap.today?.status
         content.leaveForm = snap.leaveForm
         content.route = route
+        content.celebration = celebration
         let actions = PanelActions(
             dryRun: { command in
                 Result { () throws(CommandError) in snapshot(of: try apply(command, to: state, at: now).state, at: now) }
