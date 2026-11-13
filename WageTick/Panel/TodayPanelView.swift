@@ -95,7 +95,8 @@ struct TodayPanelView: View {
                 openGoals: navigation.openGoals
             )
         }
-        .padding(EdgeInsets(top: Spacing.s20, leading: Spacing.screen, bottom: Spacing.s16, trailing: Spacing.screen))
+        // 底下不留边距：紧接着的底部按钮栏自己有上边距，留了反而让刚好放得下的一页多出几个点、能滑一下。
+        .padding(EdgeInsets(top: Spacing.s20, leading: Spacing.screen, bottom: 0, trailing: Spacing.screen))
     }
 
     private static func stats(_ body: TodayPanel.Body) -> [StatItem] {
