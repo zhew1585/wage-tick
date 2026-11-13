@@ -26,6 +26,15 @@ enum Palette {
     static let lossDot = Color(hex: 0xFF8A5B)
     /// 纯白：输入框、日历格子、开关圆钮 (设计稿里直接写的 #FFFFFF)。
     static let card = Color(hex: 0xFFFFFF)
+    // MARK: 大胆版 (设计稿「首页 · 大胆版」)
+
+    /// 高亮黄：翻牌最后一位、「正在攒」标签、选中的快捷项、主按钮上的图标。
+    static let highlight = Color(hex: 0xFFE14D)
+    /// 白干与超时的红：白干中头图标题、进度条超时格。
+    static let hot = Color(hex: 0xFF5A3C)
+    /// 上班中状态胶囊里的亮绿点。
+    static let lime = Color(hex: 0xB6F24A)
+
     /// 分段控件选中块的投影 (设计稿 #1F1B161A，即 ink 10%)。
     static let shadow = ink.opacity(0.1)
 
@@ -55,8 +64,8 @@ enum Palette {
     static let strokeHover = muted
 }
 
-private extension Color {
-    /// 由 0xRRGGBB 构造 sRGB 颜色。
+extension Color {
+    /// 由 0xRRGGBB 构造 sRGB 颜色 (`Palette` 与头图配色 `HeroTheme` 用)。
     init(hex: UInt32) {
         self.init(
             .sRGB,

@@ -21,12 +21,12 @@ struct ScrollBody<Content: View>: View {
 }
 
 /// 找到所在的 `NSScrollView`，换上细滚动条并把样式定为悬浮；系统偏好变了 (插拔鼠标) 时 AppKit 会改回去，再定一次。
-private struct OverlayScrollers: NSViewRepresentable {
+struct OverlayScrollers: NSViewRepresentable {
     func makeNSView(context: Context) -> OverlayScrollersView { OverlayScrollersView() }
     func updateNSView(_ view: OverlayScrollersView, context: Context) {}
 }
 
-private final class OverlayScrollersView: NSView {
+final class OverlayScrollersView: NSView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         NotificationCenter.default.addObserver(

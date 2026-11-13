@@ -214,3 +214,77 @@ struct PanelStatsRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+
+/// 大胆版进度格 (设计稿「大胆风格」)：左上说明 13/700，右上大字 (Archivo Black 22，白干用红色、平时橙色)；
+/// 下面一排圆角小格，每格 1 小时，已过的墨色 (白干填红)，当前这一小时填一部分；下班后白干在末尾多一格红色超时。
+/// 文字与格数原样取自快照的 `HourBlocks`。
+struct HourBlocksView: View {
+    let blocks: HourBlocks
+
+    private static let height: CGFloat = 18
+
+    var body: some View {
+        VStack(spacing: Spacing.s8) {
+            HStack(alignment: .lastTextBaseline) {
+                Text(blocks.label).font(AppFont.ui(13, .bold)).foregroundStyle(Palette.ink)
+                Spacer()
+                Text(blocks.value).font(AppFont.heavy(22)).foregroundStyle(blocks.isUnpaid ? Palette.hot : Palette.accent)
+            }
+            HStack(spacing: Spacing.s4) {
+                ForEach(0..<blocks.count, id: \.self) { index in
+                    cell(fill: min(max(blocks.filled - Double(index), 0), 1))
+                }
+                if blocks.overtime {
+                    RoundedRectangle(cornerRadius: Radius.r5).fill(Palette.hot)
+                }
+            }
+            .frame(height: Self.height)
+        }
+    }
+
+    /// 一格：`fill` 为这格填了多少 (0 至 1)。
+    private func cell(fill: Double) -> some View {
+        // 休息日被迫营业的格子填白干的红；下班后白干的工时格仍是墨色，超时那格才是红的。
+        let color = blocks.isUnpaid && !blocks.overtime ? Palette.hot : Palette.ink
+        return RoundedRectangle(cornerRadius: Radius.r5)
+            .fill(Palette.surface)
+            .overlay(alignment: .leading) {
+                GeometryReader { geometry in
+                    Rectangle().fill(color).frame(width: geometry.size.width * fill)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: Radius.r5))
+    }
+}
+
+/// 大胆版统计行：各项平分宽度、居中，数值 Archivo Black 20，标题 11 muted，项与项之间一条细竖线，没有上下分隔线。
+/// 扣款 (以「−」开头) 用 loss 色，本月累计用 money 色，高亮项 (距离周末) 用 accent。
+struct BoldStatsRow: View {
+    let stats: [StatItem]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(stats.enumerated()), id: \.offset) { index, item in
+                if index > 0 {
+                    Rectangle().fill(Palette.line).frame(width: 1, height: 34)
+                }
+                VStack(spacing: Spacing.s3) {
+                    Text(item.value)
+                        .font(AppFont.heavy(20))
+                        .foregroundStyle(color(item))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text(item.title).font(AppFont.small).foregroundStyle(Palette.muted)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    private func color(_ item: StatItem) -> Color {
+        if item.value.hasPrefix("−") { return Palette.loss }
+        if item.isHighlighted { return Palette.accent }
+        if item.title == "本月累计" { return Palette.money }
+        return Palette.ink
+    }
+}

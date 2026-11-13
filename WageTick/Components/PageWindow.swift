@@ -10,7 +10,7 @@ import SwiftUI
 enum PageWindow {
     static func make(title: String, rootView: some View, delegate: NSWindowDelegate) -> NSWindow {
         // 内容画到透明标题栏底下，页头顶到窗口上沿。
-        let window = WindowChrome.makeWindow(title: title, titlebar: .tall, rootView: rootView)
+        let window = WindowChrome.makeWindow(title: title, titlebar: .standard, rootView: rootView)
         window.delegate = delegate
         return window
     }

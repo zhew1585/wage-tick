@@ -1,7 +1,7 @@
 import SwiftUI
 import WageCore
 
-/// 面板底部入口栏 (PRD F4 第 8 条，设计稿 P2 Footer)：surface 底，历史、目标、设置靠左排开；
+/// 面板底部入口栏 (PRD F4 第 8 条，设计稿「大胆风格」Footer)：bg 底、上边一条细线，历史、目标、设置靠左排开；
 /// 设了发薪日时右侧是距发薪 (issue #20，设计稿「发薪日倒计时 · 方案」E8IYR / pyihH)。
 struct PanelFooter: View {
     let payday: PaydayFooter?
@@ -20,8 +20,9 @@ struct PanelFooter: View {
             }
         }
         .padding(.horizontal, Spacing.s12)
-        .padding(.vertical, Spacing.s10)
-        .background(Palette.surface)
+        .padding(.vertical, Spacing.s8)
+        .background(Palette.bg)
+        .overlay(alignment: .top) { PanelDivider() }
     }
 }
 

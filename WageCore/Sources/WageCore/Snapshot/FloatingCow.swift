@@ -170,7 +170,7 @@ extension FloatingCow {
     }
 }
 
-private extension FloatingCowBubble {
+extension FloatingCowBubble {
     init(scene: CowScene, today: Today, now: Moment) {
         let quip = scene.quip(on: today.date)
         let plan = today.plan
@@ -199,7 +199,7 @@ private extension FloatingCowBubble {
     }
 
     /// 倒计时到 `end` (时:分，不足一分钟进位，不会显示 0:00)；没有 `end` 时显示「-」。
-    init(countdown prefix: String, to end: Date?, now: Moment, quip: String, style: FloatingCowStyle) {
+    private init(countdown prefix: String, to end: Date?, now: Moment, quip: String, style: FloatingCowStyle) {
         let value = end.map { end in
             let seconds = max(0, end.timeIntervalSince(now.date))
             return Format.hoursMinutes(seconds: Int((seconds / 60).rounded(.up)) * 60)
@@ -208,7 +208,7 @@ private extension FloatingCowBubble {
     }
 
     /// 还有几天：1 天写「明天」，没有 (一年内不上班) 时写「-」。
-    init(days: Int?, prefix: String, quip: String, style: FloatingCowStyle) {
+    private init(days: Int?, prefix: String, quip: String, style: FloatingCowStyle) {
         switch days {
         case 1: self.init(prefix: prefix, value: "明天", unit: nil, numeric: false, quip: quip, style: style)
         case let days?: self.init(prefix: prefix, value: "\(days)", unit: "天", numeric: true, quip: quip, style: style)

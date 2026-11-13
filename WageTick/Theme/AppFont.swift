@@ -4,7 +4,9 @@ import OSLog
 import SwiftUI
 
 /// 字体 token：界面文字用 Noto Sans SC (设计稿 font-ui)，数字用 JetBrains Mono (font-num，等宽，滚动不抖)。
-/// 两者都随 App 打包 (`Resources/Fonts`，SIL OFL 1.1，许可文件同目录)，启动时由 `register()` 注册到本进程。
+/// 大胆版头图另有两种展示字体：大数字用 Archivo Black (`heavy`)，头图标题与小牛气泡用站酷庆科黄油体 (`fun`)。
+/// 站酷庆科黄油体只保留 GB2312 一级汉字与常用符号 (约 2.7 MB)，其余字回退到苹方。
+/// 这些都随 App 打包 (`Resources/Fonts`，SIL OFL 1.1，许可文件同目录)，启动时由 `register()` 注册到本进程。
 /// Noto Sans SC 只保留 GB2312 汉字与常用符号 (约 4 MB)；子集外的字由系统自动回退到苹方。
 /// 子集做法：`pyftsubset NotoSansSC[wght].ttf --text-file=<GB2312 + ASCII + 常用标点> --layout-features='*' --name-IDs='*'`。
 /// 字体缺失 (注册失败) 时退回系统字体：界面文字用苹方/SF，数字用 SF Mono。
@@ -17,11 +19,17 @@ enum AppFont {
         case ui
         /// JetBrains Mono。
         case num
+        /// Archivo Black：头图大数字 (只有一个字重)。
+        case heavy
+        /// 站酷庆科黄油体：头图标题、小牛气泡 (只有一个字重)。
+        case fun
 
         fileprivate var name: String {
             switch self {
             case .ui: "Noto Sans SC"
             case .num: "JetBrains Mono"
+            case .heavy: "Archivo Black"
+            case .fun: "ZCOOL QingKe HuangYou"
             }
         }
     }
@@ -110,6 +118,16 @@ enum AppFont {
         cache.entry(.num, size, weight).font
     }
 
+    /// 头图大数字 (Archivo Black)，如今日已赚、目标百分比。
+    static func heavy(_ size: CGFloat) -> Font {
+        cache.entry(.heavy, size, .regular).font
+    }
+
+    /// 头图标题与小牛气泡 (站酷庆科黄油体)。
+    static func fun(_ size: CGFloat) -> Font {
+        cache.entry(.fun, size, .regular).font
+    }
+
     /// 按可变字体 wght 轴取精确字重 (JetBrains Mono 没有 600 的命名实例，按特征取会落到 700)。
     static func nsFont(_ family: Family, size: CGFloat, weight: Weight = .regular) -> NSFont {
         cache.entry(family, size, weight).nsFont
@@ -130,6 +148,7 @@ enum AppFont {
         return switch family {
         case .ui: NSFont.systemFont(ofSize: size, weight: weight.system)
         case .num: NSFont.monospacedSystemFont(ofSize: size, weight: weight.system)
+        case .heavy, .fun: NSFont.systemFont(ofSize: size, weight: .black)
         }
     }
 

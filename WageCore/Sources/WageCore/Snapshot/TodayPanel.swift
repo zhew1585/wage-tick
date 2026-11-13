@@ -23,6 +23,12 @@ public struct TodayPanel: Sendable, Equatable {
     public let goalCountText: String?
     /// 底部入口栏右侧的距发薪 (issue #20)；没设发薪日时为 nil，不显示。
     public let payday: PaydayFooter?
+    /// 头图里小牛此刻的场景 (与悬浮小牛同一套判定)，决定头图配色与小牛姿势；不受悬浮小牛开关影响。
+    public let cowScene: CowScene
+    /// 头图里小牛头顶的气泡 (与悬浮小牛同一句)。
+    public let cowBubble: FloatingCowBubble
+    /// 大胆版的进度格 (每格 1 小时)；休息日没在白干时为 nil。
+    public let blocks: HourBlocks?
 
     public enum Body: Sendable, Equatable {
         /// 应出勤日：未上班、上班中、干饭中、请假中、已下班。
@@ -134,7 +140,11 @@ extension TodayPanel {
         self.goalQueue = goalQueue
         goalCountText = goalCount > 0 ? "\(goalCount) 个目标" : nil
         payday = today.paydayCountdown.map(PaydayFooter.init)
+        let scene = CowScene(today: today)
+        cowScene = scene
+        cowBubble = FloatingCowBubble(scene: scene, today: today, now: now)
         let regular = Self.regularBody(today: today, now: now, holidays: holidays)
+        blocks = today.unpaidWork.running.map { HourBlocks(today: today, running: $0) } ?? HourBlocks(today: today, now: now)
         if let running = today.unpaidWork.running {
             body = .unpaidWork(UnpaidWorkPanel(today: today, running: running, now: now, todayStats: regular.stats))
         } else {
