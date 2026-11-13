@@ -210,8 +210,7 @@ private struct HeroCow: View {
     var body: some View {
         FloatingCowBody(act: act, motion: .live)
             .frame(width: 160, height: 213)
-            // 撒钱的小牛举手跳起，图里身子偏下，往上提一点，和别的姿势的头差不多高。
-            .offset(x: 4, y: act == .pose(.lyingFlat) ? -4 : act == .pose(.paid) ? 6 : 26)
+            .offset(x: 4, y: act == .pose(.lyingFlat) ? -4 : 26)
             .overlay(alignment: .topTrailing) {
                 if let bubble {
                     // 设计稿：两行的倒计时气泡在头顶上方，一行的台词贴着耳朵；躺平的小牛头低，气泡跟着往下。
