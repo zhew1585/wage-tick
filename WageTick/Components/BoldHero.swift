@@ -98,10 +98,10 @@ struct BoldHero<Number: View>: View {
                 if let caption {
                     HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
                         if let captionIcon { PhosphorIcon(captionIcon, size: 13).iconOnTextBaseline() }
-                        Text(caption).font(AppFont.num(12, .bold)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        Text(caption).font(AppFont.num(12, .bold)).lineLimit(1).minimumScaleFactor(0.8)
                     }
                     .foregroundStyle(theme.kicker)
-                    .frame(maxWidth: cow == nil ? .infinity : 190, alignment: .leading)
+                    .frame(maxWidth: cow == nil ? .infinity : 220, alignment: .leading)
                     .padding(.top, Spacing.s14)
                 }
                 Spacer(minLength: 0)
@@ -205,10 +205,12 @@ private struct HeroCow: View {
             .offset(x: 4, y: act == .pose(.lyingFlat) ? -4 : 26)
             .overlay(alignment: .topTrailing) {
                 if let bubble {
+                    // 设计稿：两行的倒计时气泡在头顶上方，一行的台词贴着耳朵；躺平的小牛头低，气泡跟着往下。
+                    // 台词最宽 150，长的折成两行，不压到左边的大数字。
                     HeroBubble(content: bubble, accent: theme.bubbleAccent)
-                        .frame(maxWidth: bubble.numeric ? 150 : 124, alignment: .trailing)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .offset(x: -6, y: act == .pose(.lyingFlat) ? 56 : -30)
+                        .frame(maxWidth: bubble.numeric ? nil : 150, alignment: .trailing)
+                        .fixedSize(horizontal: bubble.numeric, vertical: true)
+                        .offset(x: -6, y: act == .pose(.lyingFlat) ? 70 : (bubble.prefix == nil ? -6 : -30))
                 }
             }
             .allowsHitTesting(false)
@@ -226,10 +228,10 @@ struct HeroBubble: View {
                 Text(prefix).font(AppFont.ui(10)).foregroundStyle(Palette.muted)
             }
             Text(content.value)
-                .font(content.numeric ? AppFont.heavy(20) : AppFont.fun(16))
+                .font(content.numeric ? AppFont.heavy(20) : AppFont.fun(17))
                 .foregroundStyle(accent)
                 .monospacedDigit()
-                .lineLimit(2)
+                .lineLimit(content.numeric ? 1 : 2)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, Spacing.s12)

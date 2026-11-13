@@ -53,6 +53,10 @@ enum Phosphor: String {
     case wallet
     // 大胆版引导头图的说明行：第 1 步锁 (只存在这台电脑上)、第 2 步闹钟 (按计划算钱)。
     case lockSimple = "lock-simple"
+    // 大胆版首页头图说明行：上班中钱在涨、干饭暂停、已下班月亮。
+    case trendUp = "trend-up"
+    case pause
+    case moon
 
     var image: Image {
         Image("Phosphor/\(rawValue)").renderingMode(.template)

@@ -18,8 +18,9 @@ struct PanelHomeHero: View {
             theme: theme,
             topLeading: "\(panel.dateText)  \(panel.timeText)",
             status: status,
-            kicker: display.kicker,
-            caption: display.caption,
+            kicker: panel.heroKicker,
+            caption: panel.heroCaption.text,
+            captionIcon: Self.icon(panel.heroCaption.icon),
             cow: .pose(panel.cowScene.pose),
             bubble: bubble,
             confetti: panel.cowScene == .payday,
@@ -27,6 +28,18 @@ struct PanelHomeHero: View {
             compactValue: display.compact
         ) {
             HeroAmount(text: display.number, theme: theme, paused: display.paused, unit: display.unit, size: display.size)
+        }
+    }
+
+    /// 说明行图标：钱在涨、闹钟、暂停、请假伞、月亮、钱往外倒。
+    private static func icon(_ icon: HeroCaption.Icon) -> Phosphor {
+        switch icon {
+        case .rising: .trendUp
+        case .alarm: .alarm
+        case .pause: .pause
+        case .leave: .umbrella
+        case .moon: .moon
+        case .falling: .trendDown
         }
     }
 
@@ -43,27 +56,21 @@ struct PanelHomeHero: View {
         }
     }
 
-    /// 倒计时类的场景写「距下班 3:00」；已下班、休息日、发薪当天的大字和头图重复，换成小牛今天的台词。
+    /// 未上班、已下班、休息日、发薪当天写快照里的短台词 (三到五个字)，其余写倒计时 (如「距下班 3:00」)。
     private var bubble: HeroBubbleContent {
-        let cow = panel.cowBubble
-        switch panel.cowScene {
-        case .offWork, .restDay, .payday:
-            return HeroBubbleContent(value: cow.quip, numeric: false)
-        case .beforeWork:
-            return HeroBubbleContent(value: cow.quip, numeric: false)
-        default:
-            let value = cow.unit.map { "\(cow.value) \($0)" } ?? cow.value
-            return HeroBubbleContent(prefix: cow.prefix, value: value, numeric: cow.numeric)
+        if let quip = panel.heroQuip {
+            return HeroBubbleContent(value: quip, numeric: false)
         }
+        let cow = panel.cowBubble
+        let value = cow.unit.map { "\(cow.value) \($0)" } ?? cow.value
+        return HeroBubbleContent(prefix: cow.prefix, value: value, numeric: cow.numeric)
     }
 }
 
-/// 头图里要排的文字：标题、大数字 (可带单位)、说明行、窄栏里的小号数字。
+/// 头图里要排的大数字 (可带单位) 与窄栏里的小号数字。标题、说明行直接用快照的 `heroKicker`、`heroCaption`。
 private struct HeroDisplay {
-    var kicker: String
     var number: String
     var unit: String?
-    var caption: String?
     var paused = false
     var size: CGFloat = 96
     var compact: String?
@@ -73,38 +80,29 @@ private struct HeroDisplay {
         case .attendance(let attendance):
             let scene = panel.cowScene
             if scene == .beforeWork {
-                kicker = "离开工还有"
                 number = panel.cowBubble.value
-                caption = attendance.caption
                 size = 84
                 compact = number
                 return
             }
-            kicker = scene == .offWork ? "今日结算" : "今日已赚"
             number = attendance.headline
-            caption = attendance.caption
             paused = scene == .lunch || scene == .onLeave || scene == .offWork
             // 已下班的数字定格成整数位多的结算额，缩小一点给躺平小牛的气泡让位置。
             if scene == .offWork { size = 80 }
             compact = HeroAmount.split(number).integer
         case .unpaidWork(let unpaidWork):
-            kicker = unpaidWork.label
             number = unpaidWork.headline
-            caption = unpaidWork.caption
             compact = HeroAmount.split(number).integer
         case .rest(let rest):
             if panel.cowScene == .payday, let month = rest.stats.first(where: { $0.title == "本月累计" }) {
-                kicker = "这个月挣了"
                 number = month.value
                 size = 80
             } else {
                 let cow = panel.cowBubble
-                kicker = cow.value == "明天" ? "明天就要上班" : "离开工还有"
                 number = cow.value == "明天" ? "1" : cow.value
                 unit = Int(number) == nil ? nil : "天"
                 size = 120
             }
-            caption = rest.nextAttendanceText ?? rest.tagline
             compact = number
         }
     }

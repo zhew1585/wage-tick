@@ -22,7 +22,7 @@ struct HeroAmount: View {
                 if let currency = parts.currency {
                     Text(currency).font(AppFont.heavy(size * 0.34)).foregroundStyle(theme.kicker)
                 }
-                Text(parts.integer)
+                Text(Self.grouped(parts.integer))
                     .font(AppFont.heavy(size))
                     .tracking(-size * 0.04)
                     .foregroundStyle(theme.number)
@@ -39,6 +39,17 @@ struct HeroAmount: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(text + (unit ?? ""))
+    }
+
+    /// 整数部分加千分位 (设计稿「¥1,000」)；已经带逗号或不是纯数字 (如倒计时「0:45」) 时原样。
+    nonisolated static func grouped(_ integer: String) -> String {
+        guard integer.count > 3, integer.allSatisfy(\.isNumber) else { return integer }
+        var result = ""
+        for (index, character) in integer.enumerated() {
+            if index > 0, (integer.count - index) % 3 == 0 { result.append(",") }
+            result.append(character)
+        }
+        return result
     }
 
     /// 「¥571.4286」拆成 ¥、571、4286；「−¥50」拆成 −¥、50、空。
@@ -75,5 +86,14 @@ private struct DecimalTiles: View {
                     )
             }
         }
+    }
+}
+
+/// 大胆版里的金额显示 (设计稿带千分位)：把快照给的「¥3492.86」整数部分加上逗号，变成「¥3,492.86」；不是金额时原样。
+enum BoldNumber {
+    nonisolated static func grouped(_ text: String) -> String {
+        let parts = HeroAmount.split(text)
+        let integer = HeroAmount.grouped(parts.integer)
+        return (parts.currency ?? "") + integer + (parts.decimals.isEmpty ? "" : "." + parts.decimals)
     }
 }

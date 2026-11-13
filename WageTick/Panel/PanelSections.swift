@@ -237,6 +237,18 @@ struct HourBlocksView: View {
                 }
             }
             .frame(height: Self.height)
+            if blocks.startText != nil || blocks.endText != nil {
+                HStack {
+                    Text(blocks.startText ?? "")
+                    Spacer(minLength: Spacing.s4)
+                    if let middle = blocks.middleText { Text(middle) }
+                    Spacer(minLength: Spacing.s4)
+                    Text(blocks.endText ?? "")
+                }
+                .font(AppFont.num(10))
+                .foregroundStyle(Palette.muted)
+                .lineLimit(1)
+            }
         }
     }
 
@@ -255,8 +267,9 @@ struct HourBlocksView: View {
     }
 }
 
-/// 大胆版统计行：各项平分宽度、居中，数值 Archivo Black 20，标题 11 muted，项与项之间一条细竖线，没有上下分隔线。
-/// 扣款 (以「−」开头) 用 loss 色，本月累计用 money 色，高亮项 (距离周末) 用 accent。
+/// 大胆版统计行 (设计稿「大胆风格」)：各项平分宽度、居中，项与项之间一条细竖线，没有上下分隔线。
+/// 数值：金额与数字用 Archivo Black 18；「11 天」拆成大数字 + 小单位；纯中文 (如「明天休息」) 用圆润的站酷快乐体。
+/// 扣款 (以「−」开头) 用 loss 色，本月累计用 money 色，高亮项 (距离周末) 用 accent。标题 11 muted。
 struct BoldStatsRow: View {
     let stats: [StatItem]
 
@@ -266,16 +279,31 @@ struct BoldStatsRow: View {
                 if index > 0 {
                     Rectangle().fill(Palette.line).frame(width: 1, height: 34)
                 }
-                VStack(spacing: Spacing.s3) {
-                    Text(item.value)
-                        .font(AppFont.heavy(20))
+                VStack(spacing: Spacing.s4) {
+                    value(item)
                         .foregroundStyle(color(item))
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                     Text(item.title).font(AppFont.small).foregroundStyle(Palette.muted)
                 }
+                .padding(.horizontal, Spacing.s8)
                 .frame(maxWidth: .infinity)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func value(_ item: StatItem) -> some View {
+        let parts = item.value.split(separator: " ", maxSplits: 1).map(String.init)
+        if parts.count == 2, parts[0].allSatisfy(\.isNumber) {
+            HStack(alignment: .lastTextBaseline, spacing: Spacing.s3) {
+                Text(parts[0]).font(AppFont.heavy(18))
+                Text(parts[1]).font(AppFont.ui(12, .bold))
+            }
+        } else if item.value.unicodeScalars.contains(where: { (0x4E00...0x9FFF).contains($0.value) }) {
+            Text(item.value).font(AppFont.round(18))
+        } else {
+            Text(item.value).font(AppFont.heavy(18))
         }
     }
 

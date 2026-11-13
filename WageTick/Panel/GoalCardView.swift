@@ -80,10 +80,11 @@ struct BoldGoalCard: View {
                 }
             }
             HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
-                Text(goal.accumulatedText).font(AppFont.heavy(24)).foregroundStyle(.white)
-                Text("/ \(goal.targetText)").font(AppFont.num(12)).foregroundStyle(.white.opacity(0.5))
+                Text(BoldNumber.grouped(goal.accumulatedText)).font(AppFont.heavy(24)).foregroundStyle(.white)
+                Text("/ \(BoldNumber.grouped(goal.targetText).replacingOccurrences(of: "¥", with: ""))")
+                    .font(AppFont.num(12)).foregroundStyle(.white.opacity(0.5))
                 Spacer(minLength: Spacing.s8)
-                Text(goal.percentText).font(AppFont.heavy(28)).foregroundStyle(Color(hex: 0xFF7A2E))
+                Text("\(Int((goal.progress * 100).rounded(.down)))%").font(AppFont.heavy(28)).foregroundStyle(Color(hex: 0xFF7A2E))
             }
             .lineLimit(1)
             .minimumScaleFactor(0.7)

@@ -54,6 +54,8 @@ private enum PanelPreviews {
         }
         return [
             ("P2-working", panel(base, day: 5, 15, 0)),
+            ("P2-not-started", panel(base, day: 5, 9, 15)),
+            ("P2-lunch", panel(base, day: 5, 12, 28)),
             ("P2-off-work", panel(base, day: 5, 18, 30)),
             ("P2-unpaid-work", panel(unpaid, day: 5, 19, 5, 12)),
             // 5 日 18:00 开始没停，过了零点 6 日 00:30 仍在白干中 (6 日 10:00 计划上班时自动停止)。

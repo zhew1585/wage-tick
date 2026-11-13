@@ -86,7 +86,7 @@ struct TodayPanelView: View {
             if case .attendance(let attendance) = panel.body, let notice = attendance.notice {
                 Text(notice).font(AppFont.caption).foregroundStyle(Palette.accent).frame(maxWidth: .infinity, alignment: .leading)
             }
-            BoldStatsRow(stats: Self.stats(panel.body))
+            BoldStatsRow(stats: panel.boldStats)
             GoalCardView(
                 card: panel.goal,
                 queue: panel.goalQueue,
@@ -99,13 +99,6 @@ struct TodayPanelView: View {
         .padding(EdgeInsets(top: Spacing.s20, leading: Spacing.screen, bottom: 0, trailing: Spacing.screen))
     }
 
-    private static func stats(_ body: TodayPanel.Body) -> [StatItem] {
-        switch body {
-        case .attendance(let attendance): attendance.stats
-        case .rest(let rest): rest.stats
-        case .unpaidWork(let unpaidWork): unpaidWork.stats
-        }
-    }
 
     private func goHome() {
         content.route = .home

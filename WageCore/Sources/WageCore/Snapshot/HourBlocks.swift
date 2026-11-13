@@ -12,16 +12,20 @@ public struct HourBlocks: Sendable, Equatable {
     public let filled: Double
     /// 工时格后面是否多一格超时 (下班后白干)。
     public let overtime: Bool
-    /// 左上的说明，如「已工作 4 / 7 小时」「已白干 1:20 / 7 小时」。
+    /// 左上的说明，如「已搬砖 4 / 7 小时」「已白干 1:20 / 7 小时」。
     public let label: String
     /// 右上的大字，如「57%」「+1:05」。
     public let value: String
     /// 是否白干 (外壳用白干的红色)。
     public let isUnpaid: Bool
+    /// 格子下面一行的左、中、右，如「10:00 上班」「12:00–13:00 干饭」「18:00 下班」；没有的为 nil。
+    public let startText: String?
+    public let middleText: String?
+    public let endText: String?
 }
 
 extension HourBlocks {
-    /// 应出勤日 (不在白干)：按工作进度填，已下班全满。
+    /// 应出勤日 (不在白干)：按工作进度填，已下班全满。百分比取整，如「57%」。
     init?(today: Today, now: Moment) {
         guard let plan = today.plan, let earnings = today.earnings else { return nil }
         let count = Self.count(milliseconds: plan.effectiveMilliseconds)
@@ -31,21 +35,26 @@ extension HourBlocks {
         let elapsed = elapsedMilliseconds >= plan.effectiveMilliseconds
             ? total
             : Format.workHours(milliseconds: elapsedMilliseconds, roundingDown: true)
+        let ticks = Self.ticks(plan: plan, timeZone: now.timeZone)
         self.init(
             count: count, filled: min(Double(count), progress * Double(count)), overtime: false,
-            label: "已工作 \(elapsed) / \(total) 小时", value: Format.percent(earnings.progress), isUnpaid: false
+            label: "已搬砖 \(elapsed) / \(total) 小时", value: "\(Int((progress * 100).rounded(.down)))%", isUnpaid: false,
+            startText: ticks.start, middleText: ticks.middle, endText: ticks.end
         )
     }
 
     /// 白干计时中：应出勤日工时格全满加一格超时；休息日按一个标准工作日的格数填白干时长。
-    init(today: Today, running: RunningUnpaidWork) {
+    /// 下面一行：应出勤日为「10:00 上班」「18:00 下班」「19:05 现在」，休息日为「13:00 开始」「每格 1 小时」。
+    init(today: Today, running: RunningUnpaidWork, now: Moment) {
         let elapsed = "+\(Format.hoursMinutes(seconds: running.milliseconds / 1000))"
+        let time = { (date: Date) in Format.time(Moment(date: date, timeZone: now.timeZone)) }
         if let plan = today.plan, today.status != .restDay {
             let count = Self.count(milliseconds: plan.effectiveMilliseconds)
             let total = Format.workHours(milliseconds: plan.effectiveMilliseconds)
             self.init(
                 count: count, filled: Double(count), overtime: true,
-                label: "已工作 \(total) / \(total) 小时", value: elapsed, isUnpaid: true
+                label: "已搬砖 \(total) / \(total) 小时", value: elapsed, isUnpaid: true,
+                startText: "\(time(plan.start)) 上班", middleText: "\(time(plan.end)) 下班", endText: "\(time(now.date)) 现在"
             )
         } else {
             let standard = today.schedule.standardMilliseconds
@@ -54,9 +63,17 @@ extension HourBlocks {
             self.init(
                 count: count, filled: min(Double(count), hours), overtime: false,
                 label: "已白干 \(Format.hoursMinutes(seconds: running.milliseconds / 1000)) / \(Format.workHours(milliseconds: standard)) 小时",
-                value: elapsed, isUnpaid: true
+                value: elapsed, isUnpaid: true,
+                startText: "\(time(running.since)) 开始", middleText: nil, endText: "每格 1 小时"
             )
         }
+    }
+
+    /// 应出勤日格子下面一行：上班、饭点、下班时刻。
+    private static func ticks(plan: DayPlan, timeZone: TimeZone) -> (start: String, middle: String?, end: String) {
+        let time = { (date: Date) in Format.time(Moment(date: date, timeZone: timeZone)) }
+        let lunch = plan.lunch.map { "\(time($0.start))–\(time($0.end)) 干饭" }
+        return ("\(time(plan.start)) 上班", lunch, "\(time(plan.end)) 下班")
     }
 
     /// 工时换成格数：四舍五入到整小时，至少 1 格。
