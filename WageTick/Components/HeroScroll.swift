@@ -44,7 +44,8 @@ struct HeroScroll<Hero: View, Content: View>: View {
         .background(GeometryReader { Color.clear.preference(key: HeroScrollViewportHeight.self, value: $0.size.height) })
         .onPreferenceChange(HeroScrollContentHeight.self) { contentHeight = $0 }
         .onPreferenceChange(HeroScrollViewportHeight.self) { viewportHeight = $0 }
-        // 放得下 (算上不到 1pt 的取整误差) 就不让滚：不然多出的零点几个点也能拖动，看着像能滑但什么都没有。
+        // 放得下 (留 1pt 取整误差) 就锁住：不然多出一两个点也能拖动，看着像能滑但什么都没有。
+        // 两个高度都只有一处上报，合并取最大值 (默认值 0 不会盖掉真实高度)。
         .scrollDisabled(contentHeight <= viewportHeight + 1)
         .coordinateSpace(name: Self.space)
         .scrollIndicators(.hidden)
