@@ -90,12 +90,13 @@ struct BoldHero<Number: View>: View {
                 } else {
                     Spacer().frame(height: Spacing.s16)
                 }
+                // 标题在小牛头顶上方，占满整行；行高固定，太长缩小字号时下面的内容也不会上下跳。
                 Text(kicker)
                     .font(AppFont.fun(26))
                     .foregroundStyle(theme.kicker)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    .frame(maxWidth: cow == nil ? .infinity : 240, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: 36, maxHeight: 36, alignment: .leading)
                 number()
                     .padding(.top, Spacing.s4)
                 if let caption {
