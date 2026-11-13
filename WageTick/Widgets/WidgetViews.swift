@@ -467,38 +467,44 @@ private struct WidgetStatsRow: View {
     }
 }
 
-/// 大号底部的当前目标：墨色卡，黄色「正在攒」、名称、橙色百分比、渐变进度条、预计。没有目标时一行淡淡的提示。
+/// 大号底部的当前目标：墨色卡，黄色「正在攒」、名称、橙色百分比、渐变进度条、预计；没有目标时同一张卡写「还没目标」。
 private struct WidgetGoalCard: View {
     let goal: GoalCard
 
     var body: some View {
         switch goal {
-        case .empty(let prompt):
-            WidgetEmptyGoal(prompt: prompt)
+        case .empty:
+            // 同 App 首页没有目标时的卡：和累计中目标同一结构、同一高度。小组件里没有按钮，点整个小组件打开 App。
+            inkCard(tag: "还没目标", name: "写下想要的东西", percent: "0%", progress: 0, footnote: "小牛帮你算哪天攒够")
         case .active(let goal):
-            VStack(alignment: .leading, spacing: Spacing.s6) {
-                HStack(spacing: 5) {
-                    Text("正在攒").font(.system(size: 9, weight: .heavy)).foregroundStyle(Palette.ink)
-                        .padding(.horizontal, 5).padding(.vertical, 1)
-                        .background(Palette.highlight, in: RoundedRectangle(cornerRadius: 4))
-                    Text(goal.name).font(.system(size: 12, weight: .heavy)).foregroundStyle(.white).lineLimit(1)
-                    Spacer(minLength: Spacing.s4)
-                    Text(goal.percentText).font(.system(size: 17, weight: .black)).foregroundStyle(Color(hex: 0xFF7A2E))
-                }
-                GeometryReader { geometry in
-                    Capsule().fill(.white.opacity(0.12)).overlay(alignment: .leading) {
-                        Capsule()
-                            .fill(LinearGradient(colors: [Palette.highlight, Color(hex: 0xFF7A2E)], startPoint: .leading, endPoint: .trailing))
-                            .frame(width: geometry.size.width * min(max(goal.progress, 0), 1))
-                    }
-                }
-                .frame(height: 6)
-                Text(goal.estimate).font(.system(size: 9)).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(Palette.ink, in: RoundedRectangle(cornerRadius: 14))
+            inkCard(tag: "正在攒", name: goal.name, percent: "\(Int((goal.progress * 100).rounded(.down)))%", progress: goal.progress, footnote: goal.estimate)
         }
+    }
+
+    /// 墨色卡：黄色标签与名称、右侧橙色百分比，渐变进度条，最下一行小字。
+    private func inkCard(tag: String, name: String, percent: String, progress: Double, footnote: String) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s6) {
+            HStack(spacing: 5) {
+                Text(tag).font(.system(size: 9, weight: .heavy)).foregroundStyle(Palette.ink)
+                    .padding(.horizontal, 5).padding(.vertical, 1)
+                    .background(Palette.highlight, in: RoundedRectangle(cornerRadius: 4))
+                Text(name).font(.system(size: 12, weight: .heavy)).foregroundStyle(.white).lineLimit(1)
+                Spacer(minLength: Spacing.s4)
+                Text(percent).font(.system(size: 17, weight: .black)).foregroundStyle(Color(hex: 0xFF7A2E))
+            }
+            GeometryReader { geometry in
+                Capsule().fill(.white.opacity(0.12)).overlay(alignment: .leading) {
+                    Capsule()
+                        .fill(LinearGradient(colors: [Palette.highlight, Color(hex: 0xFF7A2E)], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: geometry.size.width * min(max(progress, 0), 1))
+                }
+            }
+            .frame(height: 6)
+            Text(footnote).font(.system(size: 9)).foregroundStyle(.white.opacity(0.7)).lineLimit(1)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Palette.ink, in: RoundedRectangle(cornerRadius: 14))
     }
 }
 
