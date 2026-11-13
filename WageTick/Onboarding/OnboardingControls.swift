@@ -10,13 +10,13 @@ struct HeroSalaryInput: View {
     let onSubmit: () -> Void
     @FocusState private var focused: Bool
 
-    private static let size: CGFloat = 60
+    private static let size = HeroNumberInput.size
     /// 最多几位数字。
     static let maxDigits = 5
 
     var body: some View {
         HStack(alignment: .lastTextBaseline, spacing: Spacing.s2) {
-            Text("¥").font(AppFont.heavy(26)).foregroundStyle(theme.kicker)
+            Text("¥").font(AppFont.heavy(HeroNumberInput.affixSize)).foregroundStyle(theme.kicker)
             // 占位「0」自己画：`prompt` 的颜色在 macOS 上会被系统占位色盖掉，橙底上看着发黑。
             TextField("工资", text: $text, prompt: Text(""))
                 .textFieldStyle(.plain)
@@ -32,10 +32,7 @@ struct HeroSalaryInput: View {
                     }
                 }
                 // 只留数字、最多五位：多打的字直接吞掉。
-                .onChange(of: text) { _, newValue in
-                    let digits = String(newValue.filter(\.isWholeNumber).prefix(Self.maxDigits))
-                    if digits != newValue { text = digits }
-                }
+                .heroNumberLimit($text, maxDigits: Self.maxDigits)
         }
         .frame(width: 240, alignment: .leading)
         .accessibilityLabel("工资")

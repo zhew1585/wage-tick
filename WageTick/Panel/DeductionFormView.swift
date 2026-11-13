@@ -117,13 +117,13 @@ struct DeductionFormView: View {
 
     // MARK: 头图
 
-    /// 头图里的大号金额输入：墨色「−¥」(按百分比时只有「−」、后面接「%」) + 白色 Archivo Black 数字，位数多了自动缩小，给右边小牛留位置。
+    /// 头图里的大号金额输入 (规格同引导第 1 步，见 `HeroNumberInput`)：墨色「−¥」(按百分比时只有「−」、后面接「%」) + 白色 Archivo Black 数字。
+    /// 字号固定不缩放；按金额最多 5 位数字、按百分比最多 3 位，都可带两位小数。
     private var valueInput: some View {
         let shown = valueText.isEmpty ? "0" : valueText
-        let size = Self.numberSize(for: shown)
-        let font = AppFont.heavy(size)
+        let font = AppFont.heavy(HeroNumberInput.size)
         return HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
-            Text(method == .fixed ? "−¥" : "−").font(AppFont.heavy(34)).foregroundStyle(Palette.ink)
+            Text(method == .fixed ? "−¥" : "−").font(AppFont.heavy(HeroNumberInput.affixSize)).foregroundStyle(Palette.ink)
             // 一段同字号文字撑出输入框宽度，让单位贴在数字后面；没填时它就是半透明的占位「0」
             // (系统的占位色是半透明黑，压在红底上发脏)。
             Text(shown)
@@ -141,18 +141,14 @@ struct DeductionFormView: View {
                         .onSubmit(save)
                 }
             if method == .percent {
-                Text("%").font(AppFont.fun(size * 0.4)).foregroundStyle(Palette.ink)
+                Text("%").font(AppFont.heavy(HeroNumberInput.affixSize)).foregroundStyle(Palette.ink)
             }
         }
-        .frame(height: 104, alignment: .bottomLeading)
+        .heroNumberLimit($valueText, maxDigits: method == .fixed ? 5 : 3, maxDecimals: 2)
+        .frame(height: 76, alignment: .bottomLeading)
         .contentShape(Rectangle())
         .onTapGesture { focus = .value }
         .cursor(.iBeam)
-    }
-
-    /// 数字的字号：两位数 96，再多就按可用宽度 (约 146) 缩小，最小 36。
-    private static func numberSize(for text: String) -> CGFloat {
-        min(96, max(36, 146 / (CGFloat(text.count) * 0.7)))
     }
 
     /// 头图说明「今日上限 ¥1000 → ¥950」：起点取当前快照，终点取草稿试算后的快照；还没填好时只显示起点。

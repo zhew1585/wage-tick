@@ -75,27 +75,28 @@ struct GoalFormView: View {
         }
     }
 
-    /// 头图里的金额：墨色 ¥ + 白色大号数字，没填时是半透明的「0」。
+    /// 头图里的金额 (规格同引导第 1 步，见 `HeroNumberInput`)：墨色 ¥ + 白色大号数字，没填时是半透明的「0」；字号固定，最多 6 位整数。
     private var amountInput: some View {
         HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
-            Text("¥").font(AppFont.heavy(34)).foregroundStyle(Palette.ink)
+            Text("¥").font(AppFont.heavy(HeroNumberInput.affixSize)).foregroundStyle(Palette.ink)
             TextField("金额", text: $amountText, prompt: Text(""))
                 .textFieldStyle(.plain)
                 // 光标白色：SwiftUI 刷新时会按 tint 重设光标颜色，只改字段编辑器会被盖掉。
                 .tint(.white)
-                .font(AppFont.heavy(64))
+                .font(AppFont.heavy(HeroNumberInput.size))
                 .foregroundStyle(.white)
                 .background(alignment: .leading) {
                     // 系统占位文字的颜色改不了 (在橙色底上发灰)，自己画一个半透明白的「0」。
                     if amountText.isEmpty {
-                        Text("0").font(AppFont.heavy(64)).foregroundStyle(.white.opacity(0.4)).allowsHitTesting(false)
+                        Text("0").font(AppFont.heavy(HeroNumberInput.size)).foregroundStyle(.white.opacity(0.4)).allowsHitTesting(false)
                     }
                 }
                 .focused($focus, equals: .amount)
                 .onSubmit(submit)
                 .accessibilityLabel("金额")
+                .heroNumberLimit($amountText, maxDigits: 6)
         }
-        .frame(width: 210, alignment: .leading)
+        .frame(width: 270, alignment: .leading)
     }
 
     /// 名称输入框 (高 50、圆角 14、2pt 墨色描边、surface 底，右边字数) 与一行说明；校验失败的提示接在说明下面。
