@@ -97,7 +97,7 @@ private struct MonthRow: View {
                     MonthBadge(text: badge, isCurrent: summary.isCurrentMonth)
                 }
                 Spacer(minLength: Spacing.s8)
-                Text(summary.total).font(AppFont.heavy(17)).foregroundStyle(tone).lineLimit(1).fixedSize()
+                Text(BoldNumber.grouped(summary.total)).font(AppFont.heavy(17)).foregroundStyle(tone).lineLimit(1).fixedSize()
                 PhosphorIcon(.caretRight, size: 13).foregroundStyle(Palette.muted)
             }
             ProgressLine(progress: summary.progress, color: tone)

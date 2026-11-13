@@ -187,7 +187,7 @@ private struct QueuedGoalCardView: View {
                 IconButton(systemName: "pencil", help: "编辑", action: edit)
                 IconButton(systemName: "trash", help: "删除", action: delete)
             }
-            Text(row.amountText).font(AppFont.heavy(15)).foregroundStyle(Palette.ink).lineLimit(1).fixedSize()
+            Text(BoldNumber.grouped(row.amountText)).font(AppFont.heavy(15)).foregroundStyle(Palette.ink).lineLimit(1).fixedSize()
             PhosphorIcon(.GoalIcon.dotsSixVertical, size: 14).foregroundStyle(Palette.muted)
         }
         .padding(.leading, Spacing.s14)

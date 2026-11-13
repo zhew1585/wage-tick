@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 /// 头图大数字 (设计稿「数字当主角」)：小号 ¥ + Archivo Black 大整数，小数位排成一格一格的翻牌，最后一位高亮，暗示它一直在跳。
@@ -90,7 +91,18 @@ private struct DecimalTiles: View {
 }
 
 /// 大胆版里的金额显示 (设计稿带千分位)：把快照给的「¥3492.86」整数部分加上逗号，变成「¥3,492.86」；不是金额时原样。
+/// `groupedAll` 把一句话里所有「¥数字」都加上千分位，如「共 ¥4298 · 搬砖 4.3 天」→「共 ¥4,298 · 搬砖 4.3 天」。
 enum BoldNumber {
+    nonisolated static func groupedAll(_ text: String) -> String {
+        guard let regex = try? NSRegularExpression(pattern: "¥(\\d{4,})") else { return text }
+        var result = text
+        for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
+            guard let range = Range(match.range(at: 1), in: result) else { continue }
+            result.replaceSubrange(range, with: HeroAmount.grouped(String(result[range])))
+        }
+        return result
+    }
+
     nonisolated static func grouped(_ text: String) -> String {
         let parts = HeroAmount.split(text)
         let integer = HeroAmount.grouped(parts.integer)

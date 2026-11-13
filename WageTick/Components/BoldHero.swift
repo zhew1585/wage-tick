@@ -103,10 +103,12 @@ struct BoldHero<Number: View>: View {
                 if let caption {
                     HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
                         if let captionIcon { PhosphorIcon(captionIcon, size: 13).iconOnTextBaseline() }
-                        Text(caption).font(AppFont.num(12, .bold)).lineLimit(1).minimumScaleFactor(0.8)
+                        Text(BoldNumber.groupedAll(caption)).font(AppFont.num(12, .bold))
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                     }
                     .foregroundStyle(theme.kicker)
-                    .frame(maxWidth: cow == nil ? .infinity : 220, alignment: .leading)
+                    // 小牛从 x≈200 起，说明行限宽 180 不钻到小牛后面，放不下折成两行。
+                    .frame(maxWidth: cow == nil ? .infinity : 180, alignment: .leading)
                     .padding(.top, Spacing.s14)
                 }
                 Spacer(minLength: 0)

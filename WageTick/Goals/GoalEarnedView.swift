@@ -43,7 +43,7 @@ struct GoalEarnedView: View {
             VStack(alignment: .leading, spacing: 0) {
                 HeroCount(value: count, unit: unit, theme: .mint)
                 if let summary = list.completedSummary {
-                    HeroInkCaption(icon: .GoalIcon.hammer, text: summary)
+                    HeroInkCaption(icon: .GoalIcon.hammer, text: BoldNumber.groupedAll(summary))
                 }
             }
         }
@@ -57,7 +57,7 @@ struct GoalEarnedView: View {
                     HStack(alignment: .firstTextBaseline) {
                         Text(String(year.year)).font(AppFont.heavy(20)).foregroundStyle(Palette.ink)
                         Spacer()
-                        Text(year.summary).font(AppFont.num(11)).foregroundStyle(Palette.muted)
+                        Text(BoldNumber.groupedAll(year.summary)).font(AppFont.num(11)).foregroundStyle(Palette.muted)
                     }
                     .padding(.bottom, Spacing.s4)
                     ForEach(Array(year.rows.enumerated()), id: \.element.id) { index, row in
@@ -104,7 +104,7 @@ private struct EarnedGoalRow: View {
                     IconButton(systemName: "trash", help: "删除", action: delete).padding(.top, Spacing.s2)
                 }
                 VStack(alignment: .trailing, spacing: Spacing.s4) {
-                    Text(row.amountText).font(AppFont.heavy(15)).foregroundStyle(Palette.ink)
+                    Text(BoldNumber.grouped(row.amountText)).font(AppFont.heavy(15)).foregroundStyle(Palette.ink)
                     if let workDays = row.workDaysText {
                         Text(workDays).font(AppFont.num(10)).foregroundStyle(Palette.muted)
                     }
