@@ -7,7 +7,11 @@ import WageCore
 @Observable
 final class GoalsContent {
     var list = GoalList.empty
-    var route = GoalsRoute.queue
+    var route = GoalsRoute.queue {
+        didSet { if case .form = route { formSession += 1 } }
+    }
+    /// 每次打开目标表单加 1，表单按它换一个新视图，上一次没保存或刚保存过的输入不会留下来。
+    private(set) var formSession = 0
 
     /// 按快照填好各项。
     func update(from snap: Snapshot) {

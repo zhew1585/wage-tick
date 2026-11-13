@@ -33,6 +33,8 @@ struct GoalsView: View {
                     save: { (command: Command) throws(CommandError) in try send(command) },
                     dismiss: { content.route = .queue }
                 )
+                // 每次打开都是新的表单 (名称、金额清空)，不复用上一次还没退场完的那个。
+                .id(content.formSession)
                 .background(Palette.bg)
                 .pushed()
             }

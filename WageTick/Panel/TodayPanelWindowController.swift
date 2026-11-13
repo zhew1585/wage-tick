@@ -17,7 +17,11 @@ final class TodayPanelContent {
     /// 正在播放的目标达成庆祝动画 (F9)；播放结束、点掉或关掉面板时清空。
     var celebration: GoalCelebration?
     /// 概览还是原地打开的表单；每次打开面板回到概览。
-    var route: PanelRoute = .home
+    var route: PanelRoute = .home {
+        didSet { if route != .home { formSession += 1 } }
+    }
+    /// 每次打开扣钱、请假表单加 1，表单按它换新视图，不留上一次的输入。
+    private(set) var formSession = 0
     /// 钉住：窗口始终浮在其他窗口之上。由标题栏右侧的图钉按钮切换，记在偏好里，重启后保留。
     var isPinned = false
     /// 从右边推进来的页面 (历史、目标、设置)；nil 时显示概览 (或原地的表单)。

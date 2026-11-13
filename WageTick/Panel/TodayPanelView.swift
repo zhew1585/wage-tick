@@ -31,7 +31,8 @@ struct TodayPanelView: View {
     var body: some View {
         ZStack {
             home
-            form.map { $0.pushed(level: 1) }
+            // 每次打开都是新的表单，不复用上一次还没退场完的那个。
+            form.map { $0.id(content.formSession).pushed(level: 1) }
             if let current = content.page {
                 page(current)
                     .frame(maxHeight: .infinity, alignment: .top)
