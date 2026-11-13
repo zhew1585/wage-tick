@@ -145,10 +145,9 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
             }
         )
         // 面板是普通窗口，底部入口打开别的窗口时面板留着，牛马可以从 Dock、⌘Tab 或窗口菜单切回来。
-        // 顶部整条让出标准标题栏 (28) 放红绿灯，下面按设计稿排。
+        // 内容顶到窗口上沿，彩色头图垫在红绿灯下面 (大胆版)；头图自己让出标题栏那一行。
         // 钉住按钮放在标题栏右侧，和红绿灯同一行。
         let view = TodayPanelView(content: content, actions: actions, navigation: navigation)
-            .padding(.top, WindowChrome.Titlebar.standard.height)
             .overlay(alignment: .topTrailing) {
                 PinButton(content: content) { [weak self] in self?.togglePin() }
                     .frame(height: WindowChrome.Titlebar.standard.height)
@@ -184,10 +183,12 @@ private struct PinButton: View {
 
     var body: some View {
         Button(action: toggle) {
-            PhosphorIcon(content.isPinned ? .pushPinFill : .pushPin, size: 14)
-                .foregroundStyle(content.isPinned ? Palette.accent : Palette.muted)
+            // 垫在各色头图上：白底小圆片托着，哪种主色上都看得清。
+            PhosphorIcon(content.isPinned ? .pushPinFill : .pushPin, size: 12)
+                .foregroundStyle(content.isPinned ? Palette.accent : Palette.ink)
                 .frame(width: 20, height: 20)
-                .contentShape(Rectangle())
+                .background(.white.opacity(0.85), in: Circle())
+                .contentShape(Circle())
         }
         .buttonStyle(.highlight(radius: Radius.r4, outset: 2))
         .help(content.isPinned ? "取消钉住" : "钉住：窗口始终在最前")
