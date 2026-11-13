@@ -31,10 +31,9 @@ struct OnboardingSalaryHero: View {
 struct OnboardingSalaryStep: View {
     @Binding var payBasis: PayBasis
     @Binding var restMode: RestModeChoice
-    let errorMessage: String?
 
     var body: some View {
-        OnboardingBody(errorMessage: errorMessage) {
+        OnboardingBody {
             PayBasisPills(selection: payBasis) { payBasis = $0 }
             VStack(alignment: .leading, spacing: Spacing.s10) {
                 Text("怎么休").font(AppFont.ui(13, .bold)).foregroundStyle(Palette.ink)
@@ -72,10 +71,9 @@ struct OnboardingScheduleHero: View {
 struct OnboardingScheduleStep: View {
     @Binding var draft: ScheduleDraft
     let rates: WageRates?
-    let errorMessage: String?
 
     var body: some View {
-        OnboardingBody(errorMessage: errorMessage) {
+        OnboardingBody {
             HStack(spacing: Spacing.s8) {
                 BoldTimeBox(label: "上班", selection: $draft.start)
                 BoldTimeBox(label: "下班", selection: $draft.end)
@@ -97,17 +95,13 @@ struct OnboardingScheduleStep: View {
     }
 }
 
-/// 头图下面的正文：上 20、左右 20、块间隔 16，最后是校验失败的提示。
+/// 头图下面的正文：上 20、左右 20、块间隔 16。校验失败的提示改成弹窗 (见 `OnboardingView`)。
 struct OnboardingBody<Content: View>: View {
-    let errorMessage: String?
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s16) {
             content()
-            if let errorMessage {
-                Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
-            }
         }
         .padding(EdgeInsets(top: Spacing.s20, leading: Spacing.screen, bottom: Spacing.s16, trailing: Spacing.screen))
     }

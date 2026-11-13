@@ -18,22 +18,29 @@ enum FieldEditorTheme {
         }
     }
 
-    /// 彩色头图里的输入框 (扣钱表单的大号金额) 用另一套：光标高亮黄，选中文字墨色半透明底 (白字在 accent-soft 上看不清)。
-    /// 字段编辑器是整个窗口共用的，离开那个输入框时传 false 换回来。作用在当前 key window。
+    /// 正在用头图样式的窗口：窗口再次成为 key window 时 (切走再切回来) 不能把光标改回主题色。
+    private static var heroWindows: Set<ObjectIdentifier> = []
+
+    /// 彩色头图里的大号输入框 (扣钱金额、新目标金额、引导工资) 用另一套：光标白色 (各色头图上都看得清)，选中文字墨色半透明底。
+    /// 字段编辑器是整个窗口共用的，输入框获得焦点时传 true、离开时传 false 换回来。作用在当前 key window。
     static func useHeroStyle(_ on: Bool) {
         guard let window = NSApp.keyWindow else { return }
         if on {
-            guard let editor = window.fieldEditor(true, for: nil) as? NSTextView else { return }
-            editor.insertionPointColor = NSColor(Palette.highlight)
-            editor.selectedTextAttributes = [.backgroundColor: NSColor(Palette.ink).withAlphaComponent(0.25)]
+            heroWindows.insert(ObjectIdentifier(window))
         } else {
-            apply(to: window)
+            heroWindows.remove(ObjectIdentifier(window))
         }
+        apply(to: window)
     }
 
     private static func apply(to window: NSWindow) {
         guard let editor = window.fieldEditor(true, for: nil) as? NSTextView else { return }
-        editor.insertionPointColor = NSColor(Palette.accent)
-        editor.selectedTextAttributes = [.backgroundColor: NSColor(Palette.accentSoft)]
+        if heroWindows.contains(ObjectIdentifier(window)) {
+            editor.insertionPointColor = .white
+            editor.selectedTextAttributes = [.backgroundColor: NSColor(Palette.ink).withAlphaComponent(0.25)]
+        } else {
+            editor.insertionPointColor = NSColor(Palette.accent)
+            editor.selectedTextAttributes = [.backgroundColor: NSColor(Palette.accentSoft)]
+        }
     }
 }

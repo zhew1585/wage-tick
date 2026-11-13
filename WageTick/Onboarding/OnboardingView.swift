@@ -4,7 +4,7 @@ import WageCore
 /// 2 步引导：工资 (含休息模式) → 作息 (含饭点) (PRD 4.1.1、F1；大胆版设计稿「引导-1工资」「引导-2作息」)。
 /// 开机自启不再询问，按 PRD 4.7.2 的默认值 (开) 保存并注册登录项，之后在设置里改。
 /// 每步上面是橙色头图 (标题栏那行的胶囊写「1 / 2」「2 / 2」)，下面是这一步的选项，底部固定「上一步」与「下一步 / 开工」。
-/// 每一步点"下一步"时用核心的 `Validation` 校验，失败停留当前步并展示提示。
+/// 每一步点"下一步"时用核心的 `Validation` 校验，失败停留当前步并弹窗提示。
 struct OnboardingView: View {
     let model: AppModel
     let onFinish: () -> Void
@@ -14,7 +14,8 @@ struct OnboardingView: View {
     @State private var payBasis: PayBasis
     @State private var restMode: RestModeChoice
     @State private var scheduleDraft = ScheduleDraft(.default)
-    @State private var errorMessage: String?
+    /// 校验失败时弹窗里的一句话；nil 时不弹。
+    @State private var alertMessage: String?
 
     /// `step`、`salaryText`、`payBasis`、`restMode` 只在离屏截图时指定，App 里从第 1 步、空工资、按月、双休开始。
     init(
@@ -46,6 +47,9 @@ struct OnboardingView: View {
         .background(Palette.bg)
         // 窗口标题栏透明、内容铺满 (见 `OnboardingWindowController`)，不让出标题栏的安全区。
         .ignoresSafeArea()
+        .alert(alertMessage ?? "", isPresented: Binding(get: { alertMessage != nil }, set: { if !$0 { alertMessage = nil } })) {
+            Button("好") {}
+        }
     }
 
     @ViewBuilder
@@ -62,9 +66,9 @@ struct OnboardingView: View {
     private var content: some View {
         switch step {
         case .salary:
-            OnboardingSalaryStep(payBasis: $payBasis, restMode: $restMode, errorMessage: errorMessage)
+            OnboardingSalaryStep(payBasis: $payBasis, restMode: $restMode)
         case .schedule:
-            OnboardingScheduleStep(draft: $scheduleDraft, rates: rates, errorMessage: errorMessage)
+            OnboardingScheduleStep(draft: $scheduleDraft, rates: rates)
         }
     }
 
@@ -75,7 +79,7 @@ struct OnboardingView: View {
         return snapshot.wageRates
     }
 
-    /// 底部按钮 (胶囊)：第 1 步只有墨色「下一步 →」；第 2 步左边描边「上一步」(108 宽)，右边墨色「开工 →」。
+    /// 底部按钮 (胶囊)：第 1 步只有墨色「下一步」；第 2 步左边描边「上一步」(108 宽)，右边墨色「开工」。
     private var footer: some View {
         HStack(spacing: Spacing.s10) {
             if let previous = step.previous {
@@ -83,12 +87,7 @@ struct OnboardingView: View {
                     .buttonStyle(.pill(.outline))
                     .frame(width: 108)
             }
-            Button(action: next) {
-                HStack(spacing: Spacing.s8) {
-                    Text(step.next == nil ? "开工" : "下一步")
-                    PhosphorIcon(.arrowRight, size: 16).foregroundStyle(Palette.highlight)
-                }
-            }
+            Button(step.next == nil ? "开工" : "下一步", action: next)
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.pill(.ink))
         }
@@ -101,7 +100,7 @@ struct OnboardingView: View {
         case .schedule: Validation.schedule(scheduleDraft.schedule)
         }
         if let error {
-            errorMessage = error.message
+            alertMessage = Self.alertText(error, basis: payBasis)
         } else if let next = step.next {
             move(to: next)
         } else {
@@ -114,7 +113,7 @@ struct OnboardingView: View {
         do {
             try model.send(.completeOnboarding(input))
         } catch {
-            errorMessage = error.message
+            alertMessage = error.message
             return
         }
         LaunchAtLogin.set(enabled: input.launchAtLogin)
@@ -122,8 +121,17 @@ struct OnboardingView: View {
     }
 
     private func move(to step: OnboardingStep) {
-        errorMessage = nil
         self.step = step
+    }
+
+    /// 弹窗文案：没填工资时换成口语的「一个月 (一天) 赚多少要告诉我哦」，其余照核心的提示。
+    private static func alertText(_ error: CommandError, basis: PayBasis) -> String {
+        switch error {
+        case .salaryNotPositive, .dailyWageNotPositive:
+            basis == .daily ? "一天赚多少要告诉我哦" : "一个月赚多少要告诉我哦"
+        default:
+            error.message
+        }
     }
 
     private var parsedSalary: Decimal? { SalaryText.parse(salaryText) }

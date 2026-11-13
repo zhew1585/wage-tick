@@ -54,9 +54,9 @@ struct GoalFormView: View {
         }
         .onChange(of: name) { errorMessage = nil }
         .onChange(of: amountText) { errorMessage = nil }
-        .onChange(of: focus) { FieldCaret.set(focus == .amount ? Palette.highlight : Palette.accent) }
+        .onChange(of: focus) { FieldEditorTheme.useHeroStyle(focus == .amount) }
         .onAppear { focus = isEditing ? .name : .amount }
-        .onDisappear { FieldCaret.set(Palette.accent) }
+        .onDisappear { FieldEditorTheme.useHeroStyle(false) }
     }
 
     private var isEditing: Bool {

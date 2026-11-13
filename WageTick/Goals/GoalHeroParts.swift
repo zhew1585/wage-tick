@@ -70,13 +70,3 @@ struct CollapsingHeroScroll<Hero: View, Content: View>: View {
 func heroKicker(_ title: String, collapsed unit: String, collapse: CGFloat) -> String {
     collapse > 0.5 ? unit : title
 }
-
-/// 头图里的金额输入框用黄色光标 (橙色底上看得见)，离开时换回主题色。
-/// 光标颜色在窗口共用的字段编辑器上 (见 `FieldEditorTheme`)，这里在输入框获得焦点时改它。
-@MainActor
-enum FieldCaret {
-    static func set(_ color: Color) {
-        guard let editor = NSApp.keyWindow?.fieldEditor(false, for: nil) as? NSTextView else { return }
-        editor.insertionPointColor = NSColor(color)
-    }
-}

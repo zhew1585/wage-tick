@@ -2,12 +2,13 @@ import AppKit
 import SwiftUI
 import WageCore
 
-/// 引导第 1 步头图里的大号工资输入 (大胆版设计稿「引导-1工资」)：小号 ¥ + Archivo Black 白色大字，空着时显示半透明的「0」。
+/// 引导第 1 步头图里的大号工资输入 (大胆版设计稿「引导-1工资」)：小号 ¥ + Archivo Black 白色大字与白色光标，空着时显示半透明的「0」。
 /// 最多五位整数 (到 9 万多)，字号固定 60：Archivo Black 的数字等宽，五位正好 200 宽，输入过程中不缩放，也不压到右下角小牛。
 struct HeroSalaryInput: View {
     @Binding var text: String
     let theme: HeroTheme
     let onSubmit: () -> Void
+    @FocusState private var focused: Bool
 
     private static let size: CGFloat = 60
     /// 最多几位数字。
@@ -22,6 +23,7 @@ struct HeroSalaryInput: View {
                 .font(AppFont.heavy(Self.size))
                 .foregroundStyle(theme.number)
                 .onSubmit(onSubmit)
+                .focused($focused)
                 .background(alignment: .leading) {
                     if text.isEmpty {
                         Text("0").font(AppFont.heavy(Self.size)).foregroundStyle(theme.number.opacity(0.45)).allowsHitTesting(false)
@@ -35,6 +37,10 @@ struct HeroSalaryInput: View {
         }
         .frame(width: 240, alignment: .leading)
         .accessibilityLabel("工资")
+        // 光标白色，橙色头图上看得清 (见 `FieldEditorTheme.useHeroStyle`)；打开就聚焦，可以直接输。
+        .onAppear { focused = true }
+        .onChange(of: focused) { FieldEditorTheme.useHeroStyle(focused) }
+        .onDisappear { FieldEditorTheme.useHeroStyle(false) }
     }
 }
 
