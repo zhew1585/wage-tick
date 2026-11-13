@@ -28,13 +28,14 @@ struct MonthCalendarView: View {
                 hero(collapse)
             } content: {
                 VStack(spacing: 0) {
+                    // 排满 6 行的月份 (如 2026 年 11 月) 也要一屏放下、不能空滑：上下留白收紧到 12 / 12 / 10。
                     calendarGrid
                         .padding(.horizontal, Spacing.s16)
-                        .padding(.top, Spacing.s14)
+                        .padding(.top, Spacing.s12)
                     CalendarLegend(showsOverride: month.days.contains { $0.kind == .override })
                         .padding(.horizontal, Spacing.s16)
-                        .padding(.top, Spacing.s16)
-                        .padding(.bottom, Spacing.s16)
+                        .padding(.top, Spacing.s12)
+                        .padding(.bottom, Spacing.s10)
                 }
             }
             // 已结算在头图里，底部只放扣款、请假、白干。
