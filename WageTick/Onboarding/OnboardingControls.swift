@@ -20,6 +20,8 @@ struct HeroSalaryInput: View {
             // 占位「0」自己画：`prompt` 的颜色在 macOS 上会被系统占位色盖掉，橙底上看着发黑。
             TextField("工资", text: $text, prompt: Text(""))
                 .textFieldStyle(.plain)
+                // 光标白色：SwiftUI 刷新时会按 tint 重设光标颜色，只改字段编辑器会被盖掉。
+                .tint(.white)
                 .font(AppFont.heavy(Self.size))
                 .foregroundStyle(theme.number)
                 .onSubmit(onSubmit)
@@ -37,9 +39,8 @@ struct HeroSalaryInput: View {
         }
         .frame(width: 240, alignment: .leading)
         .accessibilityLabel("工资")
-        // 光标白色，橙色头图上看得清 (见 `heroCaret`)；打开就聚焦，可以直接输。
+        // 打开就聚焦，可以直接输。
         .onAppear { focused = true }
-        .heroCaret(focused)
     }
 }
 

@@ -113,8 +113,6 @@ struct DeductionFormView: View {
         .onAppear { focus = .value }
         .onChange(of: method) { errorMessage = nil }
         .onChange(of: valueText) { errorMessage = nil }
-        // 头图里的大号金额用白色光标，离开时换回来。
-        .heroCaret(focus == .value)
     }
 
     // MARK: 头图
@@ -135,6 +133,8 @@ struct DeductionFormView: View {
                 .overlay(alignment: .leading) {
                     TextField(method == .fixed ? "扣了多少" : "日薪的百分之几", text: $valueText, prompt: Text(""))
                         .textFieldStyle(.plain)
+                        // 光标白色：面板每秒刷新时 SwiftUI 会按 tint 重设光标颜色，只改字段编辑器会被盖掉。
+                        .tint(.white)
                         .font(font)
                         .foregroundStyle(.white)
                         .focused($focus, equals: .value)

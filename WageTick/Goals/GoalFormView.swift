@@ -54,7 +54,6 @@ struct GoalFormView: View {
         }
         .onChange(of: name) { errorMessage = nil }
         .onChange(of: amountText) { errorMessage = nil }
-        .heroCaret(focus == .amount)
         .onAppear { focus = isEditing ? .name : .amount }
             }
 
@@ -82,6 +81,8 @@ struct GoalFormView: View {
             Text("¥").font(AppFont.heavy(34)).foregroundStyle(Palette.ink)
             TextField("金额", text: $amountText, prompt: Text(""))
                 .textFieldStyle(.plain)
+                // 光标白色：SwiftUI 刷新时会按 tint 重设光标颜色，只改字段编辑器会被盖掉。
+                .tint(.white)
                 .font(AppFont.heavy(64))
                 .foregroundStyle(.white)
                 .background(alignment: .leading) {

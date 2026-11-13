@@ -48,8 +48,8 @@ struct OnboardingView: View {
         .background(Palette.bg)
         // 窗口标题栏透明、内容铺满 (见 `OnboardingWindowController`)，不让出标题栏的安全区。
         .ignoresSafeArea()
-        // 校验失败的提醒用大胆版弹窗，小牛握拳提醒。
-        .boldAlert($alertMessage, pose: .excited)
+        // 校验失败的提醒用大胆版弹窗。
+        .boldAlert($alertMessage)
     }
 
     @ViewBuilder
