@@ -17,10 +17,10 @@ struct OnboardingView: View {
     /// 校验失败时弹窗里的一句话；nil 时不弹。
     @State private var alertMessage: String?
 
-    /// `step`、`salaryText`、`payBasis`、`restMode` 只在离屏截图时指定，App 里从第 1 步、空工资、按月、双休开始。
+    /// `step`、`salaryText`、`payBasis`、`restMode`、`alertMessage` 只在离屏截图时指定，App 里从第 1 步、空工资、按月、双休开始。
     init(
         model: AppModel, step: OnboardingStep = .salary, salaryText: String = "", payBasis: PayBasis = .monthly,
-        restMode: RestModeChoice = .twoDaysOff, onFinish: @escaping () -> Void
+        restMode: RestModeChoice = .twoDaysOff, alertMessage: String? = nil, onFinish: @escaping () -> Void
     ) {
         self.model = model
         self.onFinish = onFinish
@@ -28,6 +28,7 @@ struct OnboardingView: View {
         _salaryText = State(initialValue: salaryText)
         _payBasis = State(initialValue: payBasis)
         _restMode = State(initialValue: restMode)
+        _alertMessage = State(initialValue: alertMessage)
     }
 
     var body: some View {
@@ -47,9 +48,8 @@ struct OnboardingView: View {
         .background(Palette.bg)
         // 窗口标题栏透明、内容铺满 (见 `OnboardingWindowController`)，不让出标题栏的安全区。
         .ignoresSafeArea()
-        .alert(alertMessage ?? "", isPresented: Binding(get: { alertMessage != nil }, set: { if !$0 { alertMessage = nil } })) {
-            Button("好") {}
-        }
+        // 校验失败的提醒用大胆版弹窗，小牛握拳提醒。
+        .boldAlert($alertMessage, pose: .excited)
     }
 
     @ViewBuilder
@@ -88,7 +88,8 @@ struct OnboardingView: View {
                     .frame(width: 108)
             }
             Button(step.next == nil ? "开工" : "下一步", action: next)
-            .keyboardShortcut(.defaultAction)
+            // 弹窗出来时回车留给弹窗的「知道了」。
+            .keyboardShortcut(alertMessage == nil ? .defaultAction : nil)
             .buttonStyle(.pill(.ink))
         }
         .padding(EdgeInsets(top: Spacing.s12, leading: Spacing.screen, bottom: Spacing.s20, trailing: Spacing.screen))

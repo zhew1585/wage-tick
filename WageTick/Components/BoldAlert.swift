@@ -1,0 +1,61 @@
+import SwiftUI
+import WageCore
+
+/// 大胆版的提醒弹窗 (替代系统 `alert`)：盖在窗口上的半透明墨色遮罩，中间一张白色圆角卡片，
+/// 上面露出小牛的上半身，下面站酷体一句话和一个墨色胶囊「知道了」。回车或 Esc 关掉，点遮罩也关。
+///
+/// 用法：`.boldAlert($message)`；`message` 不为 nil 时弹出，关掉后置回 nil。
+/// 弹出期间外面的回车键默认按钮 (如「下一步」) 要让开：`.keyboardShortcut(message == nil ? .defaultAction : nil)`。
+struct BoldAlert: View {
+    let message: String
+    var pose: FloatingCowPose = .yawning
+    let dismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            Palette.ink.opacity(0.45)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture(perform: dismiss)
+            VStack(spacing: Spacing.s16) {
+                Text(message)
+                    .font(AppFont.fun(22))
+                    .foregroundStyle(Palette.ink)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("知道了", action: dismiss)
+                    .buttonStyle(.pill(.ink))
+                    .keyboardShortcut(.defaultAction)
+                Button("", action: dismiss)
+                    .keyboardShortcut(.cancelAction)
+                    .opacity(0)
+                    .frame(width: 0, height: 0)
+                    .accessibilityHidden(true)
+            }
+            .padding(EdgeInsets(top: 36, leading: Spacing.s24, bottom: Spacing.s20, trailing: Spacing.s24))
+            .frame(width: 280)
+            .background(.white, in: RoundedRectangle(cornerRadius: 24))
+            .shadow(color: .black.opacity(0.2), radius: 20, y: 10)
+            // 小牛站在卡片后面，从上沿探出上半身，下半身被卡片挡住。
+            .background(alignment: .top) {
+                FloatingCowBody(act: .pose(pose), motion: .rest)
+                    .frame(width: 110, height: 147)
+                    .offset(y: -80)
+                    .allowsHitTesting(false)
+            }
+        }
+        .transition(.opacity)
+    }
+}
+
+extension View {
+    /// 盖一层大胆版提醒弹窗 (`BoldAlert`)：`message` 不为 nil 时弹出，关掉后置回 nil。
+    func boldAlert(_ message: Binding<String?>, pose: FloatingCowPose = .yawning) -> some View {
+        overlay {
+            if let text = message.wrappedValue {
+                BoldAlert(message: text, pose: pose) { message.wrappedValue = nil }
+            }
+        }
+        .animation(.easeOut(duration: 0.15), value: message.wrappedValue)
+    }
+}

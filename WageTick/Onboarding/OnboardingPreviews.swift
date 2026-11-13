@@ -27,6 +27,7 @@ private enum OnboardingPreviews {
         let scenes: [(String, OnboardingView)] = [
             ("P1-1-salary-empty", OnboardingView(model: model) {}),
             ("P1-1-salary-filled", OnboardingView(model: model, salaryText: "20000") {}),
+            ("P1-1-salary-missing-alert", OnboardingView(model: model, alertMessage: "一个月赚多少要告诉我哦") {}),
             ("P1-1-rest-alternating", OnboardingView(model: model, salaryText: "20000", restMode: .bigWeekNow) {}),
             ("P1-1-salary-daily", OnboardingView(model: model, salaryText: "200", payBasis: .daily) {}),
             ("P1-2-schedule", OnboardingView(model: model, step: .schedule, salaryText: "20000") {}),

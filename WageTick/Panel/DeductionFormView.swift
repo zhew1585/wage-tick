@@ -113,9 +113,8 @@ struct DeductionFormView: View {
         .onAppear { focus = .value }
         .onChange(of: method) { errorMessage = nil }
         .onChange(of: valueText) { errorMessage = nil }
-        // 头图里的大号金额用高亮黄光标，离开时换回来。
-        .onChange(of: focus) { FieldEditorTheme.useHeroStyle(focus == .value) }
-        .onDisappear { FieldEditorTheme.useHeroStyle(false) }
+        // 头图里的大号金额用白色光标，离开时换回来。
+        .heroCaret(focus == .value)
     }
 
     // MARK: 头图

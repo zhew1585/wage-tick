@@ -37,10 +37,9 @@ struct HeroSalaryInput: View {
         }
         .frame(width: 240, alignment: .leading)
         .accessibilityLabel("工资")
-        // 光标白色，橙色头图上看得清 (见 `FieldEditorTheme.useHeroStyle`)；打开就聚焦，可以直接输。
+        // 光标白色，橙色头图上看得清 (见 `heroCaret`)；打开就聚焦，可以直接输。
         .onAppear { focused = true }
-        .onChange(of: focused) { FieldEditorTheme.useHeroStyle(focused) }
-        .onDisappear { FieldEditorTheme.useHeroStyle(false) }
+        .heroCaret(focused)
     }
 }
 
