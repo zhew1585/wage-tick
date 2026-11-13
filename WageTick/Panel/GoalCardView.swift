@@ -122,37 +122,57 @@ private struct QueuedGoalChips: View {
     }
 }
 
-/// 队列为空：描边卡片居中放旗子 24、提示 14/600、小字 11 和「新目标」次要按钮 (高 30)，上下内边距 14 / 12。
-/// 不带按钮时 (面板放不下) 整张卡可点。两种都进入目标管理。
+/// 队列为空：和累计中目标的墨色大卡 (`BoldGoalCard`) 同一结构、同一高度，当成一张「什么都还没攒」的卡：
+/// 第一行黄色「还没目标」与「写下想要的东西」、右上「队列 0」；第二行「¥0 / ?」与橙色「0%」；空进度条；
+/// 最下面一行小字，右侧黄色「定个目标 ›」。整张卡可点，进入目标管理 (同有目标时)。
 private struct EmptyGoalCard: View {
     let prompt: String
     let showsButton: Bool
     let openGoals: () -> Void
 
     var body: some View {
-        if showsButton {
-            card
-        } else {
-            Button(action: openGoals) { card.contentShape(Rectangle()) }
-                .buttonStyle(.highlight(radius: Radius.card))
-        }
+        Button(action: openGoals) { card.contentShape(Rectangle()) }
+            .buttonStyle(.highlight(radius: Radius.r18))
+            .accessibilityLabel(prompt)
     }
 
     private var card: some View {
-        VStack(spacing: Spacing.s6) {
-            PhosphorIcon(.flagBanner, size: 24).foregroundStyle(Palette.accent)
-            Text(prompt).font(AppFont.section).foregroundStyle(Palette.ink)
-            Text("攒够了，给你放烟花").font(AppFont.small).foregroundStyle(Palette.muted)
-            if showsButton {
-                Button(action: openGoals) { Label { Text("新目标") } icon: { PhosphorIcon(.plus) } }
-                    .buttonStyle(.secondary(fullWidth: true, height: 30))
-                    .frame(width: 120)
-                    .padding(.top, Spacing.s2)
+        VStack(alignment: .leading, spacing: Spacing.s10) {
+            HStack(spacing: Spacing.s6) {
+                Text("还没目标")
+                    .font(AppFont.ui(10, .bold))
+                    .foregroundStyle(Palette.ink)
+                    .padding(.horizontal, Spacing.s6)
+                    .padding(.vertical, Spacing.s2)
+                    .background(Palette.highlight, in: RoundedRectangle(cornerRadius: Radius.r5))
+                Text("写下想要的东西").font(AppFont.ui(15, .bold)).foregroundStyle(.white).lineLimit(1)
+                Spacer(minLength: Spacing.s8)
+                Text("队列 0").font(AppFont.num(11)).foregroundStyle(.white.opacity(0.5))
             }
+            HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
+                Text("¥0").font(AppFont.heavy(24)).foregroundStyle(.white)
+                Text("/ ?").font(AppFont.num(12)).foregroundStyle(.white.opacity(0.5))
+                Spacer(minLength: Spacing.s8)
+                Text("0%").font(AppFont.heavy(28)).foregroundStyle(Color(hex: 0xFF7A2E))
+            }
+            .lineLimit(1)
+            GoalProgressBar(progress: 0)
+            HStack(alignment: .firstTextBaseline) {
+                Text("小牛帮你算哪天攒够").font(AppFont.small).foregroundStyle(.white.opacity(0.7))
+                Spacer(minLength: Spacing.s8)
+                if showsButton {
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.s2) {
+                        Text("定个目标").font(AppFont.ui(12, .bold))
+                        PhosphorIcon(.caretRight, size: 11).iconOnTextBaseline(12)
+                    }
+                    .foregroundStyle(Palette.highlight)
+                }
+            }
+            .lineLimit(1)
         }
-        .frame(maxWidth: .infinity)
-        .padding(EdgeInsets(top: Spacing.s14, leading: Spacing.screen, bottom: Spacing.s12, trailing: Spacing.screen))
-        .overlay(RoundedRectangle(cornerRadius: Radius.card).strokeBorder(Palette.line))
+        .padding(.vertical, Spacing.s14)
+        .padding(.horizontal, Spacing.s16)
+        .background(Palette.ink, in: RoundedRectangle(cornerRadius: Radius.r18))
     }
 }
 

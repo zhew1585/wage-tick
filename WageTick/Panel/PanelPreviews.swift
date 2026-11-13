@@ -55,6 +55,7 @@ private enum PanelPreviews {
         return [
             ("P2-working", panel(base, day: 5, 15, 0)),
             ("P2-not-started", panel(base, day: 5, 9, 15)),
+            ("P2-working-no-goal", panel(try onboarded(), day: 5, 15, 0)),
             ("P2-lunch", panel(base, day: 5, 12, 28)),
             ("P2-off-work", panel(base, day: 5, 18, 30)),
             ("P2-unpaid-work", panel(unpaid, day: 5, 19, 5, 12)),
@@ -155,7 +156,8 @@ private enum PanelPreviews {
         let navigation = PanelNavigation(openHistory: {}, openGoals: {}, openSettings: {})
         return AnyView(
             TodayPanelView(content: content, actions: actions, navigation: navigation)
-                .frame(height: WindowMetrics.size.height - WindowChrome.Titlebar.hero.height)
+                // 面板内容顶到窗口上沿 (头图垫在红绿灯下面)，按整个窗口高排。
+                .frame(height: WindowMetrics.size.height)
                 .clipShape(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius))
                 .overlay(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius).strokeBorder(Palette.line, lineWidth: 1))
                 .padding(24)
