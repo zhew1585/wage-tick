@@ -10,6 +10,8 @@ public struct WageRates: Sendable, Equatable {
     public let dailyWage: StatItem
     /// 「标准工时」，如「8 小时」「7.5 小时」：今天生效作息的标准工时 (PRD 4.2.3)，保留 1 位小数，与面板工作进度一致。
     public let standardHours: StatItem
+    /// 标准工时的数字部分，如「8」「7.5」：引导第 2 步头图的大数字 (后面接「小时一天」)。
+    public let standardHoursNumber: String
     /// 「时薪」，如「¥119.05」：日薪 ÷ 标准工时 (PRD 4.2.4)。
     public let hourlyWage: StatItem
 }
@@ -27,6 +29,7 @@ extension Snapshot {
             attendanceDays: StatItem(title: "本月上班日", value: "\(days) 天"),
             dailyWage: StatItem(title: history.today.payBasis == .daily ? "日薪" : "满勤日薪", value: Format.money(wage)),
             standardHours: StatItem(title: "标准工时", value: "\(Format.workHours(milliseconds: milliseconds)) 小时"),
+            standardHoursNumber: Format.workHours(milliseconds: milliseconds),
             // 时薪 = 日薪 × 1 小时 ÷ 标准工时，与白干倒贴同一公式 (`WorkSchedule.owed`)；校验保证标准工时大于 0。
             hourlyWage: StatItem(title: "时薪", value: Format.money(schedule.owed(dailyWage: wage, milliseconds: 3_600_000)))
         )

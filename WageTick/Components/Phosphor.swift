@@ -46,6 +46,9 @@ enum Phosphor: String {
     case confettiBold = "confetti-bold"
     case sparkleBold = "sparkle-bold"
     case starFourBold = "star-four-bold"
+    // 大胆版引导头图的说明行：第 1 步锁 (只存在这台电脑上)、第 2 步闹钟 (按计划算钱)。
+    case lockSimple = "lock-simple"
+    case alarm
 
     var image: Image {
         Image("Phosphor/\(rawValue)").renderingMode(.template)

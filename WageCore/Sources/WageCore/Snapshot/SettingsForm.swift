@@ -8,10 +8,16 @@ public struct SettingsForm: Sendable, Equatable {
     public let salaryDisplay: String
     /// 当月工资按月还是按天，改工资表单据此预先选中。
     public let payBasis: PayBasis
+    /// 设置页头图的大数字：当月工资金额，如「¥20000」「¥200」(大胆版设计稿「设置」)。
+    public let salaryAmount: String
     /// 休息模式的当前选项，打开「休息模式」表单时预先选中；大小周按今天所在的周是大周还是小周。
     public let restModeChoice: RestModeChoice
     /// 设置页列表里展示的休息模式，如「双休」「单休」「大小周 · 这周休两天」，每周一大小周自然翻转。
     public var restModeText: String { restModeChoice.summary }
+    /// 设置页头图大数字下面的一行，如「月薪 · 双休 · 10:00–18:00」：按月还是按天、休息模式、今天生效的上下班。
+    public var summary: String {
+        "\(payBasis.label) · \(restModeChoice.title) · \(Format.clock(schedule.start))–\(Format.clock(schedule.end))"
+    }
     /// 今天生效的作息。
     public let schedule: WorkSchedule
     public let launchAtLogin: Bool
@@ -37,6 +43,7 @@ extension SettingsForm {
         salaryText = Format.editable(pay.amount)
         salaryDisplay = "\(pay.basis.label) \(Format.money(pay.amount))"
         payBasis = pay.basis
+        salaryAmount = Format.money(pay.amount)
         restModeChoice = profile.restMode(for: today.date.yearMonth).choice(on: today.date)
         schedule = profile.schedule(on: today.date)
         launchAtLogin = profile.launchAtLogin

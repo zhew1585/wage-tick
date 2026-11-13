@@ -47,6 +47,11 @@ enum Format {
         "¥" + self.amount(amount)
     }
 
+    /// 时刻，如「09:30」「18:00」。
+    static func clock(_ time: TimeOfDay) -> String {
+        String(format: "%02d:%02d", time.hour, time.minute)
+    }
+
     /// 日期，如「2月16日 周一」；不在 `reference` 同一年时带年份，如「2027年1月4日 周一」。
     static func date(_ date: LocalDate, relativeTo reference: LocalDate) -> String {
         let year = date.year == reference.year ? "" : "\(date.year)年"
