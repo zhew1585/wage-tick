@@ -4,12 +4,13 @@ import SwiftUI
 /// - `ink`：墨色实心白字，主操作 (请假、我还没走、加进队列)；图标用高亮黄。
 /// - `outline`：2pt 墨色描边，次操作 (今天扣钱了、算了)。
 /// - `accent`：品牌橙实心白字 (终于下班了)。
+/// - `danger`：红色实心白字，危险操作 (清空数据并重启)。
 /// 交互反馈同 `ThemeButtonStyle`：悬停手型，实心悬停略浅、按下略深，描边悬停、按下叠一层底色。
 ///
 /// 用法：`Button { … } label: { Label { Text("请假") } icon: { PhosphorIcon(.umbrella) } }.buttonStyle(.pill(.ink))`
 struct PillButtonStyle: ButtonStyle {
     enum Kind {
-        case ink, outline, accent
+        case ink, outline, accent, danger
     }
 
     static let height: CGFloat = 46
@@ -43,7 +44,7 @@ struct PillButtonStyle: ButtonStyle {
         switch kind {
         case .ink: Palette.highlight
         case .outline: Palette.ink
-        case .accent: .white
+        case .accent, .danger: .white
         }
     }
 
@@ -52,6 +53,7 @@ struct PillButtonStyle: ButtonStyle {
         case .ink: state.isPressed ? Palette.inkPressed : state.isHovered ? Palette.inkHover : Palette.ink
         case .outline: .clear
         case .accent: state.isPressed ? Palette.accent.opacity(0.85) : state.isHovered ? Palette.accent.opacity(0.92) : Palette.accent
+        case .danger: state.isPressed ? Palette.loss.opacity(0.85) : state.isHovered ? Palette.loss.opacity(0.92) : Palette.loss
         }
     }
 }

@@ -69,6 +69,13 @@ private enum PagePreviews {
             ("P5-unpaid-work-form-overnight", try unpaidWorkForm(overnight, day: LocalDate(year: 2026, month: 11, day: 3))),
             ("P5-salary-form", try salaryForm(snap)),
             ("P6-settings", page(SettingsView(form: try settingsForm(), updater: AppUpdater()))),
+            ("P6-settings-reset-confirm", page(SettingsView(form: try settingsForm(), updater: AppUpdater()).overlay {
+                BoldConfirm(
+                    title: "清空全部数据？",
+                    message: "月薪、作息、扣钱、请假、白干和目标都会清掉，App 重启后从引导开始。上一份数据会留一份备份。",
+                    confirmTitle: "清空并重启", confirm: {}, cancel: {}
+                )
+            })),
             ("P6-settings-rest-mode-sheet", try restModeSheet()),
             ("P6-settings-payday-sheet", try paydaySheet()),
             ("U1-update-found", update(.found(version: "0.1.1", current: "0.1.0", notes: updateNotes, later: {}, download: {}))),

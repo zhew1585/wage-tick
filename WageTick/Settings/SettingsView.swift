@@ -31,6 +31,12 @@ struct SettingsView: View {
         }
         .frame(width: Spacing.pageWidth)
         .background(Palette.bg)
+        // 清空前的二次确认用大胆版弹窗，盖住整个窗口 (含头图)。
+        .boldConfirm(
+            "清空全部数据？", isPresented: $confirmingReset,
+            message: "月薪、作息、扣钱、请假、白干和目标都会清掉，App 重启后从引导开始。上一份数据会留一份备份。",
+            confirmTitle: "清空并重启", confirm: form.resetAndRelaunch
+        )
         .sheet(item: $sheet) { sheet in
             switch sheet {
             case .salary: SalarySettingSheet(form: form, dismiss: { self.sheet = nil })
@@ -169,12 +175,6 @@ struct SettingsView: View {
                 Text("清空数据并重启")
             }
             .buttonStyle(DangerPillButtonStyle())
-            .alert("清空全部数据？", isPresented: $confirmingReset) {
-                Button("清空并重启", role: .destructive, action: form.resetAndRelaunch)
-                Button("取消", role: .cancel) {}
-            } message: {
-                Text("月薪、作息、扣钱、请假、白干和目标都会清掉，App 重启后从引导开始。上一份数据会留一份备份。")
-            }
         }
     }
 

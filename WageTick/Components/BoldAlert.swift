@@ -50,3 +50,64 @@ extension View {
         .animation(.easeOut(duration: 0.15), value: message.wrappedValue)
     }
 }
+
+/// 大胆版的二次确认弹窗 (替代系统确认 `alert`)：同 `BoldAlert` 的遮罩与白卡片，站酷体标题、一段说明，
+/// 下面左「取消」描边、右确认按钮 (危险操作红色实心)。Esc、点遮罩等同取消；回车不触发，免得误按清空。
+struct BoldConfirm: View {
+    let title: String
+    let message: String
+    let confirmTitle: String
+    let confirm: () -> Void
+    let cancel: () -> Void
+
+    var body: some View {
+        ZStack {
+            Palette.ink.opacity(0.45)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture(perform: cancel)
+            VStack(spacing: Spacing.s12) {
+                Text(title)
+                    .font(AppFont.fun(22))
+                    .foregroundStyle(Palette.ink)
+                Text(message)
+                    .font(AppFont.caption)
+                    .foregroundStyle(Palette.muted)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: Spacing.s10) {
+                    Button("取消", action: cancel)
+                        .buttonStyle(.pill(.outline))
+                        .keyboardShortcut(.cancelAction)
+                    Button(confirmTitle, action: confirm)
+                        .buttonStyle(.pill(.danger))
+                }
+                .padding(.top, Spacing.s8)
+            }
+            .padding(EdgeInsets(top: Spacing.s24, leading: Spacing.s20, bottom: Spacing.s20, trailing: Spacing.s20))
+            .frame(width: 300)
+            .background(.white, in: RoundedRectangle(cornerRadius: 24))
+            .shadow(color: .black.opacity(0.2), radius: 20, y: 10)
+        }
+        .transition(.opacity)
+    }
+}
+
+extension View {
+    /// 盖一层大胆版二次确认弹窗 (`BoldConfirm`)：`isPresented` 为 true 时弹出，取消或确认后置回 false。
+    func boldConfirm(
+        _ title: String, isPresented: Binding<Bool>, message: String, confirmTitle: String, confirm: @escaping () -> Void
+    ) -> some View {
+        overlay {
+            if isPresented.wrappedValue {
+                BoldConfirm(
+                    title: title, message: message, confirmTitle: confirmTitle,
+                    confirm: { isPresented.wrappedValue = false; confirm() },
+                    cancel: { isPresented.wrappedValue = false }
+                )
+            }
+        }
+        .animation(.easeOut(duration: 0.15), value: isPresented.wrappedValue)
+    }
+}
