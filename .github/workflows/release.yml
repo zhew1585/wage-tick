@@ -1,6 +1,9 @@
 # 发布 (ADR-0007)：nightly 定时自动发，正式版手动发；发完更新 gh-pages 上的 appcast.xml，App 里的 Sparkle 据此自动更新。
 # 要不要发、发哪个提交、版本号由 .github/scripts/release-plan.cjs 决定 (照搬 pingdotgg/t3code 的规则)。
-# 需要的 secret：SPARKLE_PRIVATE_KEY (Sparkle 的 EdDSA 私钥，对应 Config/WageTick-Info.plist 里的 SUPublicEDKey)。
+# 需要的 secret：
+# - SPARKLE_PRIVATE_KEY：Sparkle 的 EdDSA 私钥，对应 Config/WageTick-Info.plist 里的 SUPublicEDKey。
+# - Developer ID 签名与公证 (ADR-0009)：DEVELOPER_ID_P12_BASE64、DEVELOPER_ID_P12_PASSWORD、APPLE_TEAM_ID、
+#   NOTARY_KEY_P8_BASE64、NOTARY_KEY_ID、NOTARY_ISSUER_ID。
 name: Release
 
 on:
@@ -75,6 +78,7 @@ jobs:
       # Sparkle 用它比较新旧，必须一直递增；用本工作流的运行序号。
       BUILD_NUMBER: ${{ github.run_number }}
       SPARKLE_VERSION: 2.10.1
+      APP: build/release/Build/Products/Release/牛马鼓励器.app
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -111,11 +115,42 @@ jobs:
             -derivedDataPath build/release -destination "generic/platform=macOS" \
             MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" build -quiet
 
+      - name: 导入签名证书
+        env:
+          DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          identity=$(scripts/ci/import-signing-cert.sh)
+          echo "SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Developer ID 签名
+        # 编译出来是 ad-hoc 签名 (与 PR 检查一致)，这里从内到外换成正式签名 (ADR-0009)。
+        run: scripts/ci/codesign-app.sh "$APP" "$SIGN_IDENTITY"
+
       - name: 启动检查
-        run: scripts/ci/smoke-test.sh "build/release/Build/Products/Release/牛马鼓励器.app"
+        # 放在正式签名之后：库校验这时才真正生效，Sparkle 加载不了会在这里发现。
+        run: scripts/ci/smoke-test.sh "$APP"
+
+      - name: 公证 App
+        env:
+          NOTARY_KEY_P8_BASE64: ${{ secrets.NOTARY_KEY_P8_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: scripts/ci/notarize.sh "$APP"
 
       - name: 打包
-        run: scripts/ci/package.sh "build/release/Build/Products/Release/牛马鼓励器.app" "$VERSION" dist
+        # 用钉好公证票据的 App 打包，Sparkle 的 zip 与首次安装的 dmg 里都是它。
+        run: scripts/ci/package.sh "$APP" "$VERSION" dist
+
+      - name: 签名并公证 dmg
+        env:
+          NOTARY_KEY_P8_BASE64: ${{ secrets.NOTARY_KEY_P8_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          codesign --force --timestamp --sign "$SIGN_IDENTITY" "dist/WageTick-$VERSION.dmg"
+          scripts/ci/notarize.sh "dist/WageTick-$VERSION.dmg"
 
       - name: 缓存 Sparkle 工具
         id: sparkle-tools
@@ -142,7 +177,7 @@ jobs:
         run: |
           scripts/ci/release-notes.sh "$PREVIOUS_TAG" "$REF" > dist/notes.txt
           {
-            echo "**首次安装**：下载 \`WageTick-$VERSION.dmg\`，把牛马鼓励器拖进「应用程序」。App 没有苹果开发者签名，第一次打开要在「应用程序」里右键它 → 打开。"
+            echo "**首次安装**：下载 \`WageTick-$VERSION.dmg\`，把牛马鼓励器拖进「应用程序」，双击打开即可 (已经过苹果公证)。"
             if [[ "$CHANNEL" == "nightly" ]]; then
               echo
               echo "这是尝鲜版 (nightly)。在 App 的设置里打开「接收尝鲜版」后，会自动更新到最新的尝鲜版。"
