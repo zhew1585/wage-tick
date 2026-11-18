@@ -3,6 +3,17 @@
   <channel>
     <title>牛马鼓励器</title>
     <item>
+      <title>0.1.0-nightly.20261118.38</title>
+      <pubDate>Wed, 18 Nov 2026 06:22:19 GMT</pubDate>
+      <sparkle:version>38</sparkle:version>
+      <sparkle:shortVersionString>0.1.0-nightly.20261118.38</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <sparkle:channel>nightly</sparkle:channel>
+      <link>https://github.com/zhew1585/wage-tick/releases/tag/v0.1.0-nightly.20261118.38</link>
+      <description sparkle:format="plain-text">发布包用 Developer ID 签名并公证 (#30)</description>
+      <enclosure url="https://github.com/zhew1585/wage-tick/releases/download/v0.1.0-nightly.20261118.38/WageTick-0.1.0-nightly.20261118.38.zip" type="application/octet-stream" sparkle:edSignature="hLJN8nk+/rfYLYG/MAWF1uQJwAoSTkgIt7MjSA29UW5V2mKyCc9CLqkZ1jGfbOzLUJCScwIdO9tjEwg/EWQWBQ==" length="14541917" />
+    </item>
+    <item>
       <title>0.1.0-nightly.20261113.20</title>
       <pubDate>Fri, 13 Nov 2026 11:45:37 GMT</pubDate>
       <sparkle:version>20</sparkle:version>
