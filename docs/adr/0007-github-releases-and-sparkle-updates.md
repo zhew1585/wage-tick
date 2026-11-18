@@ -19,6 +19,6 @@ Allen 想要和 pingdotgg/t3code 一样的发布方式：合进 main 的改动�
 - 更新包用 Sparkle 的 EdDSA 密钥签名：私钥在 Allen 的钥匙串 (账户 wage-tick) 和仓库 secret `SPARKLE_PRIVATE_KEY`，公钥写在 `Config/WageTick-Info.plist`。
   私钥丢了就再也发不出旧版本能接受的更新，只能让大家手动重装。
 
-代价：没有苹果开发者账号 (Developer ID)，App 只有 ad-hoc 签名，没做公证。
-第一次从 GitHub 下载安装要在「应用程序」里右键 → 打开；之后的自动更新由 Sparkle 校验 EdDSA 签名后直接替换，不经过 Gatekeeper 的下载隔离。
-以后买了 Developer ID，换成正式签名加公证即可，发布流程与 appcast 不用变。
+代价：当时没有苹果开发者账号 (Developer ID)，App 只有 ad-hoc 签名，没做公证，第一次从 GitHub 下载安装要在「应用程序」里右键 → 打开。
+之后的自动更新由 Sparkle 校验 EdDSA 签名后直接替换，不经过 Gatekeeper 的下载隔离。
+2026-11-18 起发布包改为 Developer ID 签名加公证，见 ADR-0009；发布流程与 appcast 没变。

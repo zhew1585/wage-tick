@@ -9,4 +9,5 @@ App Group 的组名要带 Team ID 前缀 (macOS 15 起不带前缀的组名还�
 - 扩展读到数据后自己调核心的 `widgetTimeline` 排时间线，与 App 用同一套算法，小组件和面板不会不一致。
 
 单独写一份 widget.json 而不是让扩展直接读 state.json：扩展不必知道状态文件的格式和节假日缓存、内置数据的位置，也不会碰到状态文件的迁移与损坏处理。
-临时例外是 App Store 审核不接受的；以后要上架或换成正式签名，先回到这条 ADR，改成 App Group 容器。
+临时例外是 App Store 审核不接受的；以后要上架，先回到这条 ADR，改成 App Group 容器。
+2026-11-18 发布包改成了 Developer ID 签名 (ADR-0009)，有了 Team ID，App Group 已经可行；但临时例外不影响公证，暂不改。
