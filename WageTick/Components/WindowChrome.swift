@@ -5,10 +5,11 @@ import SwiftUI
 /// 所有窗口固定同一尺寸 (`WindowMetrics.size`)、不能拉伸，所以缩放按钮由系统自动置灰；内容放不下时在窗口里滚动。
 ///
 /// 两种标题栏高度：
-/// - `.standard`：系统默认 28 高，红绿灯在左上角 (今日概览面板、引导)。目标、历史、设置在今日概览窗口里推进来，也用这一种。
-/// - `.tall`：挂一个空的 unified 工具栏，标题栏 52 高，红绿灯垂直居中。现在没有窗口用它，`PageHeader` 仍取它的高度。
+/// - `.standard`：系统默认 28 高，红绿灯在左上角 (引导)。
+/// - `.tall`：挂一个空的 unified 工具栏，标题栏 52 高，红绿灯垂直居中，正好和同高的 `PageHeader` 排成一行 (今日概览窗口：
+///   目标、历史、设置在它里面推进来；概览与表单的内容仍从 28 处排起)。
 ///
-/// 用法 (建窗口时)：`WindowChrome.makeWindow(title: "今日概览", titlebar: .standard, rootView: view)`；
+/// 用法 (建窗口时)：`WindowChrome.makeWindow(title: "今日概览", titlebar: .tall, rootView: view)`；
 /// 打开位置交给 `WindowPlacement`。
 @MainActor
 enum WindowChrome {

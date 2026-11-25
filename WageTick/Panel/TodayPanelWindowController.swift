@@ -40,8 +40,8 @@ struct PanelPages {
 }
 
 /// 今日概览面板 (PRD F4，页面 P2)，从左键菜单、主菜单「今日概览 ⌘1」、Dock 图标或通知打开。
-/// 也是唯一的主窗口：历史、目标、设置都在这里从右边推进来 (`show(page:)`、`PanelPage`)，返回或按 Esc 退回概览。
-/// 普通窗口 (ADR-0005)：系统红绿灯，透明标题栏，固定尺寸 (`WindowMetrics`)，展开目标、打开表单时在窗口里滚动。
+/// 也是唯一的主窗口：历史、目标、设置都在这里从右边推进来 (`show(page:)`、`PanelPage`)，返回或按 Esc 一级一级退回概览。
+/// 普通窗口 (ADR-0005)：系统红绿灯，透明的 52 高标题栏 (`.tall`，页面的页头与红绿灯同一行)，固定尺寸 (`WindowMetrics`)，内容放不下时在窗口里滚动。
 /// 没开着时打开的位置见 `WindowPlacement` (引导刚完成时接在引导窗口原位)；点红绿灯、按 Esc 或 ⌘W 关掉，失去焦点不收起。
 /// 只在面板可见时刷新：上班中或白干中按滚动频率，其余每秒一次 (倒计时、时钟)。
 /// 被别的窗口整个挡住、最小化、在别的桌面空间时停表 (`occlusionState`)，露出来时立即补一次再接着刷。
@@ -72,7 +72,9 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         self.onStateChange = onStateChange
     }
 
-    /// 打开 (或从最小化恢复) 并前置。没开着时回到概览、摆好位置；开着或最小化时保持原样 (正在填的表单不丢)。
+    /// 打开 (或从最小化恢复) 并前置。没开着时回到概览、摆好位置。
+    /// 开着或最小化时：没指定 `page` (今日概览 ⌘1、菜单栏「今日概览」、悬浮小牛、通知) 就从推进来的页面退回概览，
+    /// 概览上正在填的扣钱、请假表单不动；页面上正开着弹出的表单 (新目标、设置里的各项) 时只前置，不退页，免得没填完的丢了。
     /// `replacing`：接替的窗口 (引导) 的 frame，今日概览出现在它原来的位置，不跳。
     /// `page`：直接推到某一页 (菜单、主菜单、悬浮小牛的入口)；窗口没开着时不播动画，直接停在那一页。
     func show(replacing frame: NSRect? = nil, page: PanelPage? = nil) {
@@ -88,6 +90,8 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
                 transaction.disablesAnimations = true
                 withTransaction(transaction) { push(page) }
             }
+        } else if isOpen, panel.attachedSheet == nil {
+            pop()
         }
         refresh()
         NSApp.activate()
@@ -133,6 +137,29 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         guard let page = content.page else { return }
         content.page = nil
         lifecycle(page).disappear()
+    }
+
+    /// Esc 的兜底 (平时由页头的返回、表单的「算了」这些按钮接走，按钮没接到时才走到这里)，每次只退一级：
+    /// 页面里有下一级 (历史的月日历、单日详情) 先退那一级，否则从页面退回概览；概览上开着扣钱、请假表单时回到概览。
+    /// 返回 false 表示已经在概览上，没什么可退的，由窗口关掉自己。
+    private func handleCancel() -> Bool {
+        if let page = content.page {
+            if !goBackInside(page) { pop() }
+            return true
+        }
+        if content.route != .home {
+            content.route = .home
+            return true
+        }
+        return false
+    }
+
+    /// 让页面自己退一级；页面已经在首页时返回 false。目标、设置没有下一级 (弹出的表单是单独的窗口，自己接 Esc)。
+    private func goBackInside(_ page: PanelPage) -> Bool {
+        switch page {
+        case .history: pages.history.goBack()
+        case .goals, .settings: false
+        }
     }
 
     private func lifecycle(_ page: PanelPage) -> (appear: () -> Void, disappear: () -> Void) {
@@ -222,25 +249,22 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
             openGoals: { [weak self] in self?.push(.goals) },
             openSettings: { [weak self] in self?.push(.settings) }
         )
-        // 顶部整条让出标准标题栏 (28) 放红绿灯，概览与推进来的页面都从它下面排起。
-        // 钉住按钮放在标题栏右侧，和红绿灯同一行。
+        // 标题栏 52 高 (`.tall`)，红绿灯在里面垂直居中：推进来的页面顶到窗口上沿，页头 (`PageHeader`，同高) 和红绿灯排成一行；
+        // 概览与原地的表单照旧从上面 28 处排起 (`titlebarInset`)。
+        // 钉住按钮放在标题栏右侧，和红绿灯同一行；推进来的页面页头右侧有自己的内容，那时不显示。
         let view = TodayPanelView(
             content: content, actions: actions, navigation: navigation,
-            page: { [weak self] page in self?.pageView(page) ?? AnyView(EmptyView()) }
+            page: { [weak self] page in self?.pageView(page) ?? AnyView(EmptyView()) },
+            titlebarInset: WindowChrome.Titlebar.standard.height
         )
-            .padding(.top, WindowChrome.Titlebar.standard.height)
             .overlay(alignment: .topTrailing) {
                 PinButton(content: content) { [weak self] in self?.togglePin() }
-                    .frame(height: WindowChrome.Titlebar.standard.height)
+                    .frame(height: WindowChrome.Titlebar.tall.height)
                     .padding(.trailing, Spacing.s12)
             }
-        let panel = WindowChrome.makeWindow(PanelWindow.self, title: "今日概览", titlebar: .standard, rootView: view)
+        let panel = WindowChrome.makeWindow(PanelWindow.self, title: "今日概览", titlebar: .tall, rootView: view)
         panel.delegate = self
-        panel.onCancel = { [weak self] in
-            guard let self, content.page != nil else { return false }
-            pop()
-            return true
-        }
+        panel.onCancel = { [weak self] in self?.handleCancel() ?? false }
         content.isPinned = UserDefaults.standard.bool(forKey: Self.pinnedKey)
         applyPin(to: panel)
         return panel
@@ -262,12 +286,17 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     }
 }
 
-/// 标题栏右侧的图钉：未钉住为空心 muted，钉住为实心 accent。
+/// 标题栏右侧的图钉：未钉住为空心 muted，钉住为实心 accent。只在概览与原地的表单上显示，
+/// 推进来的页面页头右侧有自己的内容 (按月倒序、翻月、判定来源)。
 private struct PinButton: View {
     let content: TodayPanelContent
     let toggle: () -> Void
 
     var body: some View {
+        if content.page == nil { button }
+    }
+
+    private var button: some View {
         Button(action: toggle) {
             PhosphorIcon(content.isPinned ? .pushPinFill : .pushPin, size: 14)
                 .foregroundStyle(content.isPinned ? Palette.accent : Palette.muted)
@@ -280,10 +309,9 @@ private struct PinButton: View {
     }
 }
 
-/// 今日概览窗口：按 Esc 先退回上一页 (推进来的页面，平时由页头的返回按钮接走，这里兜底)，在概览上再按才关窗
-/// (表单里的 Esc 先被「算了」按钮接走，回到概览)。
+/// 今日概览窗口：按 Esc 先退一级 (平时由页头的返回、表单的「算了」接走，这里兜底，见 `handleCancel`)，在概览上再按才关窗。
 private final class PanelWindow: NSWindow {
-    /// 返回 true 表示已经退回一页，不关窗。
+    /// 返回 true 表示已经退了一级，不关窗。
     var onCancel: () -> Bool = { false }
 
     override func cancelOperation(_ sender: Any?) {

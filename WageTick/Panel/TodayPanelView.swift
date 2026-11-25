@@ -26,11 +26,17 @@ struct TodayPanelView: View {
     let navigation: PanelNavigation
     /// 推进来的页面 (历史、目标、设置) 的视图。
     let page: (PanelPage) -> AnyView
+    /// 概览与原地的表单上面让出多少放红绿灯 (窗口里是标准标题栏的 28)；推进来的页面不让，页头自己和红绿灯排成一行。
+    var titlebarInset: CGFloat = 0
 
     /// 概览 (或原地打开的扣钱、请假表单) 在底下，历史、目标、设置从右边滑进来盖在上面 (`pushed`)。
+    /// 有页面盖着时底下整个停用：点不到、Tab 聚焦不到、辅助功能读不到，按键只归上面的页面。
     var body: some View {
         ZStack {
             base
+                .padding(.top, titlebarInset)
+                .disabled(content.page != nil)
+                .accessibilityHidden(content.page != nil)
             if let current = content.page {
                 page(current)
                     .frame(maxHeight: .infinity, alignment: .top)

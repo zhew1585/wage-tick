@@ -236,12 +236,11 @@ private enum PagePreviews {
     }
 
     /// 与窗口相同的固定尺寸与底色，四周留白、细描边便于对照。红绿灯是系统画的，这里不画。
-    /// 页面在今日概览窗口里：上面让出标准标题栏 (红绿灯那一行)，页头从它下面排起。
+    /// 页面在今日概览窗口里顶到窗口上沿，页头和红绿灯同一行 (预览里不画红绿灯)。
     private static func page(_ view: some View) -> AnyView {
         let size = WindowMetrics.size
         return AnyView(
             view
-                .padding(.top, WindowChrome.Titlebar.standard.height)
                 .frame(width: size.width, height: size.height)
                 .background(Palette.bg)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.r14))

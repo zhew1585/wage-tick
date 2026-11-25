@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// 设计稿子页面 (P3 至 P6 · 760) 的页头：标题 (17/700)，右边可放说明或操作，高 52，下沿一条分隔线。
-/// 这些页面在今日概览窗口里从右边推进来 (ADR-0005 的 2026-11-13、2026-11-25 补充)，红绿灯在页头上面那一行标题栏里，
-/// 所以页头从左边 20 排起，不用让出红绿灯。
+/// 设计稿子页面 (P3 至 P6 · 760) 的页头：标题 (17/700)，右边可放说明或操作，
+/// 高 52 (与 `.tall` 标题栏同高，红绿灯正好垂直居中)，下沿一条分隔线。
+/// 这些页面在今日概览窗口里从右边推进来 (ADR-0005 的 2026-11-13、2026-11-25 补充)，顶到窗口上沿，
+/// 页头和系统红绿灯排在同一行，返回与标题在这 52 高里垂直居中，左边让出红绿灯的位置。
 /// 标题前带返回箭头 (Phosphor caret-left 18)：目标、历史、设置回到概览，下一级页面 (月日历、单日详情) 回到上一级；
 /// esc 等同返回。返回按钮悬停、按下时外扩一圈圆角底。`back` 为 nil 时只有标题。
 ///
@@ -43,7 +44,7 @@ struct PageHeader<Trailing: View>: View {
             Spacer(minLength: Spacing.s8)
             trailing()
         }
-        .padding(.leading, Spacing.screen)
+        .padding(.leading, WindowChrome.Titlebar.tall.leadingInset)
         .padding(.trailing, Spacing.screen)
         .frame(height: Self.height)
         .overlay(alignment: .bottom) { Palette.line.frame(height: 1) }
