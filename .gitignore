@@ -9,6 +9,7 @@ build/floating-cow-previews/
 build/dd/
 build/release/
 build/ci/
+build/ui-checks/
 
 # /lead 写的 SPEC 只留在本机
 docs/spec/

@@ -155,8 +155,9 @@ def measure_header(pixel, width, rows, origin_x, origin_y, cfg):
 def measure_lights(pixel, origin_x, origin_y, cfg):
     """找系统红绿灯：在标题栏左边找三个约 12pt 宽、和底色不同的圆。返回三段 (左, 右) pt 与中心 y。"""
     scale = cfg['scale']
-    y0, y1 = origin_y + 14 * scale, origin_y + 38 * scale
-    x0, x1 = origin_x + 12 * scale, origin_x + (cfg['lightsRightEdgePt'] + 4) * scale
+    # 横竖都从 4pt 搜起：标题栏改回 28 高时红绿灯在 x 8–60、中心 y 14，也要找得到，才能报 HDR-LIGHTS 而不是「没有红绿灯」。
+    y0, y1 = origin_y + 4 * scale, origin_y + 38 * scale
+    x0, x1 = origin_x + 4 * scale, origin_x + (cfg['lightsRightEdgePt'] + 4) * scale
     base = pixel(origin_x + 6 * scale, origin_y + 6 * scale)
     differs = lambda x, y: sum(abs(a - b) for a, b in zip(pixel(x, y), base)) > 30
     cols = [any(differs(x, y) for y in range(y0, y1)) for x in range(x0, x1)]
@@ -177,13 +178,16 @@ def check_page(name, path, kind, cfg, report):
     origin = cfg['offscreenMarginPt'] * scale if kind == 'offscreen' else 0
     width, height, rows, pixel = load_png(path, max_rows=origin + 140 * scale)
     expected_width = (cfg['windowWidthPt'] + 2 * (cfg['offscreenMarginPt'] if kind == 'offscreen' else 0)) * scale
-    if width != expected_width:
+    role = 'root' if name in cfg['root']['pages'] else 'sub' if name in cfg['sub']['pages'] else None
+    # 离屏预览里的弹出表单 (sheet) 本来就比窗口窄，图宽只对页面图与真窗口图查。
+    if width != expected_width and (role or kind == 'realwindow'):
         report.fail('IMG-KIND', name, f'图宽 {width}px，{kind} 应是 {expected_width}px：不是这种截法出的图，或缩放不对')
         return None
     if is_blank(pixel, width, rows, cfg):
         report.fail('IMG-BLANK', name, '图是空白的 (几乎只有一种颜色)')
         return None
-    lights = measure_lights(pixel, origin, origin, cfg)
+    # 窗口宽的图才找红绿灯；比窗口窄的表单图标题栏位置上是表单自己的标题字，会被认成圆。
+    lights = measure_lights(pixel, origin, origin, cfg) if width == expected_width else None
     if kind == 'offscreen' and lights:
         report.fail('IMG-KIND', name, '标成离屏预览的图里出现了红绿灯，标识与内容不符')
     if kind == 'realwindow':
@@ -196,7 +200,6 @@ def check_page(name, path, kind, cfg, report):
         expected_y = cfg['titlebarHeightPt'] / 2
         if abs(lights['centerY'] - expected_y) > 1:
             report.fail('HDR-LIGHTS', name, f"红绿灯中心 y={lights['centerY']:.2f}pt，应在 {expected_y}pt (52 高标题栏里垂直居中，Allen 已接受)")
-    role = 'root' if name in cfg['root']['pages'] else 'sub' if name in cfg['sub']['pages'] else None
     if role is None:
         return None
     header = measure_header(pixel, width, rows, origin, origin, cfg)
