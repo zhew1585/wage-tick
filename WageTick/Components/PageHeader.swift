@@ -6,8 +6,9 @@ import SwiftUI
 /// 页头和系统红绿灯排在同一行，返回与标题在这 52 高里垂直居中，左边让出红绿灯的位置。
 /// 标题前带返回箭头 (Phosphor caret-left 18)，esc 等同返回；返回按钮悬停、按下时外扩一圈圆角底。`back` 为 nil 时只有标题。
 /// 两种排法：
-/// - 页面的首页 (目标、历史月列表、设置，`isRoot`)：原版这里只有标题，从 85 排起。现在返回箭头收在红绿灯与标题之间，
-///   箭头的笔画离红绿灯 6、离标题 6，标题只比原版靠右 6，整组不往右挤。返回回到概览。
+/// - 页面的首页 (目标、历史月列表、设置，`isRoot`)：原版这里只有标题，从 85 排起 (红绿灯右边空 12)。
+///   现在整组仍从这条线起：返回箭头的笔画落在 85，离红绿灯和原版一样远；标题让出箭头 (笔画宽 7) 再空 8，从 100 排起。
+///   8 是红绿灯三个圆之间的间距，箭头和标题看着是一组，和红绿灯是两组。返回回到概览。
 /// - 下一级页面 (月日历、单日详情)：同原版，箭头从 85 排起，标题跟在后面 (间距 8)。返回回到上一级。
 ///
 /// 用法：
@@ -23,12 +24,12 @@ struct PageHeader<Trailing: View>: View {
 
     private static var height: CGFloat { WindowChrome.Titlebar.tall.height }
     private static var iconSize: CGFloat { 18 }
-    /// 首页的排法：整组从 79 排起 (原版标题的 85 往左 6)；箭头图标 18 宽里笔画只占中间约 7，只给它留 6 宽，
-    /// 笔画落在 78 至 85，离红绿灯右沿 (真窗口里实测 72) 6；再空 6 是标题，从 91 排起，比原版靠右 6。
-    /// 红绿灯、箭头、标题之间都是 6，间距取整数，1 倍屏上也落在整像素。
-    private static var rootLeading: CGFloat { WindowChrome.Titlebar.tall.leadingInset - Spacing.s6 }
+    /// 首页的排法：箭头图标 18 宽里笔画只占 5 至 12 这 7 宽，只给它留 6 宽的位置 (图标居中，笔画左沿比这 6 宽的左沿靠左 1、右沿齐平)。
+    /// 整组从 86 排起，笔画正好落在 85 至 92：85 就是原版标题起点，离红绿灯右沿 (真窗口里实测 72) 13；
+    /// 再空 8 是标题，从 100 排起，比原版靠右 15 (下一级页面的原版排法是靠右 26)。间距都是整数，1 倍屏上也落在整像素。
+    private static var rootLeading: CGFloat { WindowChrome.Titlebar.tall.leadingInset + Spacing.s1 }
     private static var rootIconWidth: CGFloat { 6 }
-    private static var rootSpacing: CGFloat { Spacing.s6 }
+    private static var rootSpacing: CGFloat { Spacing.s8 }
 
     init(_ title: String, back: (() -> Void)? = nil, isRoot: Bool = false, @ViewBuilder trailing: @escaping () -> Trailing) {
         self.title = title
