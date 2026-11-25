@@ -21,16 +21,16 @@ struct HeroAmount: View {
         VStack(alignment: .leading, spacing: Spacing.s6) {
             HStack(alignment: .lastTextBaseline, spacing: Spacing.s2) {
                 if let currency = parts.currency {
-                    Text(currency).font(AppFont.heavy(size * 0.34)).foregroundStyle(theme.kicker)
+                    Text(currency).font(AppFont.num(size * 0.34, .bold)).foregroundStyle(theme.kicker)
                 }
                 Text(Self.grouped(parts.integer))
-                    .font(AppFont.heavy(size))
+                    .font(AppFont.num(size, .bold))
                     .tracking(-size * 0.04)
                     .foregroundStyle(theme.number)
                     .lineLimit(1)
                     .minimumScaleFactor(0.45)
                 if let unit {
-                    Text(unit).font(AppFont.fun(size * 0.36)).foregroundStyle(theme.kicker)
+                    Text(unit).font(AppFont.ui(size * 0.36, .bold)).foregroundStyle(theme.kicker)
                 }
             }
             .frame(maxWidth: maxWidth, alignment: .leading)
@@ -74,11 +74,11 @@ private struct DecimalTiles: View {
 
     var body: some View {
         HStack(spacing: 3) {
-            Text(".").font(AppFont.heavy(26)).foregroundStyle(theme.kicker).frame(width: 12)
+            Text(".").font(AppFont.num(26, .bold)).foregroundStyle(theme.kicker).frame(width: 12)
             ForEach(Array(digits.enumerated()), id: \.offset) { index, digit in
                 let last = index == digits.count - 1 && !paused
                 Text(String(digit))
-                    .font(AppFont.heavy(24))
+                    .font(AppFont.num(24, .bold))
                     .foregroundStyle(last ? theme.tileHighlightText : theme.tileText)
                     .frame(width: 30, height: 42)
                     .background(

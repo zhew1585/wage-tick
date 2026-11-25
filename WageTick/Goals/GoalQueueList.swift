@@ -174,7 +174,7 @@ private struct QueuedGoalCardView: View {
         let shape = RoundedRectangle(cornerRadius: Radius.r16)
         HStack(spacing: Spacing.s10) {
             Text(String(format: "%02d", number))
-                .font(AppFont.heavy(22))
+                .font(AppFont.num(22, .bold))
                 .foregroundStyle(Palette.accent)
                 .frame(minWidth: 32, alignment: .leading)
             VStack(alignment: .leading, spacing: Spacing.s2) {
@@ -187,7 +187,7 @@ private struct QueuedGoalCardView: View {
                 IconButton(systemName: "pencil", help: "编辑", action: edit)
                 IconButton(systemName: "trash", help: "删除", action: delete)
             }
-            Text(BoldNumber.grouped(row.amountText)).font(AppFont.heavy(15)).foregroundStyle(Palette.ink).lineLimit(1).fixedSize()
+            Text(BoldNumber.grouped(row.amountText)).font(AppFont.num(15, .bold)).foregroundStyle(Palette.ink).lineLimit(1).fixedSize()
             PhosphorIcon(.GoalIcon.dotsSixVertical, size: 14).foregroundStyle(Palette.muted)
         }
         .padding(.leading, Spacing.s14)

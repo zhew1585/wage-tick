@@ -121,7 +121,7 @@ private struct DayCell: View {
         let shape = RoundedRectangle(cornerRadius: Radius.r10)
         VStack(spacing: 0) {
             Text(day.dayText)
-                .font(AppFont.heavy(14))
+                .font(AppFont.num(14, .bold))
                 .foregroundStyle(style.text)
             if let note = day.tag ?? day.amountText {
                 Text(note)

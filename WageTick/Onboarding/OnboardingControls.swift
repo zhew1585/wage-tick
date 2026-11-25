@@ -16,19 +16,19 @@ struct HeroSalaryInput: View {
 
     var body: some View {
         HStack(alignment: .lastTextBaseline, spacing: Spacing.s2) {
-            Text("¥").font(AppFont.heavy(HeroNumberInput.affixSize)).foregroundStyle(theme.kicker)
+            Text("¥").font(AppFont.num(HeroNumberInput.affixSize, .bold)).foregroundStyle(theme.kicker)
             // 占位「0」自己画：`prompt` 的颜色在 macOS 上会被系统占位色盖掉，橙底上看着发黑。
             TextField("工资", text: $text, prompt: Text(""))
                 .textFieldStyle(.plain)
                 // 光标白色：SwiftUI 刷新时会按 tint 重设光标颜色，只改字段编辑器会被盖掉。
                 .tint(.white)
-                .font(AppFont.heavy(Self.size))
+                .font(AppFont.num(Self.size, .bold))
                 .foregroundStyle(theme.number)
                 .onSubmit(onSubmit)
                 .focused($focused)
                 .background(alignment: .leading) {
                     if text.isEmpty {
-                        Text("0").font(AppFont.heavy(Self.size)).foregroundStyle(theme.number.opacity(0.45)).allowsHitTesting(false)
+                        Text("0").font(AppFont.num(Self.size, .bold)).foregroundStyle(theme.number.opacity(0.45)).allowsHitTesting(false)
                     }
                 }
                 // 只留数字、最多五位：多打的字直接吞掉。
@@ -121,7 +121,7 @@ struct BoldTimeBox: View {
             Text(label).font(AppFont.ui(12)).foregroundStyle(Palette.muted)
             Button { isOpen.toggle() } label: {
                 Text(TimeOfDay(pickerDate: selection).clockText)
-                    .font(AppFont.heavy(20))
+                    .font(AppFont.num(20, .bold))
                     .foregroundStyle(Palette.ink)
                     .frame(maxWidth: .infinity)
                     .frame(height: 46)
@@ -166,7 +166,7 @@ struct OnboardingRatesBar: View {
 
     private func cell(_ item: StatItem) -> some View {
         VStack(spacing: Spacing.s2) {
-            Text(item.value).font(AppFont.heavy(15)).foregroundStyle(Palette.ink).lineLimit(1).minimumScaleFactor(0.7)
+            Text(item.value).font(AppFont.num(15, .bold)).foregroundStyle(Palette.ink).lineLimit(1).minimumScaleFactor(0.7)
             Text(item.title).font(AppFont.ui(11)).foregroundStyle(Palette.muted)
         }
         .frame(maxWidth: .infinity)

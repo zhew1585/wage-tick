@@ -92,7 +92,7 @@ struct BoldHero<Number: View>: View {
                 }
                 // 标题在小牛头顶上方，占满整行；行高固定，太长缩小字号时下面的内容也不会上下跳。
                 Text(kicker)
-                    .font(AppFont.fun(26))
+                    .font(AppFont.ui(26, .bold))
                     .foregroundStyle(theme.kicker)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
@@ -126,9 +126,9 @@ struct BoldHero<Number: View>: View {
         ZStack(alignment: .topTrailing) {
             HStack(alignment: .center, spacing: Spacing.s8) {
                 if let compactValue {
-                    Text(BoldNumber.grouped(compactValue)).font(AppFont.heavy(34)).foregroundStyle(theme.number).lineLimit(1).minimumScaleFactor(0.6)
+                    Text(BoldNumber.grouped(compactValue)).font(AppFont.num(34, .bold)).foregroundStyle(theme.number).lineLimit(1).minimumScaleFactor(0.6)
                 }
-                Text(kicker).font(AppFont.fun(20)).foregroundStyle(theme.kicker).lineLimit(1)
+                Text(kicker).font(AppFont.ui(20, .bold)).foregroundStyle(theme.kicker).lineLimit(1)
             }
             .padding(.leading, Spacing.screen)
             .padding(.top, WindowChrome.Titlebar.hero.height + Spacing.s8)
@@ -239,7 +239,7 @@ struct HeroBubble: View {
                 Text(prefix).font(AppFont.ui(10)).foregroundStyle(Palette.muted)
             }
             Text(content.value)
-                .font(content.numeric ? AppFont.heavy(20) : AppFont.fun(17))
+                .font(content.numeric ? AppFont.num(20, .bold) : AppFont.ui(17, .bold))
                 .foregroundStyle(accent)
                 .monospacedDigit()
                 .lineLimit(content.numeric ? 1 : 2)

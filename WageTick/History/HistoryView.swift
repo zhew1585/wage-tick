@@ -103,12 +103,12 @@ private struct MonthRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s8) {
             HStack(alignment: .center, spacing: Spacing.s10) {
-                Text(summary.shortTitle).font(AppFont.heavy(21)).foregroundStyle(Palette.ink).lineLimit(1)
+                Text(summary.shortTitle).font(AppFont.num(21, .bold)).foregroundStyle(Palette.ink).lineLimit(1)
                 if let badge = summary.badge {
                     MonthBadge(text: badge, isCurrent: summary.isCurrentMonth)
                 }
                 Spacer(minLength: Spacing.s8)
-                Text(BoldNumber.grouped(summary.total)).font(AppFont.heavy(17)).foregroundStyle(tone).lineLimit(1).fixedSize()
+                Text(BoldNumber.grouped(summary.total)).font(AppFont.num(17, .bold)).foregroundStyle(tone).lineLimit(1).fixedSize()
                 PhosphorIcon(.caretRight, size: 13).foregroundStyle(Palette.muted)
             }
             ProgressLine(progress: summary.progress, color: tone)

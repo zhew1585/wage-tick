@@ -90,7 +90,7 @@ private struct SettingSheet<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s14) {
-            Text(title).font(AppFont.fun(22)).foregroundStyle(Palette.ink)
+            Text(title).font(AppFont.ui(22, .bold)).foregroundStyle(Palette.ink)
             content()
             Text(footnote).font(AppFont.caption).foregroundStyle(Palette.muted)
             if case .error(let text) = message {

@@ -125,7 +125,7 @@ struct RecordCard: View {
             if hovering, let delete {
                 IconButton(systemName: deleteHelp == "删除" ? "trash" : "arrow.uturn.backward", help: deleteHelp, action: delete)
             }
-            Text(value).font(AppFont.heavy(15)).foregroundStyle(valueColor).lineLimit(1).fixedSize()
+            Text(value).font(AppFont.num(15, .bold)).foregroundStyle(valueColor).lineLimit(1).fixedSize()
         }
         .padding(.horizontal, Spacing.s14)
         .padding(.vertical, Spacing.s12)
@@ -217,7 +217,7 @@ struct HistoryStatsBar: View {
                 }
                 VStack(spacing: Spacing.s2) {
                     Text(figure.value)
-                        .font(AppFont.heavy(16))
+                        .font(AppFont.num(16, .bold))
                         .foregroundStyle(figure.isLoss ? Palette.loss : Palette.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)

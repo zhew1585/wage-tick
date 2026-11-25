@@ -189,7 +189,7 @@ private struct HistoryFormTitle: View {
     }
 
     var body: some View {
-        Text(text).font(AppFont.fun(20)).foregroundStyle(Palette.ink)
+        Text(text).font(AppFont.ui(20, .bold)).foregroundStyle(Palette.ink)
     }
 }
 

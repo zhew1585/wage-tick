@@ -15,10 +15,10 @@ struct HeroCount: View {
     var body: some View {
         HStack(alignment: .lastTextBaseline, spacing: Spacing.s10) {
             Text(value)
-                .font(AppFont.heavy(Self.size))
+                .font(AppFont.num(Self.size, .bold))
                 .tracking(-Self.size * 0.04)
                 .foregroundStyle(theme.number)
-            Text(unit).font(AppFont.fun(Self.size * 0.3)).foregroundStyle(Palette.ink)
+            Text(unit).font(AppFont.ui(Self.size * 0.3, .bold)).foregroundStyle(Palette.ink)
         }
         .lineLimit(1)
         .minimumScaleFactor(0.5)

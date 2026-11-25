@@ -126,10 +126,10 @@ private struct UpdateHero: View {
         ZStack(alignment: .bottomTrailing) {
             theme.gradient
             VStack(alignment: .leading, spacing: 0) {
-                Text(kicker).font(AppFont.fun(26)).foregroundStyle(Palette.ink).lineLimit(1).minimumScaleFactor(0.7)
+                Text(kicker).font(AppFont.ui(26, .bold)).foregroundStyle(Palette.ink).lineLimit(1).minimumScaleFactor(0.7)
                 if let number {
                     Text(number)
-                        .font(AppFont.heavy(64))
+                        .font(AppFont.num(64, .bold))
                         .tracking(-2)
                         .foregroundStyle(theme.number)
                         .lineLimit(1)

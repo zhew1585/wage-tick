@@ -55,7 +55,7 @@ struct GoalEarnedView: View {
             ForEach(list.completedYears) { year in
                 VStack(alignment: .leading, spacing: Spacing.s4) {
                     HStack(alignment: .firstTextBaseline) {
-                        Text(String(year.year)).font(AppFont.heavy(20)).foregroundStyle(Palette.ink)
+                        Text(String(year.year)).font(AppFont.num(20, .bold)).foregroundStyle(Palette.ink)
                         Spacer()
                         Text(BoldNumber.groupedAll(year.summary)).font(AppFont.num(11)).foregroundStyle(Palette.muted)
                     }
@@ -101,7 +101,7 @@ private struct EarnedGoalRow: View {
                     if hovering {
                         IconButton(systemName: "trash", help: "删除", action: delete).iconOnTextBaseline(14)
                     }
-                    Text(BoldNumber.grouped(row.amountText)).font(AppFont.heavy(15)).foregroundStyle(Palette.ink).fixedSize()
+                    Text(BoldNumber.grouped(row.amountText)).font(AppFont.num(15, .bold)).foregroundStyle(Palette.ink).fixedSize()
                 }
                 HStack(alignment: .firstTextBaseline) {
                     Text(row.receivedText).font(AppFont.small).foregroundStyle(Palette.muted)

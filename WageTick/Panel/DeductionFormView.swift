@@ -121,9 +121,9 @@ struct DeductionFormView: View {
     /// 字号固定不缩放；按金额最多 5 位数字、按百分比最多 3 位，都可带两位小数。
     private var valueInput: some View {
         let shown = valueText.isEmpty ? "0" : valueText
-        let font = AppFont.heavy(HeroNumberInput.size)
+        let font = AppFont.num(HeroNumberInput.size, .bold)
         return HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
-            Text(method == .fixed ? "−¥" : "−").font(AppFont.heavy(HeroNumberInput.affixSize)).foregroundStyle(Palette.ink)
+            Text(method == .fixed ? "−¥" : "−").font(AppFont.num(HeroNumberInput.affixSize, .bold)).foregroundStyle(Palette.ink)
             // 一段同字号文字撑出输入框宽度，让单位贴在数字后面；没填时它就是半透明的占位「0」
             // (系统的占位色是半透明黑，压在红底上发脏)。
             Text(shown)
@@ -141,7 +141,7 @@ struct DeductionFormView: View {
                         .onSubmit(save)
                 }
             if method == .percent {
-                Text("%").font(AppFont.heavy(HeroNumberInput.affixSize)).foregroundStyle(Palette.ink)
+                Text("%").font(AppFont.num(HeroNumberInput.affixSize, .bold)).foregroundStyle(Palette.ink)
             }
         }
         .heroNumberLimit($valueText, maxDigits: method == .fixed ? 5 : 3, maxDecimals: 2)
@@ -170,7 +170,7 @@ struct DeductionFormView: View {
                     valueText = "\(value)"
                     focus = .value
                 }
-                .buttonStyle(BoldChoiceStyle(selected: valueText == "\(value)", font: AppFont.heavy(14)))
+                .buttonStyle(BoldChoiceStyle(selected: valueText == "\(value)", font: AppFont.num(14, .bold)))
             }
         }
     }

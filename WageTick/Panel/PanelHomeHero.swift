@@ -46,12 +46,12 @@ struct PanelHomeHero: View {
 
     private var status: HeroStatus {
         switch panel.body {
-        case .unpaidWork: HeroStatus(label: panel.statusLabel, dot: .white, fill: Palette.hot)
+        case .unpaidWork: HeroStatus(label: panel.statusLabel, dot: .white, fill: Palette.loss)
         case .rest: HeroStatus(label: panel.statusLabel, dot: Palette.highlight)
         case .attendance:
             switch panel.cowScene {
             case .offWork: HeroStatus(label: panel.statusLabel, dot: Color(hex: 0x8CE99A))
-            case .working, .paydaySoon, .payday: HeroStatus(label: panel.statusLabel, dot: Palette.lime)
+            case .working, .paydaySoon, .payday: HeroStatus(label: panel.statusLabel, dot: Palette.money)
             default: HeroStatus(label: panel.statusLabel, dot: Palette.highlight)
             }
         }

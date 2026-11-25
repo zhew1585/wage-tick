@@ -17,7 +17,7 @@ struct BoldAlert: View {
                 .onTapGesture(perform: dismiss)
             VStack(spacing: Spacing.s16) {
                 Text(message)
-                    .font(AppFont.round(22))
+                    .font(AppFont.ui(22, .semibold))
                     .foregroundStyle(Palette.ink)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -68,7 +68,7 @@ struct BoldConfirm: View {
                 .onTapGesture(perform: cancel)
             VStack(spacing: Spacing.s12) {
                 Text(title)
-                    .font(AppFont.round(22))
+                    .font(AppFont.ui(22, .semibold))
                     .foregroundStyle(Palette.ink)
                 Text(message)
                     .font(AppFont.caption)

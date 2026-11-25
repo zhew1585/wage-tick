@@ -100,7 +100,7 @@ struct LeaveFormView: View {
     /// 获得焦点时墨色描边。
     private func percentRow(_ deduction: String?) -> some View {
         let shape = RoundedRectangle(cornerRadius: Radius.r14)
-        let font = AppFont.heavy(20)
+        let font = AppFont.num(20, .bold)
         return HStack(alignment: .firstTextBaseline, spacing: Spacing.s2) {
             Text("扣日薪的").font(AppFont.ui(13)).foregroundStyle(Palette.muted).padding(.trailing, Spacing.s6)
             // 用一段隐藏的同字号文字撑出输入框宽度，让「%」贴在数字后面。
@@ -119,7 +119,7 @@ struct LeaveFormView: View {
             Text("%").font(font).foregroundStyle(Palette.ink)
             Spacer(minLength: Spacing.s8)
             if let deduction {
-                Text(deduction).font(AppFont.heavy(18)).foregroundStyle(Palette.loss)
+                Text(deduction).font(AppFont.num(18, .bold)).foregroundStyle(Palette.loss)
             }
         }
         .padding(.horizontal, Spacing.s16)

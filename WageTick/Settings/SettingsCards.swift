@@ -86,7 +86,7 @@ struct MenuBarModeTiles: View {
         return Button { select(mode) } label: {
             VStack(spacing: Spacing.s2) {
                 Text(previews[mode] ?? "—")
-                    .font(AppFont.heavy(13))
+                    .font(AppFont.num(13, .bold))
                     .foregroundStyle(selected ? Color.white : Palette.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)

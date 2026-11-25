@@ -226,7 +226,7 @@ struct HourBlocksView: View {
             HStack(alignment: .lastTextBaseline) {
                 Text(blocks.label).font(AppFont.ui(13, .bold)).foregroundStyle(Palette.ink)
                 Spacer()
-                Text(blocks.value).font(AppFont.heavy(22)).foregroundStyle(blocks.isUnpaid ? Palette.hot : Palette.accent)
+                Text(blocks.value).font(AppFont.num(22, .bold)).foregroundStyle(blocks.isUnpaid ? Palette.loss : Palette.accent)
             }
             // 休息日按本月上班日排二十来格，格子窄，间隔也收一点。
             HStack(spacing: blocks.count > 12 ? Spacing.s3 : Spacing.s4) {
@@ -234,7 +234,7 @@ struct HourBlocksView: View {
                     cell(fill: min(max(blocks.filled - Double(index), 0), 1))
                 }
                 if blocks.overtime {
-                    RoundedRectangle(cornerRadius: Radius.r5).fill(Palette.hot)
+                    RoundedRectangle(cornerRadius: Radius.r5).fill(Palette.loss)
                 }
             }
             .frame(height: Self.height)
@@ -256,7 +256,7 @@ struct HourBlocksView: View {
     /// 一格：`fill` 为这格填了多少 (0 至 1)。
     private func cell(fill: Double) -> some View {
         // 休息日被迫营业的格子填白干的红；下班后白干的工时格仍是墨色，超时那格才是红的。
-        let color = blocks.isUnpaid && !blocks.overtime ? Palette.hot : Palette.ink
+        let color = blocks.isUnpaid && !blocks.overtime ? Palette.loss : Palette.ink
         return RoundedRectangle(cornerRadius: Radius.r5)
             .fill(Palette.surface)
             .overlay(alignment: .leading) {
@@ -298,13 +298,13 @@ struct BoldStatsRow: View {
         let parts = item.value.split(separator: " ", maxSplits: 1).map(String.init)
         if parts.count == 2, parts[0].allSatisfy(\.isNumber) {
             HStack(alignment: .lastTextBaseline, spacing: Spacing.s3) {
-                Text(parts[0]).font(AppFont.heavy(18))
+                Text(parts[0]).font(AppFont.num(18, .bold))
                 Text(parts[1]).font(AppFont.ui(12, .bold))
             }
         } else if item.value.unicodeScalars.contains(where: { (0x4E00...0x9FFF).contains($0.value) }) {
-            Text(item.value).font(AppFont.round(18))
+            Text(item.value).font(AppFont.ui(18, .semibold))
         } else {
-            Text(item.value).font(AppFont.heavy(18))
+            Text(item.value).font(AppFont.num(18, .bold))
         }
     }
 

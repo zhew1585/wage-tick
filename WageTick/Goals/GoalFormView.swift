@@ -78,17 +78,17 @@ struct GoalFormView: View {
     /// 头图里的金额 (规格同引导第 1 步，见 `HeroNumberInput`)：墨色 ¥ + 白色大号数字，没填时是半透明的「0」；字号固定，最多 6 位整数。
     private var amountInput: some View {
         HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
-            Text("¥").font(AppFont.heavy(HeroNumberInput.affixSize)).foregroundStyle(Palette.ink)
+            Text("¥").font(AppFont.num(HeroNumberInput.affixSize, .bold)).foregroundStyle(Palette.ink)
             TextField("金额", text: $amountText, prompt: Text(""))
                 .textFieldStyle(.plain)
                 // 光标白色：SwiftUI 刷新时会按 tint 重设光标颜色，只改字段编辑器会被盖掉。
                 .tint(.white)
-                .font(AppFont.heavy(HeroNumberInput.size))
+                .font(AppFont.num(HeroNumberInput.size, .bold))
                 .foregroundStyle(.white)
                 .background(alignment: .leading) {
                     // 系统占位文字的颜色改不了 (在橙色底上发灰)，自己画一个半透明白的「0」。
                     if amountText.isEmpty {
-                        Text("0").font(AppFont.heavy(HeroNumberInput.size)).foregroundStyle(.white.opacity(0.4)).allowsHitTesting(false)
+                        Text("0").font(AppFont.num(HeroNumberInput.size, .bold)).foregroundStyle(.white.opacity(0.4)).allowsHitTesting(false)
                     }
                 }
                 .focused($focus, equals: .amount)

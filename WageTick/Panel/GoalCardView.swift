@@ -80,11 +80,11 @@ struct BoldGoalCard: View {
                 }
             }
             HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
-                Text(BoldNumber.grouped(goal.accumulatedText)).font(AppFont.heavy(24)).foregroundStyle(.white)
+                Text(BoldNumber.grouped(goal.accumulatedText)).font(AppFont.num(24, .bold)).foregroundStyle(.white)
                 Text("/ \(BoldNumber.grouped(goal.targetText).replacingOccurrences(of: "¥", with: ""))")
                     .font(AppFont.num(12)).foregroundStyle(.white.opacity(0.5))
                 Spacer(minLength: Spacing.s8)
-                Text("\(Int((goal.progress * 100).rounded(.down)))%").font(AppFont.heavy(28)).foregroundStyle(Color(hex: 0xFF7A2E))
+                Text("\(Int((goal.progress * 100).rounded(.down)))%").font(AppFont.num(28, .bold)).foregroundStyle(Color(hex: 0xFF7A2E))
             }
             .lineLimit(1)
             .minimumScaleFactor(0.7)
@@ -150,10 +150,10 @@ private struct EmptyGoalCard: View {
                 Text("队列 0").font(AppFont.num(11)).foregroundStyle(.white.opacity(0.5))
             }
             HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
-                Text("¥0").font(AppFont.heavy(24)).foregroundStyle(.white)
+                Text("¥0").font(AppFont.num(24, .bold)).foregroundStyle(.white)
                 Text("/ ?").font(AppFont.num(12)).foregroundStyle(.white.opacity(0.5))
                 Spacer(minLength: Spacing.s8)
-                Text("0%").font(AppFont.heavy(28)).foregroundStyle(Color(hex: 0xFF7A2E))
+                Text("0%").font(AppFont.num(28, .bold)).foregroundStyle(Color(hex: 0xFF7A2E))
             }
             .lineLimit(1)
             GoalProgressBar(progress: 0)

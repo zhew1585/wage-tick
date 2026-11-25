@@ -65,9 +65,9 @@ struct CelebrationView: View {
     private var card: some View {
         let shape = RoundedRectangle(cornerRadius: 24)
         return VStack(spacing: Spacing.s4) {
-            Text("目标达成").font(AppFont.fun(22)).foregroundStyle(Palette.ink)
+            Text("目标达成").font(AppFont.ui(22, .bold)).foregroundStyle(Palette.ink)
             Text(celebration.goalName)
-                .font(AppFont.heavy(40))
+                .font(AppFont.num(40, .bold))
                 .foregroundStyle(Palette.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.4)
@@ -116,7 +116,7 @@ private struct ConfettiPiece: Identifiable {
     /// 落下过程中转过的角度。
     let spin: Double
 
-    private static let palette: [Color] = [Palette.highlight, Palette.accent, Palette.lime, .white, HeroTheme.sky.top]
+    private static let palette: [Color] = [Palette.highlight, Palette.accent, Palette.money, .white, HeroTheme.sky.top]
 
     /// `count` 片彩纸，都在 `duration` 秒内落完：延迟至多占 1/5，下落用时占剩下的一半到全部。
     static func random(count: Int, within duration: Double) -> [ConfettiPiece] {
