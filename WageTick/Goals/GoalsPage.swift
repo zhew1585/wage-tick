@@ -2,15 +2,13 @@ import Observation
 import SwiftUI
 import WageCore
 
-/// 目标页当前要展示的内容，由 `GoalsPage` 按快照刷新；`showsEarned` 由视图切页时改。
+/// 目标页当前要展示的内容，由 `GoalsPage` 按快照刷新，视图只读。
 @MainActor
 @Observable
 final class GoalsContent {
     var list = GoalList.empty
     /// 队列为空时的提示，如「给自己定个目标吧」。
     var emptyText: String?
-    /// 正在看「已到手」页；false 时是目标页 (攒钱队列与已完成)。
-    var showsEarned = false
 
     /// 按快照填好各项。
     func update(from snap: Snapshot) {
@@ -24,7 +22,7 @@ final class GoalsContent {
 }
 
 /// 目标页 (PRD F8，页面 P3)：在今日概览窗口里从右边推进来，从面板底部入口、目标卡、左键菜单或主菜单「目标 ⌘2」打开。
-/// 只在这一页显示时每秒刷新一次，让累计中目标的累计额跟着走。每次进来回到攒钱队列；页头的返回退回概览。
+/// 只在这一页显示时每秒刷新一次，让累计中目标的累计额跟着走。页头的返回退回概览。
 @MainActor
 final class GoalsPage {
     private static let refreshInterval: TimeInterval = 1
@@ -38,7 +36,6 @@ final class GoalsPage {
     }
 
     func appear() {
-        content.showsEarned = false
         refresh()
     }
 

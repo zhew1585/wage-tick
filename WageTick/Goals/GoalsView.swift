@@ -2,7 +2,6 @@ import SwiftUI
 import WageCore
 
 /// 目标管理 (PRD F8，设计稿 P3 目标管理 · 760)：攒钱队列、已完成两组，底部「新目标」。在今日概览窗口里推进来，页头的返回回到概览。
-/// 「已完成」标题行右侧的「已到手」进入按年分组的已到手页 (`GoalEarnedView`)，原地替换本页，返回再回来。
 /// 攒钱队列整组可拖动排序【D6】，第一行是累计中 (进度条、累计额、预计完成)，其余排队中，见 `GoalQueueList`；
 /// 已完成沉底、冻结只能删。编辑、删除在悬停时出现的按钮或右键菜单里，点整行不做任何事。
 /// 没有任何目标时页头与底部按钮之间居中放一个大旗子图标和一行提示。
@@ -20,25 +19,6 @@ struct GoalsView: View {
     @State private var form: GoalFormView.Mode?
 
     var body: some View {
-        Group {
-            if content.showsEarned {
-                GoalEarnedView(
-                    list: content.list,
-                    back: { content.showsEarned = false },
-                    delete: { perform(.deleteGoal(id: $0.id)) }
-                )
-            } else {
-                queuePage
-            }
-        }
-        .frame(width: Spacing.pageWidth)
-        .sheet(item: $form) { mode in
-            GoalFormView(mode: mode, save: { (command: Command) throws(CommandError) in try send(command) }, dismiss: { form = nil })
-        }
-    }
-
-    /// 目标页本身：页头、两组列表 (或空状态)、底部按钮。
-    private var queuePage: some View {
         VStack(spacing: 0) {
             PageHeader("目标", back: close)
             if content.list.isEmpty {
@@ -49,6 +29,10 @@ struct GoalsView: View {
                 }
             }
             footer
+        }
+        .frame(width: Spacing.pageWidth)
+        .sheet(item: $form) { mode in
+            GoalFormView(mode: mode, save: { (command: Command) throws(CommandError) in try send(command) }, dismiss: { form = nil })
         }
     }
 
@@ -67,12 +51,7 @@ struct GoalsView: View {
                 }
             }
             if !list.completed.isEmpty {
-                VStack(alignment: .leading, spacing: Spacing.s8) {
-                    HStack {
-                        GroupLabel(title: "已完成", count: list.completed.count)
-                        Spacer(minLength: Spacing.s8)
-                        earnedEntry
-                    }
+                group("已完成", count: list.completed.count) {
                     VStack(spacing: Spacing.s8) {
                         ForEach(list.completed) { row in
                             CompletedGoalRowView(row: row, delete: { perform(.deleteGoal(id: row.id)) })
@@ -94,20 +73,6 @@ struct GoalsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    /// 「已完成」标题行右侧的入口：文字 12/600 muted 加右箭头，进入已到手页。
-    private var earnedEntry: some View {
-        Button { content.showsEarned = true } label: {
-            HStack(spacing: Spacing.s2) {
-                Text("已到手").font(AppFont.captionSemibold)
-                PhosphorIcon(.caretRight, size: 11)
-            }
-            .foregroundStyle(Palette.muted)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.highlight(radius: Radius.r6, outset: Spacing.s4))
-        .help("按年看已到手的目标")
     }
 
     private func group(_ title: String, count: Int, @ViewBuilder content: () -> some View) -> some View {

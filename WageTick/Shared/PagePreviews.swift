@@ -51,7 +51,6 @@ private enum PagePreviews {
         return [
             ("P3-goals", goals(snap)),
             ("P3-goals-empty", goals(snapshot(of: try onboarded(), at: now))),
-            ("P3-goals-earned", goals(snap, earned: true)),
             ("P4-history", history(snap)),
             ("P5-calendar", history(snap, month: today.yearMonth)),
             ("P5-calendar-october", history(snap, month: YearMonth(year: 2026, month: 10))),
@@ -147,11 +146,9 @@ private enum PagePreviews {
 
     // MARK: 视图
 
-    /// 目标页；`earned` 时是从「已完成」右侧入口进去的已到手页。
-    private static func goals(_ snap: Snapshot, earned: Bool = false) -> AnyView {
+    private static func goals(_ snap: Snapshot) -> AnyView {
         let content = GoalsContent()
         content.update(from: snap)
-        content.showsEarned = earned
         return page(GoalsView(content: content, send: { _ throws(CommandError) in }, close: {}))
     }
 
