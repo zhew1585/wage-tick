@@ -78,7 +78,7 @@ def main():
         copy_sources(temp)
         code, output = run('ui_lint.py', '--root', temp)
         if code != 0:
-            problems.append(f'静态规则在没改动的源码上就不过 (退出码 {code})：\n{output}')
+            problems.append(f'当前源码本身就不过静态规则 (退出码 {code})，先按下面的输出改源码，自测的故意违规部分这时不可信：\n{output}')
         for title, rel, old, new, rule in LINT_VIOLATIONS:
             path = os.path.join(temp, rel)
             original = open(path, encoding='utf-8').read()

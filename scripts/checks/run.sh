@@ -9,9 +9,10 @@ cd "$(dirname "$0")/../.."
 
 static() {
     command -v python3 >/dev/null || { echo "BLOCKED: 没有 python3"; return 2; }
-    # 先自测：故意违规必须被抓到。规则自己坏了的话，后面的「通过」不可信。
-    python3 scripts/checks/selftest.py || return $?
-    python3 scripts/checks/ui_lint.py
+    # 先查当前源码：违规直接在这里报出来，说清是哪条规则、哪个文件。
+    python3 scripts/checks/ui_lint.py || return $?
+    # 再自测：故意违规必须被抓到。规则自己坏了的话，上面的「通过」不可信。
+    python3 scripts/checks/selftest.py
 }
 
 ui() {

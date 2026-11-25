@@ -274,6 +274,7 @@ def main():
             raise Blocked('没给产物清单 (--manifest)，没法确认这些图是哪一版、怎么截的')
         wanted = args.only or (cfg['root']['pages'] + cfg['sub']['pages'] + cfg['otherPages'][args.kind])
         headers = {}
+        checked = 0
         for name in wanted:
             path = os.path.join(args.dir, name + '.png')
             if not os.path.isfile(path):
@@ -281,6 +282,7 @@ def main():
                     report.note(f'MANUAL {name}: 没有真窗口图，这一页的红绿灯关系需人工看')
                     continue
                 raise Blocked(f'缺图 {path}')
+            checked += 1
             header = check_page(name, path, args.kind, cfg, report)
             if header and header.get('arrow'):
                 headers[name] = header
@@ -302,7 +304,7 @@ def main():
     if report.failures:
         print(f'ui_geometry: {len(report.failures)} 条不过')
         return 1
-    print(f'ui_geometry: 通过 ({args.kind}，{len(wanted)} 张)')
+    print(f'ui_geometry: 通过 ({args.kind}，查了 {checked} 张)')
     return 0
 
 
