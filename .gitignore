@@ -15,3 +15,6 @@ docs/spec/
 
 # 团队角色文件含机器与环境信息，只留本机主目录
 roles/
+
+# 检查脚本的 Python 缓存
+__pycache__/
