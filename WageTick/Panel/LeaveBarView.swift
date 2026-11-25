@@ -138,7 +138,7 @@ struct LeaveBarView: View {
             Button("自己拖") {}
                 .buttonStyle(BoldChoiceStyle(selected: custom))
                 .disabled(true)
-                .help("拖时间条上的黄色把手，或拖整段平移")
+                .help("拖时间条上的橙色把手，或拖整段平移")
         }
     }
 }
