@@ -1,0 +1,8 @@
+{
+  "commit": "d107b63b3012674249ae26eeceb4cc1bb64090ee",
+  "kind": "offscreen",
+  "capturedAt": "2026-11-26T00:53:28+08:00",
+  "method": "render-page-previews.sh",
+  "decorations": {"windowFrame": false, "trafficLights": false, "active": false},
+  "files": ["P3-goals-empty.png", "P3-goals.png", "P4-history.png", "P5-calendar-october.png", "P5-calendar.png", "P5-day-detail-auto-stopped.png", "P5-day-detail-leave.png", "P5-day-detail-overnight.png", "P5-day-detail-today.png", "P5-day-detail.png", "P5-unpaid-work-form-overnight.png", "P6-settings-payday-sheet.png", "P6-settings-rest-mode-sheet.png", "P6-settings.png", "U1-update-found.png", "U2-update-downloading.png", "U3-update-ready.png", "U4-update-up-to-date.png"]
+}

@@ -1,0 +1,10 @@
+{
+  "commit": "d107b63b3012674249ae26eeceb4cc1bb64090ee",
+  "kind": "realwindow",
+  "capturedAt": "2026-11-26T00:56:11+08:00",
+  "method": "cacheDisplay",
+  "decorations": {"windowFrame": true, "trafficLights": true, "active": false},
+  "files": ["today-full.png", "goals-full.png", "history-full.png", "calendar-full.png", "settings-full.png",
+            "today-titlebar.png", "goals-titlebar.png", "history-titlebar.png", "calendar-titlebar.png", "settings-titlebar.png",
+            "today.png", "P3-goals.png", "P4-history.png", "P5-calendar.png", "P6-settings.png"]
+}
