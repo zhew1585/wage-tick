@@ -153,7 +153,7 @@ private extension EnvironmentValues {
 }
 
 /// 日历格子按颜色类型的样子 (经典视觉，同 nightly.20261112.15 的月日历)：
-/// - 满勤 money-soft 底 money 字，被扣钱 loss-soft 底 loss 字，请假 accent-soft 底 accent 字
+/// - 满勤 money-soft 底 money 字，被扣钱 loss-soft 底加 loss-dot 描边、loss 字 (和请假的浅橙底分得开)，请假 accent-soft 底 accent 字
 /// - 未到 (未来的应出勤日) 白底 line 描边墨字；休息日无底 muted 字；改成不上班无底 muted 字、muted 虚线框
 /// - 今天 bg 底、accent 2pt 描边、金额 accent，盖过当天的颜色类型
 private struct DayCellStyle {
@@ -172,7 +172,7 @@ private struct DayCellStyle {
         }
         (fill, stroke, text, note, hoverStroke) = switch kind {
         case .fullAttendance: (Palette.moneySoft, nil, Palette.money, Palette.money, Palette.money)
-        case .deducted: (Palette.lossSoft, nil, Palette.loss, Palette.loss, Palette.loss)
+        case .deducted: (Palette.lossSoft, (Palette.lossDot, StrokeStyle(lineWidth: 1.5)), Palette.loss, Palette.loss, Palette.loss)
         case .leave: (Palette.accentSoft, nil, Palette.accent, Palette.accent, Palette.accent)
         case .upcoming: (Palette.card, (Palette.line, StrokeStyle(lineWidth: 1)), Palette.ink, Palette.muted, Palette.ink)
         case .rest: (.clear, nil, Palette.muted.opacity(0.75), Palette.muted, Palette.ink)
@@ -191,7 +191,7 @@ private struct CalendarLegend: View {
         // 6 项时一行刚好放得下 (宽 328)，间距别再加大，否则撑宽整页。
         HStack(spacing: Spacing.s8) {
             item(CalendarDayKind.fullAttendance.label) { shape.fill(Palette.moneySoft) }
-            item(CalendarDayKind.deducted.label) { shape.fill(Palette.lossSoft) }
+            item(CalendarDayKind.deducted.label) { shape.fill(Palette.lossSoft).overlay(shape.strokeBorder(Palette.lossDot, lineWidth: 1.5)) }
             item(CalendarDayKind.leave.label) { shape.fill(Palette.accentSoft) }
             item(CalendarDayKind.todayLabel) { shape.strokeBorder(Palette.accent, lineWidth: 1.5) }
             item(CalendarDayKind.rest.label) { shape.strokeBorder(Palette.line, lineWidth: 1.5) }

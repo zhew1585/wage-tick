@@ -214,8 +214,8 @@ struct PillSegmented<ID: Hashable>: View {
     }
 }
 
-/// 月日历底部固定的一行小结 (扣款、请假、白干)：等宽几栏，JetBrains Mono 17/600 数值 (扣款不为零时 loss 色) 下面 11 muted 小标题，
-/// 栏间 1×30 细竖线；上沿一条分隔线。
+/// 月日历底部固定的一行小结 (扣款、请假、白干)：等宽几栏，上面 11 muted 小标题、下面 JetBrains Mono 17/600 数值 (扣款不为零时 loss 色)，
+/// 同首页统计行的排法；栏间 1×30 细竖线，上沿一条分隔线。
 struct HistoryStatsBar: View {
     let figures: [HistoryFigure]
 
@@ -226,12 +226,12 @@ struct HistoryStatsBar: View {
                     Rectangle().fill(Palette.line).frame(width: 1, height: 30)
                 }
                 VStack(spacing: Spacing.s2) {
+                    Text(figure.title).font(AppFont.small).foregroundStyle(Palette.muted)
                     Text(figure.value)
                         .font(AppFont.numStat)
                         .foregroundStyle(figure.isLoss ? Palette.loss : Palette.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
-                    Text(figure.title).font(AppFont.small).foregroundStyle(Palette.muted)
                 }
                 .frame(maxWidth: .infinity)
             }

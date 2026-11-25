@@ -156,7 +156,7 @@ struct LeaveFormView: View {
             .buttonStyle(.pill(.ink))
         case .edit:
             Button("撤销请假") { send(cancelCommand) }
-                .buttonStyle(.pill(.outline, fullWidth: false))
+                .buttonStyle(.pill(.danger, fullWidth: false))
             Button("算了", action: dismiss)
                 .keyboardShortcut(.cancelAction)
                 .buttonStyle(.pill(.outline, fullWidth: false))

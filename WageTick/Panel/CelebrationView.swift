@@ -18,7 +18,7 @@ struct CelebrationView: View {
     private static let duration: Double = 3
     private static let confettiCount = 36
     /// 播放时盖在面板上的一层米白，压淡下面的内容。
-    private static let dimOpacity = 0.88
+    private static let dimOpacity = 0.94
 
     var body: some View {
         GeometryReader { geometry in
