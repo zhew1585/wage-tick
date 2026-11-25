@@ -12,7 +12,7 @@
     "pages": ["P3-goals", "P3-goals-empty", "P4-history", "P6-settings"],
     "arrowLeftPt": 85,
     "tolPt": 1,
-    "arrowTitleGapPt": [7.5, 11],
+    "arrowTitleGapPt": [7.5, 12],
     "maxTitleLeftPt": 105
   },
   "sub": {
