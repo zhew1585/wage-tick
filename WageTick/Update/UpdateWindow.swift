@@ -29,7 +29,7 @@ enum UpdateScreen {
     }
 }
 
-/// 更新窗口：宽 360、高随内容，顶上是 210 高的彩色头图 (红绿灯画在它上面)，见 `UpdateView`。
+/// 更新窗口：宽 360、高随内容，顶上是 210 高的米白头图 (红绿灯画在它上面)，见 `UpdateView`。
 /// 同一时间只有一个，换屏时原地刷新；点按钮或关闭都会先把这一屏的回调交还给 Sparkle 再关窗。
 ///
 /// 用法：`UpdateWindowController.shared.show(.ready(...))`，`close()` 关窗而不触发回调。

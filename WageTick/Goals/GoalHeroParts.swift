@@ -1,8 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// 目标页头图里的大数字：Archivo Black 白色计数 + 站酷体墨色单位，如「4 个在排队」「7 件到手」(设计稿「目标-攒钱队列」「目标-已到手」)。
-/// 单位固定墨色 (不跟头图标题色走)：绿色头图的标题是黄的，单位仍是墨色。
+/// 目标页头图里的大数字 (经典视觉，同头图主数字)：JetBrains Mono 54/700 墨色计数 + 26/600 muted 单位，如「4 个在排队」「7 件到手」。
 ///
 /// 用法：`BoldHero(…) { HeroCount(value: "4", unit: "个在排队", theme: .orange) }`
 struct HeroCount: View {
@@ -10,15 +9,15 @@ struct HeroCount: View {
     let unit: String
     let theme: HeroTheme
 
-    private static let size: CGFloat = 120
+    private static let size: CGFloat = 54
 
     var body: some View {
-        HStack(alignment: .lastTextBaseline, spacing: Spacing.s10) {
+        HStack(alignment: .lastTextBaseline, spacing: Spacing.s6) {
             Text(value)
                 .font(AppFont.num(Self.size, .bold))
-                .tracking(-Self.size * 0.04)
-                .foregroundStyle(theme.number)
-            Text(unit).font(AppFont.ui(Self.size * 0.3, .bold)).foregroundStyle(Palette.ink)
+                .tracking(-1.5)
+                .foregroundStyle(theme.classic.number)
+            Text(unit).font(AppFont.ui(26, .semibold)).foregroundStyle(Palette.muted)
         }
         .lineLimit(1)
         .minimumScaleFactor(0.5)
@@ -28,8 +27,7 @@ struct HeroCount: View {
     }
 }
 
-/// 头图里的墨色说明行 (图标 + 等宽粗体小字)，放在大数字下面。
-/// `BoldHero` 的说明行跟标题同色，绿色头图上是黄的；已到手页设计稿的说明行是墨色，所以自己画在数字闭包里。
+/// 头图里的说明行 (图标 + 12 muted，同 `BoldHero` 的说明行)，放在大数字下面；已到手页把它画在数字闭包里。
 struct HeroInkCaption: View {
     let icon: ImageResource
     let text: String
@@ -37,9 +35,9 @@ struct HeroInkCaption: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
             PhosphorIcon(icon, size: 13).iconOnTextBaseline()
-            SegmentedText(text).font(AppFont.num(12, .bold))
+            SegmentedText(text).font(AppFont.caption)
         }
-        .foregroundStyle(Palette.ink)
+        .foregroundStyle(Palette.muted)
         .frame(maxWidth: 190, alignment: .leading)
         .padding(.top, Spacing.s14)
     }

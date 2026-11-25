@@ -1,8 +1,8 @@
 import SwiftUI
 import WageCore
 
-/// 历史三页 (月列表、月日历、单日详情) 共用的大胆版小件：头图标题栏右侧的小胶囊、单日详情的分段标题与记录卡、
-/// 「这天上不上班」的胶囊分段、月日历底部固定的小结。配色只用墨色、头图主色 (`HeroTheme.ledger`) 与少量高亮黄。
+/// 历史三页 (月列表、月日历、单日详情) 共用的小件 (经典视觉)：头图标题栏右侧的小按钮、单日详情的分段标题与记录卡、
+/// 「这天上不上班」的分段、月日历底部固定的小结。配色只用墨色、muted、line 与 accent / loss。
 
 /// 头图收起后窄栏里的小号金额：「¥571.43」取「¥571」。
 func heroCompactMoney(_ text: String) -> String {
@@ -10,7 +10,8 @@ func heroCompactMoney(_ text: String) -> String {
     return (parts.currency ?? "") + parts.integer
 }
 
-/// 头图标题栏一行右侧的小胶囊按钮 (与返回胶囊同一套半透明底)：只放图标或图标 + 文字，如月日历的上下月、改工资。
+/// 头图标题栏一行右侧的小按钮 (与返回同一个样子：墨色、无底，悬停、按下时外扩一圈圆角底)：
+/// 只放图标或图标 + 文字 13/500，如月日历的上下月、改工资。
 /// 放在 `BoldHero` 上面的 `overlay(alignment: .topTrailing)` 里，高度对齐标题栏 (见 `HeroTitlebarTrailing`)。
 struct HeroChipButton: View {
     let icon: Phosphor
@@ -23,15 +24,15 @@ struct HeroChipButton: View {
     var body: some View {
         Button(action: action) {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.s3) {
-                PhosphorIcon(icon, size: 13).iconOnTextBaseline(12)
-                if let title { Text(title).font(AppFont.ui(12, .bold)) }
+                PhosphorIcon(icon, size: 14).iconOnTextBaseline(13)
+                if let title { Text(title).font(AppFont.bodyMedium) }
             }
-            .foregroundStyle(theme.onChip)
-            .padding(EdgeInsets(top: 3, leading: Spacing.s8, bottom: 3, trailing: title == nil ? Spacing.s8 : Spacing.s10))
-            .background(theme.chip, in: Capsule())
-            .contentShape(Capsule())
+            .foregroundStyle(theme.classic.onChip)
+            .padding(.vertical, 3)
+            .padding(.horizontal, Spacing.s2)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.highlight(radius: Radius.r6, outset: Spacing.s4))
         .pointingHandCursor(isEnabled)
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.35)
@@ -39,7 +40,7 @@ struct HeroChipButton: View {
     }
 }
 
-/// 把一排 `HeroChipButton` 摆到头图标题栏一行的右侧 (与返回胶囊同一行，收起后也还在)。
+/// 把一排 `HeroChipButton` 摆到头图标题栏一行的右侧 (与返回同一行，收起后也还在)。
 struct HeroTitlebarTrailing<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
@@ -50,7 +51,7 @@ struct HeroTitlebarTrailing<Content: View>: View {
     }
 }
 
-/// 单日详情的一块：左边 14/700 标题，右上角橙色「+ 补记…」(没有入口时不显示)，下面是记录卡或空行。
+/// 单日详情的一块：左边 14/600 标题，右上角 accent「+ 补记…」12/500 (没有入口时不显示)，下面是记录卡或空行。
 struct HistorySection<Content: View>: View {
     struct Add {
         let title: String
@@ -70,13 +71,13 @@ struct HistorySection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s12) {
             HStack(spacing: Spacing.s8) {
-                Text(title).font(AppFont.ui(14, .bold)).foregroundStyle(Palette.ink)
+                Text(title).font(AppFont.section).foregroundStyle(Palette.ink)
                 Spacer(minLength: Spacing.s8)
                 if let add {
                     Button(action: add.action) {
                         HStack(alignment: .firstTextBaseline, spacing: Spacing.s4) {
-                            PhosphorIcon(.plus, size: 12).iconOnTextBaseline(13)
-                            Text(add.title).font(AppFont.ui(13, .bold))
+                            PhosphorIcon(.plus, size: 12).iconOnTextBaseline(12)
+                            Text(add.title).font(AppFont.label)
                         }
                         .foregroundStyle(Palette.accent)
                         .contentShape(Rectangle())
@@ -90,7 +91,7 @@ struct HistorySection<Content: View>: View {
     }
 }
 
-/// 一条记录 (扣钱、请假、白干)：1.5pt 墨色描边的圆角卡，左边标题 14/600 与一行 muted 说明，右边粗体数值。
+/// 一条记录 (扣钱、请假、白干)：白底、line 描边、圆角 10 的卡，左边标题 14/500 与一行 muted 说明，右边 JetBrains Mono 15/600 数值。
 /// 点一下修改 (`edit` 为 nil 时点不动)，悬停时数值左边出现删除或撤销 (`delete`)。
 struct RecordCard: View {
     let title: String
@@ -106,13 +107,13 @@ struct RecordCard: View {
 
     @State private var hovering = false
 
-    private static let shape = RoundedRectangle(cornerRadius: Radius.r14)
+    private static let shape = RoundedRectangle(cornerRadius: Radius.r10)
 
     var body: some View {
         HStack(spacing: Spacing.s8) {
             VStack(alignment: .leading, spacing: Spacing.s3) {
                 Text(title)
-                    .font(monospacedTitle ? AppFont.num(14, .semibold) : AppFont.ui(14, .semibold))
+                    .font(monospacedTitle ? AppFont.num(14, .medium) : AppFont.ui(14, .medium))
                     .foregroundStyle(Palette.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -125,16 +126,16 @@ struct RecordCard: View {
             if hovering, let delete {
                 IconButton(systemName: deleteHelp == "删除" ? "trash" : "arrow.uturn.backward", help: deleteHelp, action: delete)
             }
-            Text(value).font(AppFont.num(15, .bold)).foregroundStyle(valueColor).lineLimit(1).fixedSize()
+            Text(value).font(AppFont.num(15, .semibold)).foregroundStyle(valueColor).lineLimit(1).fixedSize()
         }
         .padding(.horizontal, Spacing.s14)
         .padding(.vertical, Spacing.s12)
         .frame(minHeight: 60)
-        .background(Palette.bg, in: Self.shape)
-        .overlay(Self.shape.strokeBorder(Palette.ink, lineWidth: 1.5))
+        .background(Palette.card, in: Self.shape)
+        .overlay(Self.shape.strokeBorder(Palette.line))
         .contentShape(Self.shape)
         .onTapGesture { edit?() }
-        .hoverFeedback(cornerRadius: Radius.r14, isEnabled: edit != nil)
+        .hoverFeedback(cornerRadius: Radius.r10, isEnabled: edit != nil)
         .onHover { hovering = $0 }
         .help(edit == nil ? "" : "点一下修改")
     }
@@ -156,11 +157,12 @@ struct EmptyRecord: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.s14)
             .padding(.vertical, Spacing.s12)
-            .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r14))
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r10))
     }
 }
 
-/// 胶囊分段 (单日详情「这天上不上班」)：surface 胶囊底，选中段墨色胶囊白字 14/700，其余 muted 14。
+/// 分段 (单日详情「这天上不上班」，同经典 `ThemeSegmented`)：surface 底、圆角 9、内边距 3，
+/// 选中段白底圆角 7 带淡投影、墨色 13/600，其余 muted 13。
 /// 不可用的段变淡、点不动；选中段点不动。未选中段悬停时字变墨色、叠一层底。
 struct PillSegmented<ID: Hashable>: View {
     struct Option: Identifiable {
@@ -174,30 +176,37 @@ struct PillSegmented<ID: Hashable>: View {
     let select: (ID) -> Void
 
     var body: some View {
-        HStack(spacing: Spacing.s4) {
+        HStack(spacing: Spacing.s3) {
             ForEach(options) { option in
                 segment(option)
             }
         }
-        .padding(Spacing.s4)
-        .background(Palette.surface, in: Capsule())
+        .padding(Spacing.s3)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r9))
     }
 
     private func segment(_ option: Option) -> some View {
         let selected = option.id == selection
+        let shape = RoundedRectangle(cornerRadius: Radius.r7)
         return Button {
             select(option.id)
         } label: {
             Text(option.title)
-                .font(AppFont.ui(14, selected ? .bold : .regular))
+                .font(AppFont.ui(13, selected ? .semibold : .regular))
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, minHeight: 32)
         }
         .buttonStyle(InteractiveButtonStyle { label, state in
             label
-                .foregroundStyle(selected ? Color.white : state.isHovered ? Palette.ink : Palette.muted)
-                .background(selected ? Palette.ink : state.overlay, in: Capsule())
-                .contentShape(Capsule())
+                .foregroundStyle(selected || state.isHovered ? Palette.ink : Palette.muted)
+                .background {
+                    if selected {
+                        shape.fill(Palette.card).shadow(color: Palette.shadow, radius: 1.5, y: 1)
+                    } else {
+                        shape.fill(state.overlay)
+                    }
+                }
+                .contentShape(shape)
         })
         .disabled(selected || !option.isEnabled)
         .opacity(option.isEnabled || selected ? 1 : 0.5)
@@ -205,7 +214,8 @@ struct PillSegmented<ID: Hashable>: View {
     }
 }
 
-/// 月日历底部固定的一行小结 (扣款、请假、白干)：等宽几栏，粗体数值 (扣款不为零时亏钱色) 下面 muted 小标题，栏间细竖线；上沿一条分隔线。
+/// 月日历底部固定的一行小结 (扣款、请假、白干)：等宽几栏，JetBrains Mono 17/600 数值 (扣款不为零时 loss 色) 下面 11 muted 小标题，
+/// 栏间 1×30 细竖线；上沿一条分隔线。
 struct HistoryStatsBar: View {
     let figures: [HistoryFigure]
 
@@ -217,7 +227,7 @@ struct HistoryStatsBar: View {
                 }
                 VStack(spacing: Spacing.s2) {
                     Text(figure.value)
-                        .font(AppFont.num(16, .bold))
+                        .font(AppFont.numStat)
                         .foregroundStyle(figure.isLoss ? Palette.loss : Palette.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)

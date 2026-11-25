@@ -226,7 +226,7 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
             openGoals: { [weak self] in self?.push(.goals) },
             openSettings: { [weak self] in self?.push(.settings) }
         )
-        // 内容顶到窗口上沿，彩色头图垫在红绿灯下面 (大胆版)；头图自己让出标题栏那一行。
+        // 内容顶到窗口上沿，头图垫在红绿灯下面；头图自己让出标题栏那一行。
         // 钉住按钮放在标题栏右侧，和红绿灯同一行；推进来的页面右上角有自己的按钮，那时不显示钉住。
         let view = TodayPanelView(
             content: content, actions: actions, navigation: navigation,
@@ -277,12 +277,10 @@ private struct PinButton: View {
 
     private var button: some View {
         Button(action: toggle) {
-            // 垫在各色头图上：白底小圆片托着，哪种主色上都看得清。
-            PhosphorIcon(content.isPinned ? .pushPinFill : .pushPin, size: 12)
-                .foregroundStyle(content.isPinned ? Palette.accent : Palette.ink)
+            PhosphorIcon(content.isPinned ? .pushPinFill : .pushPin, size: 14)
+                .foregroundStyle(content.isPinned ? Palette.accent : Palette.muted)
                 .frame(width: 20, height: 20)
-                .background(.white.opacity(0.85), in: Circle())
-                .contentShape(Circle())
+                .contentShape(Rectangle())
         }
         .buttonStyle(.highlight(radius: Radius.r4, outset: 2))
         .help(content.isPinned ? "取消钉住" : "钉住：窗口始终在最前")

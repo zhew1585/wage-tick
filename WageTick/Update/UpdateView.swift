@@ -1,9 +1,9 @@
 import SwiftUI
 import WageCore
 
-/// 更新窗口的内容 (大胆版设计稿「更新-1发现新版本」至「更新-4已是最新」)：顶上 210 高的彩色头图
-/// (站酷体标题、Archivo Black 大号版本号或百分比、一行说明，右下角小牛)，下面按屏放更新内容卡片、进度块、说明与胶囊按钮。
-/// ① 发现新版本、② 下载中橙色，③ 已准备好绿色，④ 已是最新黄色；出错沿用 ④ 的样子。
+/// 更新窗口的内容 (经典视觉，屏次同大胆版设计稿「更新-1发现新版本」至「更新-4已是最新」)：顶上 210 高的米白头图
+/// (17/700 标题、JetBrains Mono 大号版本号或百分比、一行说明，右下角小牛)，下面按屏放更新内容卡片、进度块、说明与按钮。
+/// 各屏只换小牛姿势；出错沿用「已是最新」的样子。
 struct UpdateView: View {
     let model: UpdateWindowController.Model
     let perform: (@escaping () -> Void) -> Void
@@ -74,7 +74,7 @@ struct UpdateView: View {
             .padding(EdgeInsets(top: Spacing.s18, leading: Spacing.screen, bottom: Spacing.s20, trailing: Spacing.screen))
     }
 
-    /// 胶囊按钮：次操作墨色描边，主操作墨色实心；只有一个时占满整行。
+    /// 底部按钮：次操作 surface 底墨字，主操作墨底浅字；只有一个时占满整行。
     private func buttons(secondary: (String, () -> Void)?, primary: (String, () -> Void)?) -> some View {
         HStack(spacing: Spacing.s10) {
             if let (title, action) = secondary {
@@ -111,7 +111,8 @@ struct UpdateView: View {
     }
 }
 
-/// 更新窗口的头图：210 高 (比页面头图矮，弹窗例外)，下沿 32 圆角；标题与说明行用墨色 (说明行同 `BoldHero` 用等宽粗体)，大字跟主题 (橙、绿白字，黄墨字)。
+/// 更新窗口的头图 (经典视觉，同 `BoldHero`)：210 高 (比页面头图矮，弹窗例外)，米白平底、下沿一条 line 分隔线；
+/// 标题 17/700 墨色，大字 JetBrains Mono 54/700 墨色，说明行 12 muted。
 /// 小牛 130×173 贴右下角，脚被下沿裁掉一截。`number` 为 nil 时 (出错) 只有标题与说明。
 private struct UpdateHero: View {
     let theme: HeroTheme
@@ -124,21 +125,22 @@ private struct UpdateHero: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            theme.gradient
+            Palette.bg
             VStack(alignment: .leading, spacing: 0) {
-                Text(kicker).font(AppFont.ui(26, .bold)).foregroundStyle(Palette.ink).lineLimit(1).minimumScaleFactor(0.7)
+                Text(kicker).font(AppFont.pageTitle).foregroundStyle(theme.classic.kicker).lineLimit(1).minimumScaleFactor(0.7)
                 if let number {
                     Text(number)
-                        .font(AppFont.num(64, .bold))
-                        .tracking(-2)
-                        .foregroundStyle(theme.number)
+                        .font(AppFont.num(54, .bold))
+                        .tracking(-1.5)
+                        .foregroundStyle(theme.classic.number)
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
+                        .padding(.top, Spacing.s6)
                 }
                 SegmentedText(caption)
-                    .font(AppFont.num(12, .bold))
-                    .foregroundStyle(Palette.ink)
-                    .padding(.top, number == nil ? Spacing.s10 : Spacing.s2)
+                    .font(AppFont.caption)
+                    .foregroundStyle(theme.classic.secondary)
+                    .padding(.top, number == nil ? Spacing.s10 : Spacing.s6)
             }
             .frame(maxWidth: 210, alignment: .leading)
             .padding(EdgeInsets(top: WindowChrome.Titlebar.hero.height + Spacing.s16, leading: Spacing.screen, bottom: 0, trailing: 0))
@@ -150,18 +152,19 @@ private struct UpdateHero: View {
         }
         .frame(height: Self.height)
         .frame(maxWidth: .infinity)
-        .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 32, bottomTrailingRadius: 32))
+        .clipped()
+        .overlay(alignment: .bottom) { Palette.line.frame(height: 1) }
     }
 }
 
-/// 更新内容卡片：浅底、圆角 16，「更新内容」小标题，每条前面一个橙色圆点；没有内容时不显示。
+/// 更新内容卡片：白底、line 描边、圆角 10，「更新内容」11/600 muted 小标题，每条前面一个 accent 圆点；没有内容时不显示。
 private struct UpdateNotesCard: View {
     let notes: [String]
 
     var body: some View {
         if !notes.isEmpty {
             VStack(alignment: .leading, spacing: Spacing.s10) {
-                Text("更新内容").font(AppFont.ui(12, .bold)).foregroundStyle(Palette.muted)
+                Text("更新内容").font(AppFont.ui(11, .semibold)).foregroundStyle(Palette.muted)
                 ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
                     HStack(alignment: .firstTextBaseline, spacing: Spacing.s10) {
                         Circle().fill(Palette.accent).frame(width: 6, height: 6).alignmentGuide(.firstTextBaseline) { $0[.bottom] + 3 }
@@ -171,12 +174,13 @@ private struct UpdateNotesCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(Spacing.s14)
-            .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r16))
+            .background(Palette.card, in: RoundedRectangle(cornerRadius: Radius.r10))
+            .overlay(RoundedRectangle(cornerRadius: Radius.r10).strokeBorder(Palette.line))
         }
     }
 }
 
-/// 下载进度：20 格小方块，已下完的墨色，正在下的那格橙色，其余浅底。
+/// 下载进度：20 格小方块 (高 10、圆角 3，同首页进度格)，已下完的 money，正在下的那格 accent，其余 line 底。
 private struct UpdateProgressBlocks: View {
     let ratio: Double
 
@@ -184,11 +188,11 @@ private struct UpdateProgressBlocks: View {
 
     var body: some View {
         let filled = Int(ratio * Double(Self.count))
-        HStack(spacing: Spacing.s4) {
+        HStack(spacing: Spacing.s3) {
             ForEach(0..<Self.count, id: \.self) { index in
-                RoundedRectangle(cornerRadius: Radius.r4)
-                    .fill(index < filled ? Palette.ink : index == filled ? Palette.accent : Palette.surface)
-                    .frame(height: 16)
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(index < filled ? Palette.money : index == filled ? Palette.accent : Palette.line)
+                    .frame(height: 10)
             }
         }
         .accessibilityElement()

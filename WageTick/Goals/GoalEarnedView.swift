@@ -1,7 +1,7 @@
 import SwiftUI
 import WageCore
 
-/// 已到手 (大胆版设计稿「目标-已到手」)：从目标页底部「已到手 N」进入，返回胶囊回到目标页。
+/// 已到手 (版面同大胆版设计稿「目标-已到手」，经典视觉)：从目标页底部「已到手 N」进入，头图左上的返回回到目标页。
 /// 绿色头图：「这些都是自己挣的」、已完成个数、总额与折合搬砖天数，撒钱小牛。
 /// 下面按达成年份分组 (年份大字 + 小计)，左边一条时间线 (最近一件实心绿点，其余空心)；
 /// 每行名称、「10月28日 到手」，右边金额与「≈ 搬砖 1.9 天」。已完成冻结只能删 (AC-GOAL-10)，删除在悬停按钮或右键菜单里。
@@ -55,7 +55,7 @@ struct GoalEarnedView: View {
             ForEach(list.completedYears) { year in
                 VStack(alignment: .leading, spacing: Spacing.s4) {
                     HStack(alignment: .firstTextBaseline) {
-                        Text(String(year.year)).font(AppFont.num(20, .bold)).foregroundStyle(Palette.ink)
+                        Text(String(year.year)).font(AppFont.numStat).foregroundStyle(Palette.ink)
                         Spacer()
                         Text(BoldNumber.groupedAll(year.summary)).font(AppFont.num(11)).foregroundStyle(Palette.muted)
                     }
@@ -96,12 +96,12 @@ private struct EarnedGoalRow: View {
             // 两行各自按基线对齐：名称与金额一行、到手日期与折合天数一行；删除按钮悬停时贴在金额左边。
             VStack(spacing: Spacing.s4) {
                 HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
-                    Text(row.name).font(AppFont.ui(14, .bold)).foregroundStyle(Palette.ink)
+                    Text(row.name).font(AppFont.section).foregroundStyle(Palette.ink)
                     Spacer(minLength: Spacing.s4)
                     if hovering {
                         IconButton(systemName: "trash", help: "删除", action: delete).iconOnTextBaseline(14)
                     }
-                    Text(BoldNumber.grouped(row.amountText)).font(AppFont.num(15, .bold)).foregroundStyle(Palette.ink).fixedSize()
+                    Text(BoldNumber.grouped(row.amountText)).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.ink).fixedSize()
                 }
                 HStack(alignment: .firstTextBaseline) {
                     Text(row.receivedText).font(AppFont.small).foregroundStyle(Palette.muted)

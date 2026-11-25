@@ -213,28 +213,29 @@ struct PanelStatsRow: View {
     }
 }
 
-/// 大胆版进度格 (设计稿「大胆风格」)：左上说明 13/700，右上大字 (Archivo Black 22，白干用红色、平时橙色)；
-/// 下面一排圆角小格，每格 1 小时，已过的墨色 (白干填红)，当前这一小时填一部分；下班后白干在末尾多一格红色超时。
-/// 文字与格数原样取自快照的 `HourBlocks`。
+/// 进度格 (经典视觉)：左上说明 13/500 墨色，右上百分比 JetBrains Mono 13/600 (白干 loss、平时 money)；
+/// 下面一排高 10、圆角 3 的小格，每格 1 小时，line 底、已过的填 money (白干填 loss)，当前这一小时填一部分；
+/// 下班后白干在末尾多一格 loss 色超时。下方计划上班、饭点、下班时刻 11 muted。文字与格数原样取自快照的 `HourBlocks`。
 struct HourBlocksView: View {
     let blocks: HourBlocks
 
-    private static let height: CGFloat = 18
+    private static let height: CGFloat = 10
+    private static let radius: CGFloat = 3
 
     var body: some View {
-        VStack(spacing: Spacing.s6) {
+        VStack(spacing: Spacing.s10) {
             HStack(alignment: .lastTextBaseline) {
-                Text(blocks.label).font(AppFont.ui(13, .bold)).foregroundStyle(Palette.ink)
+                Text(blocks.label).font(AppFont.bodyMedium).foregroundStyle(Palette.ink)
                 Spacer()
-                Text(blocks.value).font(AppFont.num(22, .bold)).foregroundStyle(blocks.isUnpaid ? Palette.loss : Palette.accent)
+                Text(blocks.value).font(AppFont.num(13, .semibold)).foregroundStyle(blocks.isUnpaid ? Palette.loss : Palette.money)
             }
             // 休息日按本月上班日排二十来格，格子窄，间隔也收一点。
-            HStack(spacing: blocks.count > 12 ? Spacing.s3 : Spacing.s4) {
+            HStack(spacing: blocks.count > 12 ? Spacing.s2 : Spacing.s3) {
                 ForEach(0..<blocks.count, id: \.self) { index in
                     cell(fill: min(max(blocks.filled - Double(index), 0), 1))
                 }
                 if blocks.overtime {
-                    RoundedRectangle(cornerRadius: Radius.r5).fill(Palette.loss)
+                    RoundedRectangle(cornerRadius: Self.radius).fill(Palette.loss)
                 }
             }
             .frame(height: Self.height)
@@ -246,7 +247,7 @@ struct HourBlocksView: View {
                     Spacer(minLength: Spacing.s4)
                     Text(blocks.endText ?? "")
                 }
-                .font(AppFont.num(10))
+                .font(AppFont.numSmall)
                 .foregroundStyle(Palette.muted)
                 .lineLimit(1)
             }
@@ -255,63 +256,57 @@ struct HourBlocksView: View {
 
     /// 一格：`fill` 为这格填了多少 (0 至 1)。
     private func cell(fill: Double) -> some View {
-        // 休息日被迫营业的格子填白干的红；下班后白干的工时格仍是墨色，超时那格才是红的。
-        let color = blocks.isUnpaid && !blocks.overtime ? Palette.loss : Palette.ink
-        return RoundedRectangle(cornerRadius: Radius.r5)
-            .fill(Palette.surface)
+        // 休息日被迫营业的格子填白干的 loss；下班后白干的工时格仍是 money，超时那格才是 loss。
+        let color = blocks.isUnpaid && !blocks.overtime ? Palette.loss : Palette.money
+        return RoundedRectangle(cornerRadius: Self.radius)
+            .fill(Palette.line)
             .overlay(alignment: .leading) {
                 GeometryReader { geometry in
                     Rectangle().fill(color).frame(width: geometry.size.width * fill)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: Radius.r5))
+            .clipShape(RoundedRectangle(cornerRadius: Self.radius))
     }
 }
 
-/// 大胆版统计行 (设计稿「大胆风格」)：各项平分宽度、居中，项与项之间一条细竖线，没有上下分隔线。
-/// 数值：金额与数字用 Archivo Black 18；「11 天」拆成大数字 + 小单位；纯中文 (如「明天休息」) 用圆润的站酷快乐体。
-/// 扣款 (以「−」开头) 用 loss 色，本月累计用 money 色，高亮项 (距离周末) 用 accent。标题 11 muted。
+/// 首页统计行 (经典视觉，同 `PanelStatsRow`)：上下各一条通栏分隔线，内边距 16；各项平分宽度、左对齐，
+/// 项与项之间一条 1×34 的竖线，竖线后的项左边空 14。标题 11 muted 在上，数值 JetBrains Mono 17/600 在下
+/// (`StatStyle`：扣款 loss、醒目项 accent、纯中文用界面字体)。
+/// 放在左右已留 20 边距的容器里，分隔线向两侧伸出 20 铺满面板宽度。
 struct BoldStatsRow: View {
     let stats: [StatItem]
 
+    private static let dividerHeight: CGFloat = 34
+    private static let cellLeading: CGFloat = 14
+
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(stats.enumerated()), id: \.offset) { index, item in
-                if index > 0 {
-                    Rectangle().fill(Palette.line).frame(width: 1, height: 34)
+        VStack(spacing: 0) {
+            PanelDivider()
+            HStack(spacing: 0) {
+                ForEach(Array(stats.enumerated()), id: \.offset) { index, item in
+                    if index > 0 {
+                        Rectangle().fill(Palette.line).frame(width: 1, height: Self.dividerHeight)
+                    }
+                    cell(item)
+                        .padding(.leading, index > 0 ? Self.cellLeading : 0)
                 }
-                VStack(spacing: Spacing.s4) {
-                    value(item)
-                        .foregroundStyle(color(item))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                    Text(item.title).font(AppFont.small).foregroundStyle(Palette.muted)
-                }
-                .padding(.horizontal, Spacing.s8)
-                .frame(maxWidth: .infinity)
             }
+            .padding(.horizontal, Spacing.screen)
+            .padding(.vertical, Spacing.s16)
+            PanelDivider()
         }
+        .padding(.horizontal, -Spacing.screen)
     }
 
-    @ViewBuilder
-    private func value(_ item: StatItem) -> some View {
-        let parts = item.value.split(separator: " ", maxSplits: 1).map(String.init)
-        if parts.count == 2, parts[0].allSatisfy(\.isNumber) {
-            HStack(alignment: .lastTextBaseline, spacing: Spacing.s3) {
-                Text(parts[0]).font(AppFont.num(18, .bold))
-                Text(parts[1]).font(AppFont.ui(12, .bold))
-            }
-        } else if item.value.unicodeScalars.contains(where: { (0x4E00...0x9FFF).contains($0.value) }) {
-            Text(item.value).font(AppFont.ui(18, .semibold))
-        } else {
-            Text(item.value).font(AppFont.num(18, .bold))
+    private func cell(_ item: StatItem) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s4) {
+            Text(item.title).font(AppFont.small).foregroundStyle(Palette.muted)
+            Text(item.value)
+                .font(StatStyle.font(item.value, numSize: 17))
+                .foregroundStyle(StatStyle.color(item.value, isHighlighted: item.isHighlighted))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
-    }
-
-    private func color(_ item: StatItem) -> Color {
-        if item.value.hasPrefix("−") { return Palette.loss }
-        if item.isHighlighted { return Palette.accent }
-        if item.title == "本月累计" { return Palette.money }
-        return Palette.ink
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

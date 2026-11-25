@@ -1,7 +1,7 @@
 import SwiftUI
 import WageCore
 
-/// 设置页 (PRD F12，大胆版设计稿「设置」)：橙色头图「你现在的身价」，大数字是本月工资，下面一行「月薪 · 双休 · 10:00–18:00」，
+/// 设置页 (PRD F12，版面同大胆版设计稿「设置」，经典视觉)：头图「你现在的身价」，大数字是本月工资，下面一行「月薪 · 双休 · 10:00–18:00」，
 /// 小牛端着咖啡说「该涨了」；往下滑头图收成窄栏。头图下面按组排成墨色细描边的圆角卡片：
 /// 钱与作息 (本月工资、发薪日、休息模式、作息，点开弹表单改)，菜单栏 (显示模式三选一、桌面悬浮小牛、隐藏 Dock 图标)，
 /// 通知与启动 (下班通知、目标达成通知、开机自启)，系统拒绝通知时的提示条，更新 (版本、自动更新、接收尝鲜版、检查更新)，数据 (清空数据并重启)。
@@ -31,7 +31,7 @@ struct SettingsView: View {
         }
         .frame(width: Spacing.pageWidth)
         .background(Palette.bg)
-        // 清空前的二次确认用大胆版弹窗，盖住整个窗口 (含头图)。
+        // 清空前的二次确认用 `BoldAlert` 弹窗，盖住整个窗口 (含头图)。
         .boldConfirm(
             "清空全部数据？", isPresented: $confirmingReset,
             message: "月薪、作息、扣钱、请假、白干和目标都会清掉，App 重启后从引导开始。上一份数据会留一份备份。",
@@ -168,7 +168,7 @@ struct SettingsView: View {
 
     // MARK: 数据
 
-    /// 清空数据并重启：先弹确认，确认后重启回到引导 (测试流程用)。浅底红字的胶囊。
+    /// 清空数据并重启：先弹确认，确认后重启回到引导 (测试流程用)。surface 底 loss 字的危险按钮。
     private var dataSection: some View {
         SettingsGroup("数据") {
             Button(role: .destructive) { confirmingReset = true } label: {

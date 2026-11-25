@@ -1,8 +1,8 @@
 import SwiftUI
 import WageCore
 
-/// 新建目标，或编辑排队中、累计中目标的名称和金额 (PRD 4.5.2，大胆版设计稿「弹窗-新目标」)，在目标页里从右边推进来，返回胶囊回到攒钱队列。
-/// 橙色头图：标题「又想要啥了」(编辑时「编辑目标」)、头图里大号金额输入 (黄色光标)、「加到队尾，排第 N 个」(编辑时「现在排第 N 个」)、握拳小牛。
+/// 新建目标，或编辑排队中、累计中目标的名称和金额 (PRD 4.5.2，版面同大胆版设计稿「弹窗-新目标」，经典视觉)，在目标页里从右边推进来，头图左上的返回回到攒钱队列。
+/// 头图：标题「又想要啥了」(编辑时「编辑目标」)、头图里大号金额输入、「加到队尾，排第 N 个」(编辑时「现在排第 N 个」)、握拳小牛。
 /// 下面只有名称输入框 (带字数) 与一行说明；底部「算了」+「加进队列」(编辑时「保存」)。
 /// 编辑时初始值取自快照攒钱队列里的那一行 (`QueueGoalRow`)；校验交给核心，失败时展示 `CommandError.message`。
 /// 改小金额导致已达标时核心会立即完成并激活下一个，这里不做判断。
@@ -75,20 +75,18 @@ struct GoalFormView: View {
         }
     }
 
-    /// 头图里的金额 (规格同引导第 1 步，见 `HeroNumberInput`)：墨色 ¥ + 白色大号数字，没填时是半透明的「0」；字号固定，最多 6 位整数。
+    /// 头图里的金额 (规格同引导第 1 步，见 `HeroNumberInput`)：¥ + 墨色大号数字，没填时是淡色的「0」；字号固定，最多 6 位整数。
     private var amountInput: some View {
         HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
-            Text("¥").font(AppFont.num(HeroNumberInput.affixSize, .bold)).foregroundStyle(Palette.ink)
+            Text("¥").font(AppFont.num(HeroNumberInput.affixSize, .semibold)).foregroundStyle(Palette.ink)
             TextField("金额", text: $amountText, prompt: Text(""))
                 .textFieldStyle(.plain)
-                // 光标白色：SwiftUI 刷新时会按 tint 重设光标颜色，只改字段编辑器会被盖掉。
-                .tint(.white)
                 .font(AppFont.num(HeroNumberInput.size, .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Palette.ink)
                 .background(alignment: .leading) {
-                    // 系统占位文字的颜色改不了 (在橙色底上发灰)，自己画一个半透明白的「0」。
+                    // 系统占位文字的颜色在 macOS 上改不了，自己画一个淡色的「0」。
                     if amountText.isEmpty {
-                        Text("0").font(AppFont.num(HeroNumberInput.size, .bold)).foregroundStyle(.white.opacity(0.4)).allowsHitTesting(false)
+                        Text("0").font(AppFont.num(HeroNumberInput.size, .bold)).foregroundStyle(Palette.muted.opacity(0.45)).allowsHitTesting(false)
                     }
                 }
                 .focused($focus, equals: .amount)
@@ -100,15 +98,17 @@ struct GoalFormView: View {
         .padding(.top, HeroNumberInput.caretClearance)
     }
 
-    /// 名称输入框 (高 50、圆角 14、2pt 墨色描边、surface 底，右边字数) 与一行说明；校验失败的提示接在说明下面。
+    /// 名称输入框 (同经典 Field：高 44、白底、圆角 8、line 描边，聚焦时 accent 描边，右边字数) 与一行说明；
+    /// 标签 12/500 muted。校验失败的提示接在说明下面。
     private var fields: some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.r14)
+        let shape = RoundedRectangle(cornerRadius: Radius.control)
+        let focused = focus == .name
         return VStack(alignment: .leading, spacing: Spacing.s8) {
-            Text("想要啥").font(AppFont.ui(12, .bold)).foregroundStyle(Palette.ink)
+            Text("想要啥").font(AppFont.label).foregroundStyle(Palette.muted)
             HStack(spacing: Spacing.s8) {
                 TextField("名称", text: $name, prompt: Text("如 Switch 2").foregroundStyle(Palette.muted))
                     .textFieldStyle(.plain)
-                    .font(AppFont.ui(15, .semibold))
+                    .font(AppFont.fieldText)
                     .foregroundStyle(Palette.ink)
                     .focused($focus, equals: .name)
                     .onSubmit(submit)
@@ -116,10 +116,10 @@ struct GoalFormView: View {
                     .font(AppFont.num(11))
                     .foregroundStyle(name.count > Validation.goalNameLimit ? Palette.loss : Palette.muted)
             }
-            .padding(.horizontal, Spacing.s14)
-            .frame(height: 50)
-            .background(Palette.surface, in: shape)
-            .overlay(shape.strokeBorder(Palette.ink, lineWidth: 2))
+            .padding(.horizontal, Spacing.s12)
+            .frame(height: 44)
+            .background(Palette.card, in: shape)
+            .overlay(shape.strokeBorder(focused ? Palette.accent : Palette.line, lineWidth: focused ? 1.5 : 1))
             .padding(.bottom, Spacing.s8)
             Text("之后可以改名字和金额。改小了刚好攒够的话，会直接算达成，换下一个。")
                 .font(AppFont.caption)

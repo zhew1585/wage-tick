@@ -1,7 +1,7 @@
 import SwiftUI
 import WageCore
 
-/// 补记或修改一段白干 (PRD 4.4.3 #5、F11)，与改工资表单同一套大胆版样式 (站酷体标题、底部胶囊按钮)：这一天的开始时刻，结束时刻可以落在次日 (跨过零点)。
+/// 补记或修改一段白干 (PRD 4.4.3 #5、F11)，与改工资表单同一套样式 (17/700 标题、底部圆角按钮)：这一天的开始时刻，结束时刻可以落在次日 (跨过零点)。
 /// 结束日期的选项、校验与提示都来自核心；只有当天一个选项时不显示结束日期。
 struct UnpaidWorkFormView: View {
     /// 新补记 (带预填时段) 还是修改第 `index` 段。
@@ -180,7 +180,7 @@ struct SalaryFormView: View {
     }
 }
 
-/// 历史里小表单 (补记白干、改工资) 的标题：站酷体 20 号墨色。
+/// 历史里小表单 (补记白干、改工资) 的标题：17/700 墨色。
 private struct HistoryFormTitle: View {
     let text: String
 
@@ -189,11 +189,11 @@ private struct HistoryFormTitle: View {
     }
 
     var body: some View {
-        Text(text).font(AppFont.ui(20, .bold)).foregroundStyle(Palette.ink)
+        Text(text).font(AppFont.pageTitle).foregroundStyle(Palette.ink)
     }
 }
 
-/// 历史里小表单底部的两颗胶囊按钮：「算了」墨色描边 (Esc)，「保存」墨色实心 (回车)，各占一半。
+/// 历史里小表单底部的两个按钮：「算了」次按钮 surface 底 (Esc)，「保存」主按钮墨底 (回车)，各占一半。
 private struct HistoryFormButtons: View {
     let cancel: () -> Void
     let save: () -> Void

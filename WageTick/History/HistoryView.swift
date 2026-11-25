@@ -1,8 +1,8 @@
 import SwiftUI
 import WageCore
 
-/// 历史 (PRD F10、F11)：月列表 → 月日历 → 单日详情，三级页面 (设计稿「历史-月列表」「历史-月日历」「历史-单日详情」大胆版)。
-/// 三页都是墨色「账本」头图 (`HeroTheme.ledger`)，下一级从右边推进来，头图标题栏的返回胶囊逐级退回，月列表的返回退回概览。
+/// 历史 (PRD F10、F11)：月列表 → 月日历 → 单日详情，三级页面 (版面同大胆版设计稿「历史-月列表」「历史-月日历」「历史-单日详情」，经典视觉)。
+/// 三页都用「账本」头图主题 (`HeroTheme.ledger`，App 里画成经典米白头图)，下一级从右边推进来，头图标题栏的返回逐级退回，月列表的返回退回概览。
 /// 日历里可改该月月薪，单日详情里可编辑那一天。所有文字取自快照，这里只管排版、导航与发命令。
 struct HistoryView: View {
     let content: HistoryContent
@@ -93,25 +93,27 @@ private struct MonthListView: View {
     }
 }
 
-/// 月列表里的一个月：月份大字 (Archivo Black) 与标签，右边结算总额 (本月橙色) 与箭头；
-/// 下面一条细横条是这个月挣到满额工资的多少 (本月橙、其余墨色)，再下面一行小字 (应出勤、扣款、请假、白干)。
+/// 月列表里的一个月：月份 (JetBrains Mono 17/600) 与标签，右边结算总额 (17/600，本月 accent) 与箭头；
+/// 下面一条细横条是这个月挣到满额工资的多少 (本月 accent、其余 money)，再下面一行小字 (应出勤、扣款、请假、白干)。
 private struct MonthRow: View {
     let summary: HistoryMonthSummary
 
     private var tone: Color { summary.isCurrentMonth ? Palette.accent : Palette.ink }
+    /// 满额进度条的颜色：本月 accent，其余 money。
+    private var barTone: Color { summary.isCurrentMonth ? Palette.accent : Palette.money }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s8) {
             HStack(alignment: .center, spacing: Spacing.s10) {
-                Text(summary.shortTitle).font(AppFont.num(21, .bold)).foregroundStyle(Palette.ink).lineLimit(1)
+                Text(summary.shortTitle).font(AppFont.numStat).foregroundStyle(Palette.ink).lineLimit(1)
                 if let badge = summary.badge {
                     MonthBadge(text: badge, isCurrent: summary.isCurrentMonth)
                 }
                 Spacer(minLength: Spacing.s8)
-                Text(BoldNumber.grouped(summary.total)).font(AppFont.num(17, .bold)).foregroundStyle(tone).lineLimit(1).fixedSize()
+                Text(BoldNumber.grouped(summary.total)).font(AppFont.numStat).foregroundStyle(tone).lineLimit(1).fixedSize()
                 PhosphorIcon(.caretRight, size: 13).foregroundStyle(Palette.muted)
             }
-            ProgressLine(progress: summary.progress, color: tone)
+            ProgressLine(progress: summary.progress, color: barTone)
             Text(summary.figuresLine)
                 .font(AppFont.num(11))
                 .foregroundStyle(Palette.muted)
@@ -124,22 +126,22 @@ private struct MonthRow: View {
     }
 }
 
-/// 月份旁的标签 (10/700)：本月高亮黄底墨字，安装当月 surface 底 muted 字。
+/// 月份旁的标签 (10/600)：本月 accent-soft 底 accent 字，安装当月 surface 底 muted 字。
 private struct MonthBadge: View {
     let text: String
     let isCurrent: Bool
 
     var body: some View {
         Text(text)
-            .font(AppFont.ui(10, .bold))
-            .foregroundStyle(isCurrent ? Palette.ink : Palette.muted)
+            .font(AppFont.ui(10, .semibold))
+            .foregroundStyle(isCurrent ? Palette.accent : Palette.muted)
             .padding(.horizontal, Spacing.s6 + 1)
             .padding(.vertical, Spacing.s2)
-            .background(isCurrent ? Palette.highlight : Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r6))
+            .background(isCurrent ? Palette.accentSoft : Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r4))
     }
 }
 
-/// 细横条：surface 底，前面 `progress` 那一截上色，圆头。
+/// 细横条：line 底，前面 `progress` 那一截上色，圆头，高 6。
 private struct ProgressLine: View {
     let progress: Double
     let color: Color
@@ -147,7 +149,7 @@ private struct ProgressLine: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                Capsule().fill(Palette.surface)
+                Capsule().fill(Palette.line)
                 Capsule().fill(color).frame(width: geometry.size.width * progress)
             }
         }

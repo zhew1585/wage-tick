@@ -107,7 +107,7 @@ struct MonthCalendarView: View {
     }
 }
 
-/// 日历里的一天 (43 高、圆角 10)：日号 Archivo Black 14，下面一行小字：请假、单日覆盖写 `HistoryDay.tag`，
+/// 日历里的一天 (43 高、圆角 10)：日号 JetBrains Mono 14/600，下面一行小字：请假、单日覆盖写 `HistoryDay.tag`，
 /// 否则已过的应出勤日和今天写当天金额 (`HistoryDay.amountText`)。
 /// 悬停时描一圈 1.5 的边，按下再叠一层底；手型光标。
 private struct DayCell: View {
@@ -121,7 +121,7 @@ private struct DayCell: View {
         let shape = RoundedRectangle(cornerRadius: Radius.r10)
         VStack(spacing: 0) {
             Text(day.dayText)
-                .font(AppFont.num(14, .bold))
+                .font(AppFont.num(14, .semibold))
                 .foregroundStyle(style.text)
             if let note = day.tag ?? day.amountText {
                 Text(note)
@@ -152,17 +152,17 @@ private extension EnvironmentValues {
     @Entry var dayCellInteraction = InteractionState()
 }
 
-/// 日历格子按颜色类型的样子 (设计稿「历史-月日历」)，颜色只用墨色、高亮黄与头图橙：
-/// - 满勤墨色底白字白金额，被扣钱墨色底白字、金额用扣钱的红；请假高亮黄底墨字
-/// - 未到 (未来的应出勤日) surface 浅底墨字；休息日无底 muted 字；改成不上班无底 muted 字、muted 虚线框
-/// - 今天 bg 底、橙色 2pt 描边、金额橙色，盖过当天的颜色类型
+/// 日历格子按颜色类型的样子 (经典视觉，同 nightly.20261112.15 的月日历)：
+/// - 满勤 money-soft 底 money 字，被扣钱 loss-soft 底 loss 字，请假 accent-soft 底 accent 字
+/// - 未到 (未来的应出勤日) 白底 line 描边墨字；休息日无底 muted 字；改成不上班无底 muted 字、muted 虚线框
+/// - 今天 bg 底、accent 2pt 描边、金额 accent，盖过当天的颜色类型
 private struct DayCellStyle {
     let fill: Color
     let stroke: (color: Color, style: StrokeStyle)?
     let text: Color
     /// 日号下面那行小字 (金额或标签) 的颜色。
     let note: Color
-    /// 悬停时的描边：墨色底的格子用橙色，其余用墨色。
+    /// 悬停时的描边：与日号同色；今天、未到、休息日用墨色。
     let hoverStroke: Color
 
     init(kind: CalendarDayKind, isToday: Bool) {
@@ -171,10 +171,10 @@ private struct DayCellStyle {
             return
         }
         (fill, stroke, text, note, hoverStroke) = switch kind {
-        case .fullAttendance: (Palette.ink, nil, .white, .white.opacity(0.85), Palette.accent)
-        case .deducted: (Palette.ink, nil, .white, Palette.lossDot, Palette.accent)
-        case .leave: (Palette.highlight, nil, Palette.ink, Palette.ink, Palette.ink)
-        case .upcoming: (Palette.surface, nil, Palette.ink, Palette.muted, Palette.ink)
+        case .fullAttendance: (Palette.moneySoft, nil, Palette.money, Palette.money, Palette.money)
+        case .deducted: (Palette.lossSoft, nil, Palette.loss, Palette.loss, Palette.loss)
+        case .leave: (Palette.accentSoft, nil, Palette.accent, Palette.accent, Palette.accent)
+        case .upcoming: (Palette.card, (Palette.line, StrokeStyle(lineWidth: 1)), Palette.ink, Palette.muted, Palette.ink)
         case .rest: (.clear, nil, Palette.muted.opacity(0.75), Palette.muted, Palette.ink)
         case .override: (.clear, (Palette.muted, StrokeStyle(lineWidth: 1, dash: [3, 2])), Palette.muted.opacity(0.75), Palette.muted, Palette.ink)
         }
@@ -190,11 +190,9 @@ private struct CalendarLegend: View {
     var body: some View {
         // 6 项时一行刚好放得下 (宽 328)，间距别再加大，否则撑宽整页。
         HStack(spacing: Spacing.s8) {
-            item(CalendarDayKind.fullAttendance.label) { shape.fill(Palette.ink) }
-            item(CalendarDayKind.deducted.label) {
-                shape.fill(Palette.ink).overlay(shape.strokeBorder(Palette.lossDot, lineWidth: 1.5))
-            }
-            item(CalendarDayKind.leave.label) { shape.fill(Palette.highlight) }
+            item(CalendarDayKind.fullAttendance.label) { shape.fill(Palette.moneySoft) }
+            item(CalendarDayKind.deducted.label) { shape.fill(Palette.lossSoft) }
+            item(CalendarDayKind.leave.label) { shape.fill(Palette.accentSoft) }
             item(CalendarDayKind.todayLabel) { shape.strokeBorder(Palette.accent, lineWidth: 1.5) }
             item(CalendarDayKind.rest.label) { shape.strokeBorder(Palette.line, lineWidth: 1.5) }
             if showsOverride {

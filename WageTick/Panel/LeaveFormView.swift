@@ -2,7 +2,7 @@ import SwiftUI
 import WageCore
 
 /// 请假表单 (PRD F6，设计稿「弹窗-请假」)，从今日概览面板 (今天) 或历史单日详情 (那一天，#15) 打开：
-/// 黄色头图里是请掉的时长 (大数字「2 小时」) 与「时段 · 扣多少」，晒太阳的小牛；
+/// 头图里是请掉的时长 (大数字「2 小时」) 与「时段 · 扣多少」，晒太阳的小牛；
 /// 下面「请哪段」时间条 (拖两头的把手选时段，下面快捷的全天、前半天、后半天)、「扣多少」一行 (扣日薪的百分比可改，右边试算出的金额) 与说明；
 /// 底部「算了」与「请假 −¥285.70」，修改时多一个「撤销请假」。
 /// 金额与校验提示都来自核心：每次改动都把待保存的命令交给 `PanelActions.dryRun` 试算；时间条的吸附与时段文字问 `LeaveBar`。
@@ -96,11 +96,11 @@ struct LeaveFormView: View {
         .onChange(of: range) { errorMessage = nil }
     }
 
-    /// 「扣日薪的 28.57%」一行 (surface 底、圆角 14、高 48)：比例可改 (Archivo Black 20)，右边试算出的「−¥285.70」loss 色；
-    /// 获得焦点时墨色描边。
+    /// 「扣日薪的 28.57%」一行 (同经典 Field：白底、圆角 8、line 描边、高 48)：比例可改 (JetBrains Mono 20/600)，
+    /// 右边试算出的「−¥285.70」loss 色 17/600；获得焦点时 accent 描边。
     private func percentRow(_ deduction: String?) -> some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.r14)
-        let font = AppFont.num(20, .bold)
+        let shape = RoundedRectangle(cornerRadius: Radius.control)
+        let font = AppFont.num(20, .semibold)
         return HStack(alignment: .firstTextBaseline, spacing: Spacing.s2) {
             Text("扣日薪的").font(AppFont.ui(13)).foregroundStyle(Palette.muted).padding(.trailing, Spacing.s6)
             // 用一段隐藏的同字号文字撑出输入框宽度，让「%」贴在数字后面。
@@ -119,13 +119,13 @@ struct LeaveFormView: View {
             Text("%").font(font).foregroundStyle(Palette.ink)
             Spacer(minLength: Spacing.s8)
             if let deduction {
-                Text(deduction).font(AppFont.num(18, .bold)).foregroundStyle(Palette.loss)
+                Text(deduction).font(AppFont.numStat).foregroundStyle(Palette.loss)
             }
         }
         .padding(.horizontal, Spacing.s16)
         .frame(height: 48)
-        .background(Palette.surface, in: shape)
-        .overlay(shape.strokeBorder(percentFocused ? Palette.ink : .clear, lineWidth: 1.5))
+        .background(Palette.card, in: shape)
+        .overlay(shape.strokeBorder(percentFocused ? Palette.accent : Palette.line, lineWidth: percentFocused ? 1.5 : 1))
         .contentShape(shape)
         // 点框里任意处都聚焦到输入框，整框显示 I 型光标。
         .onTapGesture { percentFocused = true }

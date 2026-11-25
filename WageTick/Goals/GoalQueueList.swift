@@ -1,8 +1,8 @@
 import SwiftUI
 import WageCore
 
-/// 攒钱队列 (PRD F8，大胆版设计稿「目标-攒钱队列」)：第一个 (累计中) 是首页同款墨色大卡 (`BoldGoalCard`，右上「队列 1/N」)，
-/// 其余排队中的一个一张描边卡 (橙色大序号、名称与预计、金额、拖拽手柄)。整组按住任一张上下拖动排序【D6】，拖到第一个的松手即成为累计中。
+/// 攒钱队列 (PRD F8，版面同大胆版设计稿「目标-攒钱队列」，经典视觉)：第一个 (累计中) 是首页同款目标卡 (`BoldGoalCard`，右上「队列 1/N」)，
+/// 其余排队中的一个一张描边卡 (accent 序号、名称与预计、金额、拖拽手柄)。整组按住任一张上下拖动排序【D6】，拖到第一个的松手即成为累计中。
 /// 被拖的卡实时跟着鼠标，其余卡带动画让位，松手才把新顺序交给核心；拖动中每张卡保持原来的样子 (大卡还是大卡)，松手后按新顺序重画。
 /// 用列表内的拖动手势而不是系统拖放 (`onDrag`)：系统拖放要生成拖拽图、走跨 App 的拖放流程，起拖慢、跟手差。
 /// - 拖动距离在列表自己的坐标系 (`coordinateSpace`) 里量：在被拖的卡里量的话，卡一动坐标跟着动，会一抖一抖。
@@ -121,7 +121,7 @@ private enum QueueCardState {
     case othersDragging
 }
 
-/// 累计中目标的墨色大卡：首页同款 `BoldGoalCard`，右上写「队列 1/N」；悬停时右上换成编辑、删除按钮。光标是张开的手 (可拖动排序)。
+/// 累计中目标卡：首页同款 `BoldGoalCard`，右上写「队列 1/N」；悬停时右上换成编辑、删除按钮。光标是张开的手 (可拖动排序)。
 private struct AccumulatingGoalCard: View {
     let row: QueueGoalRow
     let total: Int
@@ -137,14 +137,14 @@ private struct AccumulatingGoalCard: View {
             .overlay(alignment: .topTrailing) {
                 if showsButtons {
                     HStack(spacing: Spacing.s10) {
-                        IconButton(systemName: "pencil", help: "编辑", color: .white.opacity(0.7), action: edit)
-                        IconButton(systemName: "trash", help: "删除", color: .white.opacity(0.7), action: delete)
+                        IconButton(systemName: "pencil", help: "编辑", action: edit)
+                        IconButton(systemName: "trash", help: "删除", action: delete)
                     }
                     .padding(.top, Spacing.s16)
                     .padding(.trailing, Spacing.s16)
                 }
             }
-            .shadow(color: state == .dragging ? Palette.ink.opacity(0.25) : .clear, radius: 10, y: 4)
+            .shadow(color: state == .dragging ? Palette.shadow : .clear, radius: 8, y: 3)
             .contentShape(Rectangle())
             .cursor(state == .dragging ? .closedHand : .openHand)
             .onHover { hovering = $0 }
@@ -156,7 +156,8 @@ private struct AccumulatingGoalCard: View {
     }
 }
 
-/// 排队中目标的描边卡 (高 58、圆角 16、墨色描边)：橙色大序号 (02、03…)、名称与「排队中 · 预计 11月26日」、金额、拖拽手柄。
+/// 排队中目标卡 (经典视觉：高 58、白底、圆角 10、line 描边)：accent 序号 (02、03… JetBrains Mono 17/600)、
+/// 名称 14/600 与「排队中 · 预计 11月26日」11 muted、金额 13/600、拖拽手柄。
 /// 悬停时金额前出现编辑、删除按钮；拖动时浮起一层投影。
 private struct QueuedGoalCardView: View {
     let row: QueueGoalRow
@@ -171,14 +172,14 @@ private struct QueuedGoalCardView: View {
     @State private var hovering = false
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.r16)
+        let shape = RoundedRectangle(cornerRadius: Radius.r10)
         HStack(spacing: Spacing.s10) {
             Text(String(format: "%02d", number))
-                .font(AppFont.num(22, .bold))
+                .font(AppFont.numStat)
                 .foregroundStyle(Palette.accent)
                 .frame(minWidth: 32, alignment: .leading)
             VStack(alignment: .leading, spacing: Spacing.s2) {
-                Text(row.name).font(AppFont.ui(14, .bold)).foregroundStyle(Palette.ink)
+                Text(row.name).font(AppFont.section).foregroundStyle(Palette.ink)
                 Text(row.estimate).font(AppFont.small).foregroundStyle(Palette.muted)
             }
             .lineLimit(1)
@@ -187,14 +188,14 @@ private struct QueuedGoalCardView: View {
                 IconButton(systemName: "pencil", help: "编辑", action: edit)
                 IconButton(systemName: "trash", help: "删除", action: delete)
             }
-            Text(BoldNumber.grouped(row.amountText)).font(AppFont.num(15, .bold)).foregroundStyle(Palette.ink).lineLimit(1).fixedSize()
+            Text(BoldNumber.grouped(row.amountText)).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.ink).lineLimit(1).fixedSize()
             PhosphorIcon(.GoalIcon.dotsSixVertical, size: 14).foregroundStyle(Palette.muted)
         }
         .padding(.leading, Spacing.s14)
         .padding(.trailing, Spacing.s12)
         .frame(height: Self.height)
-        .background(Palette.bg, in: shape)
-        .overlay(shape.strokeBorder(Palette.ink, lineWidth: 1))
+        .background(Palette.card, in: shape)
+        .overlay(shape.strokeBorder(Palette.line, lineWidth: 1))
         .shadow(color: state == .dragging ? Palette.shadow : .clear, radius: 8, y: 3)
         .contentShape(shape)
         .cursor(state == .dragging ? .closedHand : .openHand)

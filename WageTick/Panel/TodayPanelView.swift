@@ -64,7 +64,7 @@ struct TodayPanelView: View {
         }
     }
 
-    /// 概览 (设计稿「大胆风格」)：头图与进度格、统计行、攒钱队列一起放进滚动区，放不下时往下滑，头图收成窄栏钉在顶上；
+    /// 概览 (版面同大胆版设计稿，经典视觉)：头图与进度格、统计行、攒钱队列一起放进滚动区，放不下时往下滑，头图收成窄栏钉在顶上；
     /// 底部按钮与入口栏固定在窗口底部。
     private var home: some View {
         VStack(spacing: 0) {
@@ -135,7 +135,7 @@ struct TodayPanelView: View {
 
     // MARK: 情绪按钮
 
-    /// 底部按钮区 (设计稿「大胆风格」Actions)：固定在入口栏上方，胶囊按钮高 46、间距 10，内边距 4 / 20 / 12。
+    /// 底部按钮区：固定在入口栏上方，按钮高 44、圆角 8、间距 10，内边距 4 / 20 / 12。
     /// 没有按钮时整段不显示。今天已请假的描述与「修改」放在底部入口栏右侧 (`footerLeave`)，不占这里的高度。
     @ViewBuilder
     private func actionsSection(_ panel: TodayPanel) -> some View {
@@ -149,7 +149,7 @@ struct TodayPanelView: View {
         }
     }
 
-    /// 底部按钮 (设计稿「大胆风格」)：上班日为「今天扣钱了」+「请假」，已下班把请假换成「我还没走」，白干中换成「终于下班了」；
+    /// 底部按钮：上班日为「今天扣钱了」+「请假」，已下班把请假换成「我还没走」，白干中换成「终于下班了」；
     /// 休息日只有「被迫营业」，休息日白干中只有「终于下班了」。
     /// 「今天扣钱了」只在快照给出入口时出现 (AC-FINE-07)；请假入口与能否新请由核心决定 (PRD 4.3.5 #8)；
     /// 白干计时按钮 (F7) 的文案与可用与否取自快照。
@@ -173,7 +173,7 @@ struct TodayPanelView: View {
         return buttons
     }
 
-    /// 胶囊按钮：扣钱是描边，请假、我还没走、被迫营业是墨色实心，终于下班了是品牌橙实心。
+    /// 底部按钮 (`PillButtonStyle`)：扣钱是次按钮 (surface 底墨字)，请假、我还没走、被迫营业、终于下班了是主按钮 (墨底浅字)。
     @ViewBuilder
     private func moodButton(_ button: MoodButton) -> some View {
         switch button {

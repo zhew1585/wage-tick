@@ -1,9 +1,9 @@
 import SwiftUI
 import WageCore
 
-/// 2 步引导：工资 (含休息模式) → 作息 (含饭点) (PRD 4.1.1、F1；大胆版设计稿「引导-1工资」「引导-2作息」)。
+/// 2 步引导：工资 (含休息模式) → 作息 (含饭点) (PRD 4.1.1、F1；版面同大胆版设计稿「引导-1工资」「引导-2作息」，经典视觉)。
 /// 开机自启不再询问，按 PRD 4.7.2 的默认值 (开) 保存并注册登录项，之后在设置里改。
-/// 每步上面是橙色头图 (标题栏那行的胶囊写「1 / 2」「2 / 2」)，下面是这一步的选项，底部固定「上一步」与「下一步 / 开工」。
+/// 每步上面是米白头图 (标题栏那行写「1 / 2」「2 / 2」)，下面是这一步的选项，底部固定「上一步」与「下一步 / 开工」。
 /// 每一步点"下一步"时用核心的 `Validation` 校验，失败停留当前步并弹窗提示。
 struct OnboardingView: View {
     let model: AppModel
@@ -48,7 +48,7 @@ struct OnboardingView: View {
         .background(Palette.bg)
         // 窗口标题栏透明、内容铺满 (见 `OnboardingWindowController`)，不让出标题栏的安全区。
         .ignoresSafeArea()
-        // 校验失败的提醒用大胆版弹窗。
+        // 校验失败的提醒用 `BoldAlert` 弹窗。
         .boldAlert($alertMessage)
     }
 
@@ -79,7 +79,7 @@ struct OnboardingView: View {
         return snapshot.wageRates
     }
 
-    /// 底部按钮 (胶囊)：第 1 步只有墨色「下一步」；第 2 步左边描边「上一步」(108 宽)，右边墨色「开工」。
+    /// 底部按钮：第 1 步只有主按钮「下一步」；第 2 步左边次按钮「上一步」(108 宽)，右边主按钮「开工」。
     private var footer: some View {
         HStack(spacing: Spacing.s10) {
             if let previous = step.previous {

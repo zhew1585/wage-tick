@@ -79,7 +79,7 @@ struct ScheduleSettingSheet: View {
     }
 }
 
-/// 设置表单的共同样子：标题、输入、说明、错误提示，底部「取消」描边胶囊与「保存」墨色胶囊。
+/// 设置表单的共同样子：标题 17/700、输入、说明、错误提示，底部「取消」次按钮 (surface 底) 与「保存」主按钮 (墨底)。
 private struct SettingSheet<Content: View>: View {
     let title: String
     let footnote: String
@@ -90,7 +90,7 @@ private struct SettingSheet<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.s14) {
-            Text(title).font(AppFont.ui(22, .bold)).foregroundStyle(Palette.ink)
+            Text(title).font(AppFont.pageTitle).foregroundStyle(Palette.ink)
             content()
             Text(footnote).font(AppFont.caption).foregroundStyle(Palette.muted)
             if case .error(let text) = message {

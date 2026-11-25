@@ -1,8 +1,8 @@
 import SwiftUI
 import WageCore
 
-/// 请假表单的「请哪段」时间条 (设计稿「弹窗-请假」)：整条为这天的计划上下班 (surface 底、圆角 12、高 44)，
-/// 饭点一块 line 色并标「饭点」；请假段墨色、中间高亮黄「请假」，两头各一个黄色把手。
+/// 请假表单的「请哪段」时间条 (经典视觉)：整条为这天的计划上下班 (surface 底、圆角 8、高 44)，
+/// 饭点一块 line 色并标「饭点」；请假段 accent-soft 底、accent 描边，中间 accent「请假」，两头各一个 accent 把手。
 /// 下面几个时刻文字，再下面一排快捷：全天、前半天、后半天，和「自己拖」(时段不是快捷项时选中，只是标示)。
 /// 拖把手改开始、结束，拖墨色的一段整体平移；吸附与边界都交给核心的 `LeaveBar`，这里只把比例换成坐标。
 struct LeaveBarView: View {
@@ -12,7 +12,7 @@ struct LeaveBarView: View {
     @State private var moveOrigin: LeaveRange?
 
     private static let trackHeight: CGFloat = 44
-    /// 黄色把手 (画在请假段里面贴着两头) 与它的拖动区 (以端点为中心)。
+    /// 把手 (画在请假段里面贴着两头) 与它的拖动区 (以端点为中心)。
     private static let gripSize = CGSize(width: 5, height: 18)
     private static let gripInset: CGFloat = 5
     private static let handleHitWidth: CGFloat = 22
@@ -32,7 +32,7 @@ struct LeaveBarView: View {
 
     // MARK: 时间条
 
-    /// 从下往上：底色、请假段 (墨色与「请假」)、饭点块 (请假段盖住饭点时也看得见)、把手。
+    /// 从下往上：底色、请假段 (accent-soft 与「请假」)、饭点块 (请假段盖住饭点时也看得见)、把手。
     private func track(width: CGFloat) -> some View {
         let x = { (time: TimeOfDay) in bar.position(of: time) * width }
         let start = x(range.start)
@@ -40,10 +40,11 @@ struct LeaveBarView: View {
         let selected = max(end - start, 0)
         return ZStack(alignment: .topLeading) {
             Palette.surface
-            Palette.ink
+            Palette.accentSoft
                 .overlay {
+                    Rectangle().strokeBorder(Palette.accent, lineWidth: 1.5)
                     if selected >= 44 {
-                        Text("请假").font(AppFont.ui(13, .bold)).foregroundStyle(Palette.highlight).lineLimit(1)
+                        Text("请假").font(AppFont.bodySemibold).foregroundStyle(Palette.accent).lineLimit(1)
                     }
                 }
                 .frame(width: selected)
@@ -56,7 +57,7 @@ struct LeaveBarView: View {
             handle(.end, at: end, width: width)
         }
         .frame(width: width, height: Self.trackHeight, alignment: .topLeading)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.r12))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.control))
     }
 
     /// 饭点块 (line 色)，够宽时标「饭点」12；不接收点击，拖请假段时穿透过去。
@@ -76,11 +77,11 @@ struct LeaveBarView: View {
         }
     }
 
-    /// 把手：黄色小竖条贴在请假段里面，拖动区以端点为中心。
+    /// 把手：accent 小竖条贴在请假段里面，拖动区以端点为中心。
     private func handle(_ handle: LeaveBar.Handle, at x: CGFloat, width: CGFloat) -> some View {
         let gripOffset = handle == .start ? Self.gripInset : -Self.gripInset
         return Capsule()
-            .fill(Palette.highlight)
+            .fill(Palette.accent)
             .frame(width: Self.gripSize.width, height: Self.gripSize.height)
             .offset(x: gripOffset + (handle == .start ? Self.gripSize.width / 2 : -Self.gripSize.width / 2))
             .frame(width: Self.handleHitWidth, height: Self.trackHeight)

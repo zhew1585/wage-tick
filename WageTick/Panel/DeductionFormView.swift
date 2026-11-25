@@ -22,7 +22,7 @@ enum DeductionFormRequest: Identifiable, Equatable {
     }
 }
 
-/// 扣钱表单 (PRD F5，设计稿「弹窗-今天扣钱了」)：红色头图里是大号金额输入 (白色大字、黄色光标) 与今日上限的变化，
+/// 扣钱表单 (PRD F5，设计稿「弹窗-今天扣钱了」)：头图里是大号金额输入 (墨色大字、默认光标) 与今日上限的变化，
 /// 大哭的小牛；下面按金额 / 按日薪百分比、快捷金额 (只在按金额时)、为啥被扣的三个方块、备注；底部「算了」与「记下这笔 −¥50」。
 /// 预览与校验都来自核心：草稿交给 `dryRun` 试算，拿试算后快照里的扣钱入口与当前的对比。
 /// 今日概览面板记今天的，历史单日详情补记那一天的 (#15)。
@@ -117,31 +117,28 @@ struct DeductionFormView: View {
 
     // MARK: 头图
 
-    /// 头图里的大号金额输入 (规格同引导第 1 步，见 `HeroNumberInput`)：墨色「−¥」(按百分比时只有「−」、后面接「%」) + 白色 Archivo Black 数字。
+    /// 头图里的大号金额输入 (规格同引导第 1 步，见 `HeroNumberInput`)：loss 色「−¥」(按百分比时只有「−」、后面接「%」) + 墨色 JetBrains Mono 数字。
     /// 字号固定不缩放；按金额最多 5 位数字、按百分比最多 3 位，都可带两位小数。
     private var valueInput: some View {
         let shown = valueText.isEmpty ? "0" : valueText
         let font = AppFont.num(HeroNumberInput.size, .bold)
         return HStack(alignment: .lastTextBaseline, spacing: Spacing.s4) {
-            Text(method == .fixed ? "−¥" : "−").font(AppFont.num(HeroNumberInput.affixSize, .bold)).foregroundStyle(Palette.ink)
-            // 一段同字号文字撑出输入框宽度，让单位贴在数字后面；没填时它就是半透明的占位「0」
-            // (系统的占位色是半透明黑，压在红底上发脏)。
+            Text(method == .fixed ? "−¥" : "−").font(AppFont.num(HeroNumberInput.affixSize, .semibold)).foregroundStyle(Palette.loss)
+            // 一段同字号文字撑出输入框宽度，让单位贴在数字后面；没填时它就是淡色的占位「0」。
             Text(shown)
                 .font(font)
-                .foregroundStyle(.white.opacity(valueText.isEmpty ? 0.45 : 0))
+                .foregroundStyle(Palette.muted.opacity(valueText.isEmpty ? 0.45 : 0))
                 .padding(.trailing, Spacing.s6)
                 .overlay(alignment: .leading) {
                     TextField(method == .fixed ? "扣了多少" : "日薪的百分之几", text: $valueText, prompt: Text(""))
                         .textFieldStyle(.plain)
-                        // 光标白色：面板每秒刷新时 SwiftUI 会按 tint 重设光标颜色，只改字段编辑器会被盖掉。
-                        .tint(.white)
                         .font(font)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Palette.ink)
                         .focused($focus, equals: .value)
                         .onSubmit(save)
                 }
             if method == .percent {
-                Text("%").font(AppFont.num(HeroNumberInput.affixSize, .bold)).foregroundStyle(Palette.ink)
+                Text("%").font(AppFont.num(HeroNumberInput.affixSize, .semibold)).foregroundStyle(Palette.loss)
             }
         }
         .heroNumberLimit($valueText, maxDigits: method == .fixed ? 5 : 3, maxDecimals: 2)
@@ -170,7 +167,7 @@ struct DeductionFormView: View {
                     valueText = "\(value)"
                     focus = .value
                 }
-                .buttonStyle(BoldChoiceStyle(selected: valueText == "\(value)", font: AppFont.num(14, .bold)))
+                .buttonStyle(BoldChoiceStyle(selected: valueText == "\(value)", font: AppFont.num(13, .semibold)))
             }
         }
     }
@@ -201,9 +198,9 @@ struct DeductionFormView: View {
         }
     }
 
-    /// 备注框：surface 底、高 48、圆角 16，文字 14，右边字数 (超出上限的部分直接截掉)；聚焦时墨色描边。
+    /// 备注框 (同经典 Field)：白底、高 48、圆角 8、1pt line 描边，文字 14，右边字数 (超出上限的部分直接截掉)；聚焦时 accent 描边。
     private var noteField: some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.r16)
+        let shape = RoundedRectangle(cornerRadius: Radius.control)
         return FormGroup("备注") {
             HStack(spacing: Spacing.s8) {
                 TextField("备注", text: $note, prompt: Text("可不填").foregroundStyle(Palette.muted))
@@ -217,8 +214,8 @@ struct DeductionFormView: View {
             }
             .padding(.horizontal, Spacing.s16)
             .frame(height: Self.noteHeight)
-            .background(Palette.surface, in: shape)
-            .overlay(shape.strokeBorder(focus == .note ? Palette.ink : .clear, lineWidth: 1.5))
+            .background(Palette.card, in: shape)
+            .overlay(shape.strokeBorder(focus == .note ? Palette.accent : Palette.line, lineWidth: focus == .note ? 1.5 : 1))
             .contentShape(shape)
             // 点框里任意处都聚焦到备注。
             .onTapGesture { focus = .note }

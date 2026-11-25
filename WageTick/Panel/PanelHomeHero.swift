@@ -1,12 +1,12 @@
 import SwiftUI
 import WageCore
 
-/// 今日概览的头图 (设计稿「首页 · 大胆版」与各状态)：按小牛场景取主色与姿势，文字与数字原样取自快照。
-/// - 应出勤日：标题「今日已赚」(已下班「今日结算」)，大数字是今日已赚，小数位翻牌；干饭、请假、已下班时翻牌变灰不再跳。
+/// 今日概览的头图 (经典视觉，版面同大胆版)：按小牛场景取姿势，文字与数字原样取自快照。
+/// - 应出勤日：标题「今日已赚」(已下班「今日结算」)，大数字是今日已赚；干饭、请假、已下班时数字定住不再跳。
 ///   未上班时大数字换成距上班的倒计时 (标题「离开工还有」)。
-/// - 白干中：黑红头图，标题与大数字是已倒贴。
-/// - 休息日：黄色头图，大数字是距上班几天；发薪日赶上休息日整页变绿，大数字换成本月累计。
-/// 气泡：有倒计时的场景写倒计时 (如「距下班 3:00」)，其余写小牛今天的台词。上班日发薪只换小牛、撒彩纸，颜色不变。
+/// - 白干中：标题与大数字是已倒贴。
+/// - 休息日：大数字是距上班几天；发薪日赶上休息日，大数字换成本月累计。
+/// 气泡：有倒计时的场景写倒计时 (如「距下班 3:00」)，其余写小牛今天的台词。发薪日换小牛、撒彩纸。
 struct PanelHomeHero: View {
     let panel: TodayPanel
     let collapse: CGFloat
@@ -44,17 +44,14 @@ struct PanelHomeHero: View {
         }
     }
 
+    /// 日状态 (同经典面板顶部)：应出勤日 money，休息日 accent，白干计时中 loss。
     private var status: HeroStatus {
-        switch panel.body {
-        case .unpaidWork: HeroStatus(label: panel.statusLabel, dot: .white, fill: Palette.loss)
-        case .rest: HeroStatus(label: panel.statusLabel, dot: Palette.highlight)
-        case .attendance:
-            switch panel.cowScene {
-            case .offWork: HeroStatus(label: panel.statusLabel, dot: Color(hex: 0x8CE99A))
-            case .working, .paydaySoon, .payday: HeroStatus(label: panel.statusLabel, dot: Palette.money)
-            default: HeroStatus(label: panel.statusLabel, dot: Palette.highlight)
-            }
+        let color: Color = switch panel.body {
+        case .attendance: Palette.money
+        case .rest: Palette.accent
+        case .unpaidWork: Palette.loss
         }
+        return HeroStatus(label: panel.statusLabel, dot: color, fill: color)
     }
 
     /// 未上班、已下班、休息日、发薪当天写快照里的短台词 (三到五个字)，其余写倒计时 (如「距下班 3:00」)。

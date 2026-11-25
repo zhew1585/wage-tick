@@ -48,7 +48,7 @@ final class HistoryPage {
         content.selectedDay = nil
     }
 
-    /// 页面视图；月列表的返回胶囊调 `back` 退回概览。
+    /// 页面视图；月列表的返回调 `back` 退回概览。
     func view(back: @escaping () -> Void) -> some View {
         let actions = PanelActions(
             dryRun: { [model] command in model.dryRun(command) },
