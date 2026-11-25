@@ -3,7 +3,7 @@ import SwiftUI
 import WageCore
 
 /// 历史页当前的快照，由 `HistoryPage` 刷新，视图只读。
-/// 视图从它按需取月列表或某月日历：历史只在这个窗口打开时推导，不进菜单栏刷新的热路径。
+/// 视图从它按需取月列表或某月日历：历史只在这一页显示时推导，不进菜单栏刷新的热路径。
 @MainActor
 @Observable
 final class HistoryContent {

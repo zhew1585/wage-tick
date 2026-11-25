@@ -11,7 +11,7 @@ final class UpdateUserDriver: NSObject, SPUUserDriver {
 
     private let window = UpdateWindowController.shared
     private let currentVersion: String
-    /// 当前构建号，「已经是最新版」那屏写在版本号下面。
+    /// 当前构建号，「已经是最新版」那屏写在版本号后面的括号里，如「0.1.1 (42)」。
     private let currentBuild: String
     private var version = ""
     private var received: UInt64 = 0
