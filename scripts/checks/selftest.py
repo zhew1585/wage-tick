@@ -48,6 +48,7 @@ GEOMETRY_CASES = [
     ('标题比原版靠右 26pt (947880d，Allen 说偏右)', 'offscreen', 'offscreen-right-947880d', ['P3-goals'], 1, ['HDR-X']),
     ('页头排在红绿灯下面多出的一行 (73f794d，Allen 说偏下)', 'offscreen', 'offscreen-extra-row-73f794d', ['P3-goals'], 1, ['HDR-FRAME']),
     ('原版月日历页头', 'offscreen', 'offscreen-original-9c69fd3', ['P5-calendar'], 0, []),
+    ('离屏的弹出表单图：比窗口窄，表单标题的字不当红绿灯', 'offscreen', 'offscreen-sheets-023eb31', ['P6-settings-payday-sheet', 'P6-settings-rest-mode-sheet', 'P5-unpaid-work-form-overnight'], 0, []),
     ('箭头落在原版内容起点、离红绿灯 13pt 的首页页头 (d107b63)', 'offscreen', 'offscreen-d107b63', ['P3-goals', 'P4-history', 'P6-settings'], 0, []),
     ('同上，真窗口图 (d107b63)', 'realwindow', 'realwindow-d107b63', ['today', 'P3-goals', 'P4-history'], 0, []),
     ('真窗口图里箭头离红绿灯 6pt (84b2b71)', 'realwindow', 'realwindow-tight-84b2b71', ['P3-goals'], 1, ['HDR-LIGHTS-GAP']),
