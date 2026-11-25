@@ -2,7 +2,7 @@ import SwiftUI
 import WageCore
 
 /// 面板目标区「攒钱队列」(PRD F9，设计稿 P2 面板 · 上班中 · 攒钱队列改版 · 760)：文字和进度原样取自快照的 `GoalCard`、`GoalQueueSection`。
-/// 标题行「攒钱队列」+ 右侧目标总数；下面是累计中目标的卡片，再下面是排队中目标的紧凑列表 (与累计中合计最多 3 个)。
+/// 标题行「攒钱队列」+ 右侧目标总数；下面是累计中目标的卡片 (点一下进入目标页)，再下面是排队中目标的紧凑列表 (与累计中合计最多 3 个)。
 /// 队列为空时换成描边的空状态卡：旗子、「给自己定个目标吧」、一行小字和「新目标」按钮，按钮进入目标管理。
 /// 面板放不下时按 `density` 收紧：先少列排队中目标，空状态换成一行可点的提示。
 struct GoalCardView: View {
@@ -25,7 +25,9 @@ struct GoalCardView: View {
                 case .minimal: EmptyGoalRow(prompt: prompt, openGoals: openGoals)
                 }
             case .active(let goal):
-                ActiveGoalCardView(goal: goal)
+                // 点累计中目标的卡片进入目标页；悬停、按下时叠一层底 (同空状态卡)。
+                Button(action: openGoals) { ActiveGoalCardView(goal: goal).contentShape(Rectangle()) }
+                    .buttonStyle(.highlight(radius: Radius.card))
                 let upcoming = (queue?.upcoming ?? []).prefix(density.queuedLimit)
                 if !upcoming.isEmpty {
                     QueuedGoalList(goals: Array(upcoming))

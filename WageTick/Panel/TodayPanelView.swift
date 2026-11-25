@@ -28,13 +28,23 @@ struct TodayPanelView: View {
     let page: (PanelPage) -> AnyView
     /// 概览与原地的表单上面让出多少放红绿灯 (窗口里是标准标题栏的 28)；推进来的页面不让，页头自己和红绿灯排成一行。
     var titlebarInset: CGFloat = 0
+    /// 切换钉住；给了就在标题栏右侧画钉住按钮 (窗口里用)，预览不给。
+    var togglePin: (() -> Void)?
 
     /// 概览 (或原地打开的扣钱、请假表单) 在底下，历史、目标、设置从右边滑进来盖在上面 (`pushed`)。
     /// 有页面盖着时底下整个停用：点不到、Tab 聚焦不到、辅助功能读不到，按键只归上面的页面。
+    /// 钉住按钮跟概览在同一层，页面滑进滑出时被页面盖住、露出，不会叠在页头右侧的内容上。
     var body: some View {
         ZStack {
             base
                 .padding(.top, titlebarInset)
+                .overlay(alignment: .topTrailing) {
+                    if let togglePin {
+                        PinButton(content: content, toggle: togglePin)
+                            .frame(height: WindowChrome.Titlebar.tall.height)
+                            .padding(.trailing, Spacing.s12)
+                    }
+                }
                 .disabled(content.page != nil)
                 .accessibilityHidden(content.page != nil)
             if let current = content.page {
@@ -325,6 +335,24 @@ struct TodayPanelView: View {
     }
 
     private static let logger = Logger(subsystem: AppIdentity.bundleID, category: "TodayPanel")
+}
+
+/// 标题栏右侧的图钉：未钉住为空心 muted，钉住为实心 accent。跟概览、原地的表单在同一层，推进来的页面会盖住它。
+private struct PinButton: View {
+    let content: TodayPanelContent
+    let toggle: () -> Void
+
+    var body: some View {
+        Button(action: toggle) {
+            PhosphorIcon(content.isPinned ? .pushPinFill : .pushPin, size: 14)
+                .foregroundStyle(content.isPinned ? Palette.accent : Palette.muted)
+                .frame(width: 20, height: 20)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.highlight(radius: Radius.r4, outset: 2))
+        .help(content.isPinned ? "取消钉住" : "钉住：窗口始终在最前")
+        .accessibilityLabel(content.isPinned ? "取消钉住" : "钉住")
+    }
 }
 
 /// 情绪按钮行里的一个按钮。

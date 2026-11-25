@@ -20,7 +20,7 @@ struct GoalsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader("目标", back: close)
+            PageHeader("目标", back: close, isRoot: true)
             if content.list.isEmpty {
                 emptyState
             } else {

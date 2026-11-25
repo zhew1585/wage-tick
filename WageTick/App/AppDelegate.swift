@@ -87,10 +87,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// 点 Dock 图标：已引导打开今日概览，未引导回到引导。
+    /// 点 Dock 图标：已引导把今日概览窗口找回来 (停在目标、历史、设置页时不退回概览)，未引导回到引导。
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if model.isOnboarded {
-            todayPanel.show()
+            todayPanel.show(returnsToOverview: false)
         } else {
             onboarding.show()
         }

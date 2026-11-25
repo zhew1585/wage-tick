@@ -20,7 +20,7 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader("设置", back: close)
+            PageHeader("设置", back: close, isRoot: true)
             ScrollBody {
                 VStack(alignment: .leading, spacing: Spacing.s22) {
                     moneySection

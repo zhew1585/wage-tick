@@ -50,7 +50,7 @@ private struct MonthListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PageHeader("历史", back: close) {
+            PageHeader("历史", back: close, isRoot: true) {
                 Text("按月倒序").font(AppFont.caption).foregroundStyle(Palette.muted)
             }
             ScrollBody {
