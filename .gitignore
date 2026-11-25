@@ -9,6 +9,3 @@ build/floating-cow-previews/
 build/dd/
 build/release/
 build/ci/
-
-# /lead 写的 SPEC 只留在本机
-docs/spec/
