@@ -7,7 +7,7 @@ import SwiftUI
 /// 三种标题栏高度：
 /// - `.standard`：系统默认 28 高，红绿灯在左上角。
 /// - `.compact`：挂一个空的 unifiedCompact 工具栏，标题栏 38 高，红绿灯垂直居中、离窗口边约 13；
-///   大胆版头图的标题栏一行 (返回胶囊、钉住按钮) 和它排成一行，胶囊上下也留出 8，不贴窗口边 (今日概览、引导、目标、历史、设置、更新)。
+///   头图 (`BoldHero`) 的标题栏一行 (返回、钉住按钮) 和它排成一行，上下也留出 8，不贴窗口边 (今日概览、引导、目标、历史、设置、更新)。
 /// - `.tall`：挂一个空的 unified 工具栏，标题栏 52 高，红绿灯垂直居中，正好和同高的 `PageHeader` 排成一行 (旧版页头，已不用)。
 ///
 /// 用法 (建窗口时)：`WindowChrome.makeWindow(title: "目标", titlebar: .tall, rootView: view)`；
@@ -19,7 +19,7 @@ enum WindowChrome {
         case compact
         case tall
 
-        /// 大胆版头图用的标题栏。
+        /// 头图 (`BoldHero`) 用的标题栏。
         static let hero = Titlebar.compact
 
         /// 标题栏高度：要整条让出红绿灯的内容从这里往下排。
