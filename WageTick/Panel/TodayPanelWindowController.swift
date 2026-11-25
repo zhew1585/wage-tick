@@ -154,7 +154,7 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         return false
     }
 
-    /// 让页面自己退一级；页面已经在首页时返回 false。目标、设置没有下一级 (弹出的表单是单独的窗口，自己接 Esc)。
+    /// 让页面自己退一级；页面已经在首页时返回 false。目标、设置没有下一级 (弹出的表单是挂在窗口上的 sheet，自己接 Esc)。
     private func goBackInside(_ page: PanelPage) -> Bool {
         switch page {
         case .history: pages.history.goBack()
