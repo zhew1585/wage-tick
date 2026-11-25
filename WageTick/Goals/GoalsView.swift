@@ -1,137 +1,133 @@
 import SwiftUI
 import WageCore
 
-/// 目标页 (PRD F8，大胆版设计稿「目标-攒钱队列」「目标-还没有目标」)：按 `content.route` 显示攒钱队列、已到手或目标表单。
-/// 攒钱队列页：橙色头图 (排队中的目标个数、全部攒完的预计、握拳小牛)，下面是攒钱队列 (`GoalQueueList`，可拖动排序、编辑、删除)，
-/// 头图随滚动收起；底部固定「已到手 N」(有已完成目标时) 与「再想要一个」。队列为空时头图写 0，中间是空状态，按钮换成「定个目标」。
+/// 目标管理 (PRD F8，设计稿 P3 目标管理 · 760)：攒钱队列、已完成两组，底部「新目标」。在今日概览窗口里推进来，页头的返回回到概览。
+/// 「已完成」标题行右侧的「已到手」进入按年分组的已到手页 (`GoalEarnedView`)，原地替换本页，返回再回来。
+/// 攒钱队列整组可拖动排序【D6】，第一行是累计中 (进度条、累计额、预计完成)，其余排队中，见 `GoalQueueList`；
+/// 已完成沉底、冻结只能删。编辑、删除在悬停时出现的按钮或右键菜单里，点整行不做任何事。
+/// 没有任何目标时页头与底部按钮之间居中放一个大旗子图标和一行提示。
 /// 校验与排序规则交给核心，失败时展示 `CommandError.message`；文字原样取自快照。
 struct GoalsView: View {
     let content: GoalsContent
     /// 执行命令并刷新列表，校验失败时抛出。
     let send: (Command) throws(CommandError) -> Void
-    /// 头图上的「返回」：退回今日概览。
+    /// 回到概览。
     let close: () -> Void
 
     /// 列表操作 (删除、拖动) 被核心拒绝时的提示，如列表过期时目标已不在。
     @State private var listError: String?
+    /// 正在新建或编辑的目标；nil 时没有表单。
+    @State private var form: GoalFormView.Mode?
 
-    /// 攒钱队列在最底下，已到手、目标表单从右边推进来盖在上面；返回时往右滑出去。
     var body: some View {
-        ZStack {
-            queuePage
-            switch content.route {
-            case .queue:
-                EmptyView()
-            case .earned:
-                GoalEarnedView(list: content.list, back: { content.route = .queue }, delete: { perform(.deleteGoal(id: $0.id)) })
-                    .background(Palette.bg)
-                    .pushed()
-            case .form(let mode):
-                GoalFormView(
-                    mode: mode,
-                    position: position(for: mode),
-                    save: { (command: Command) throws(CommandError) in try send(command) },
-                    dismiss: { content.route = .queue }
+        Group {
+            if content.showsEarned {
+                GoalEarnedView(
+                    list: content.list,
+                    back: { content.showsEarned = false },
+                    delete: { perform(.deleteGoal(id: $0.id)) }
                 )
-                // 每次打开都是新的表单 (名称、金额清空)，不复用上一次还没退场完的那个。
-                .id(content.formSession)
-                .background(Palette.bg)
-                .pushed()
+            } else {
+                queuePage
             }
         }
-        .animation(.push, value: content.route)
         .frame(width: Spacing.pageWidth)
-        .frame(maxHeight: .infinity, alignment: .top)
-        .background(Palette.bg)
+        .sheet(item: $form) { mode in
+            GoalFormView(mode: mode, save: { (command: Command) throws(CommandError) in try send(command) }, dismiss: { form = nil })
+        }
     }
 
-    private var queue: [QueueGoalRow] { content.list.queue }
-
+    /// 目标页本身：页头、两组列表 (或空状态)、底部按钮。
     private var queuePage: some View {
         VStack(spacing: 0) {
-            CollapsingHeroScroll { collapse in
-                hero(collapse: collapse)
-            } content: {
-                if queue.isEmpty {
-                    emptyState
-                } else {
-                    GoalQueueList(
-                        rows: queue,
-                        edit: { content.route = .form(.edit($0)) },
-                        delete: { perform(.deleteGoal(id: $0.id)) },
-                        reorder: { perform(.reorderGoals(ids: $0)) }
-                    )
-                    .padding(EdgeInsets(top: Spacing.s18, leading: Spacing.screen, bottom: Spacing.s16, trailing: Spacing.screen))
+            PageHeader("目标", back: close)
+            if content.list.isEmpty {
+                emptyState
+            } else {
+                ScrollBody {
+                    groups.padding(Spacing.screen)
                 }
             }
             footer
         }
     }
 
-    /// 橙色头图：「想要的都写下来」、排队中的目标个数、全部攒完的预计 (没法预计时不写)；队列为空时说明换成「先定一个小目标」。
-    private func hero(collapse: CGFloat) -> some View {
-        let count = "\(queue.count)"
-        let unit = "个在排队"
-        return BoldHero(
-            theme: .orange,
-            back: HeroBack(label: "返回", action: close),
-            kicker: heroKicker("想要的都写下来", collapsed: unit, collapse: collapse),
-            caption: queue.isEmpty ? "先定一个小目标" : content.list.queueFinishText,
-            captionIcon: .flagBanner,
-            cow: .pose(.excited),
-            bubble: HeroBubbleContent(value: queue.isEmpty ? "想要啥？" : "一个一个来", numeric: false),
-            collapse: collapse,
-            compactValue: count
-        ) {
-            HeroCount(value: count, unit: unit, theme: .orange)
+    @ViewBuilder
+    private var groups: some View {
+        let list = content.list
+        VStack(alignment: .leading, spacing: Spacing.s24) {
+            if !list.queue.isEmpty {
+                group("攒钱队列", count: list.queue.count) {
+                    GoalQueueList(
+                        rows: list.queue,
+                        edit: { form = .edit($0) },
+                        delete: { perform(.deleteGoal(id: $0.id)) },
+                        reorder: { perform(.reorderGoals(ids: $0)) }
+                    )
+                }
+            }
+            if !list.completed.isEmpty {
+                VStack(alignment: .leading, spacing: Spacing.s8) {
+                    HStack {
+                        GroupLabel(title: "已完成", count: list.completed.count)
+                        Spacer(minLength: Spacing.s8)
+                        earnedEntry
+                    }
+                    VStack(spacing: Spacing.s8) {
+                        ForEach(list.completed) { row in
+                            CompletedGoalRowView(row: row, delete: { perform(.deleteGoal(id: row.id)) })
+                        }
+                    }
+                }
+            }
         }
     }
 
-    /// 队列为空 (设计稿「目标-还没有目标」)：头图下面居中一个靶子图标、一句问话和一行小字。
+    /// 没有任何目标 (设计稿 Empty)：居中一个大旗子图标，下面一行提示，如「给自己定个目标吧」。
     private var emptyState: some View {
-        VStack(spacing: Spacing.s8) {
-            PhosphorIcon(.GoalIcon.target, size: 28)
-                .foregroundStyle(Palette.ink)
-                .frame(width: 64, height: 64)
-                .background(Palette.surface, in: Circle())
-                .padding(.bottom, Spacing.s8)
-            Text("还没有想要的东西？").font(AppFont.ui(15, .bold)).foregroundStyle(Palette.ink)
-            Text("写一个，小牛帮你算哪天攒够").font(AppFont.caption).foregroundStyle(Palette.muted)
+        VStack(spacing: Spacing.s14) {
+            PhosphorIcon(.flagBanner, size: 56)
+                .foregroundStyle(Palette.line)
+                .accessibilityHidden(true)
+            if let text = content.emptyText {
+                Text(text).font(AppFont.body).foregroundStyle(Palette.muted)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 126)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// 底部固定栏：左边描边「已到手 N」(有已完成目标时)，右边墨色「再想要一个」(队列为空时「定个目标」)。
+    /// 「已完成」标题行右侧的入口：文字 12/600 muted 加右箭头，进入已到手页。
+    private var earnedEntry: some View {
+        Button { content.showsEarned = true } label: {
+            HStack(spacing: Spacing.s2) {
+                Text("已到手").font(AppFont.captionSemibold)
+                PhosphorIcon(.caretRight, size: 11)
+            }
+            .foregroundStyle(Palette.muted)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.highlight(radius: Radius.r6, outset: Spacing.s4))
+        .help("按年看已到手的目标")
+    }
+
+    private func group(_ title: String, count: Int, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s8) {
+            GroupLabel(title: title, count: count)
+            content()
+        }
+    }
+
     private var footer: some View {
         VStack(alignment: .leading, spacing: Spacing.s8) {
             if let listError {
                 Text(listError).font(AppFont.caption).foregroundStyle(Palette.loss)
             }
-            HStack(spacing: Spacing.s10) {
-                let completed = content.list.completed.count
-                if completed > 0 {
-                    Button { content.route = .earned } label: {
-                        Label { Text("已到手 \(completed)") } icon: { PhosphorIcon(.GoalIcon.trophy) }
-                    }
-                    .buttonStyle(.pill(.outline, fullWidth: false))
-                    .fixedSize()
-                }
-                Button { content.route = .form(.create) } label: {
-                    Label { Text(queue.isEmpty ? "定个目标" : "再想要一个") } icon: { PhosphorIcon(.plus) }
-                }
-                .buttonStyle(.pill(.ink))
-            }
+            Button { form = .create } label: { Label { Text("新目标") } icon: { PhosphorIcon(.plus) } }
+                .buttonStyle(.primary(fullWidth: true, height: ControlHeight.footerButton))
         }
-        .padding(EdgeInsets(top: Spacing.s12, leading: Spacing.screen, bottom: Spacing.screen, trailing: Spacing.screen))
-    }
-
-    /// 表单头图里的「排第 N 个」：新建排在队尾，编辑是这个目标眼下的位置。
-    private func position(for mode: GoalFormView.Mode) -> Int {
-        switch mode {
-        case .create: queue.count + 1
-        case .edit(let row): (queue.firstIndex { $0.id == row.id } ?? 0) + 1
-        }
+        .padding(.horizontal, Spacing.screen)
+        .padding(.top, Spacing.s12)
+        .padding(.bottom, Spacing.screen)
     }
 
     /// 列表上直接发出的命令，失败时在底部按钮上方提示。
@@ -141,6 +137,38 @@ struct GoalsView: View {
             listError = nil
         } catch {
             listError = error.message
+        }
+    }
+}
+
+/// 已完成的一行 (surface 底，整行 muted)：对勾、名称、达成日期，右边金额。不可拖动 (AC-GOAL-10)。
+private struct CompletedGoalRowView: View {
+    let row: CompletedGoalRow
+    let delete: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: Spacing.s10) {
+            PhosphorIcon(.checkCircle, size: 16)
+                .foregroundStyle(Palette.money)
+            VStack(alignment: .leading, spacing: Spacing.s2) {
+                Text(row.name).font(AppFont.bodySemibold).lineLimit(1)
+                Text(row.completedText).font(AppFont.small)
+            }
+            Spacer(minLength: Spacing.s8)
+            if hovering {
+                IconButton(systemName: "trash", help: "删除", action: delete)
+            }
+            Text(row.amountText).font(AppFont.num(13))
+        }
+        .foregroundStyle(Palette.muted)
+        .padding(.horizontal, Spacing.s14)
+        .padding(.vertical, Spacing.s10)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r10))
+        .onHover { hovering = $0 }
+        .contextMenu {
+            Button("删除", role: .destructive, action: delete)
         }
     }
 }

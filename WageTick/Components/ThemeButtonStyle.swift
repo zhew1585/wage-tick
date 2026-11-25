@@ -83,11 +83,10 @@ private struct ThemeButtonLabelStyle: LabelStyle {
     private static let iconSize: CGFloat = 14
 
     func makeBody(configuration: Configuration) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
+        HStack(spacing: Spacing.s6) {
             configuration.icon
                 .font(.system(size: 12, weight: .semibold))
                 .frame(width: Self.iconSize, height: Self.iconSize)
-                .iconOnTextBaseline(13)
             configuration.title
         }
     }

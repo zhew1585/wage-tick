@@ -1,10 +1,10 @@
 import SwiftUI
 import WageCore
 
-/// 已到手 (大胆版设计稿「目标-已到手」)：从目标页底部「已到手 N」进入，返回胶囊回到目标页。
-/// 绿色头图：「这些都是自己挣的」、已完成个数、总额与折合搬砖天数，撒钱小牛。
-/// 下面按达成年份分组 (年份大字 + 小计)，左边一条时间线 (最近一件实心绿点，其余空心)；
-/// 每行名称、「10月28日 到手」，右边金额与「≈ 搬砖 1.9 天」。已完成冻结只能删 (AC-GOAL-10)，删除在悬停按钮或右键菜单里。
+/// 已到手：已完成的目标按达成年份分组，从目标页「已完成」标题行右侧的「已到手」进入，页头返回回到目标页。
+/// 样式同目标页 (设计稿 P3 目标管理 · 760)：页头右侧是总结 (如「共 ¥4298 · 搬砖 4.3 天」)，
+/// 每年一个小标题 (右边小计，如「2 件 · ¥4298」)，下面每个目标一行：对勾、名称、「10月30日 到手」，右边金额与「≈ 搬砖 1.9 天」。
+/// 已完成冻结只能删 (AC-GOAL-10)，删除在悬停时出现的按钮或右键菜单里。
 /// 文字原样取自快照 (`GoalList.completedYears`、`completedSummary`)。
 struct GoalEarnedView: View {
     let list: GoalList
@@ -12,130 +12,80 @@ struct GoalEarnedView: View {
     let delete: (CompletedGoalRow) -> Void
 
     var body: some View {
-        CollapsingHeroScroll { collapse in
-            hero(collapse: collapse)
-        } content: {
+        VStack(spacing: 0) {
+            PageHeader("已到手", back: back) {
+                if let summary = list.completedSummary {
+                    Text(summary).font(AppFont.caption).foregroundStyle(Palette.muted).lineLimit(1)
+                }
+            }
             if list.completed.isEmpty {
                 Text("还没有到手的，先攒一个吧")
-                    .font(AppFont.caption)
+                    .font(AppFont.body)
                     .foregroundStyle(Palette.muted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 120)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                years
-            }
-        }
-    }
-
-    private func hero(collapse: CGFloat) -> some View {
-        let count = "\(list.completed.count)"
-        let unit = "件到手"
-        return BoldHero(
-            theme: .mint,
-            back: HeroBack(label: "目标", action: back),
-            kicker: heroKicker("这些都是自己挣的", collapsed: unit, collapse: collapse),
-            caption: nil,
-            cow: .pose(.paid),
-            bubble: HeroBubbleContent(value: "都是血汗钱", numeric: false),
-            collapse: collapse,
-            compactValue: count
-        ) {
-            VStack(alignment: .leading, spacing: 0) {
-                HeroCount(value: count, unit: unit, theme: .mint)
-                if let summary = list.completedSummary {
-                    HeroInkCaption(icon: .GoalIcon.hammer, text: BoldNumber.groupedAll(summary))
+                ScrollBody {
+                    VStack(alignment: .leading, spacing: Spacing.s24) {
+                        ForEach(list.completedYears) { year in
+                            yearGroup(year)
+                        }
+                    }
+                    .padding(Spacing.screen)
                 }
             }
         }
     }
 
-    private var years: some View {
-        let newest = list.completed.first?.id
-        return VStack(alignment: .leading, spacing: Spacing.s18) {
-            ForEach(list.completedYears) { year in
-                VStack(alignment: .leading, spacing: Spacing.s4) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(String(year.year)).font(AppFont.heavy(20)).foregroundStyle(Palette.ink)
-                        Spacer()
-                        Text(BoldNumber.groupedAll(year.summary)).font(AppFont.num(11)).foregroundStyle(Palette.muted)
-                    }
-                    .padding(.bottom, Spacing.s4)
-                    ForEach(Array(year.rows.enumerated()), id: \.element.id) { index, row in
-                        EarnedGoalRow(
-                            row: row,
-                            isNewest: row.id == newest,
-                            isFirst: index == 0,
-                            isLast: index == year.rows.count - 1,
-                            delete: { delete(row) }
-                        )
-                    }
+    /// 一年：小标题是年份，右边这一年的小计，下面这一年到手的目标。
+    private func yearGroup(_ year: CompletedGoalYear) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.s8) {
+            HStack {
+                GroupLabel(title: String(year.year))
+                Spacer(minLength: Spacing.s8)
+                Text(year.summary).font(AppFont.small).foregroundStyle(Palette.muted)
+            }
+            VStack(spacing: Spacing.s8) {
+                ForEach(year.rows) { row in
+                    EarnedGoalRowView(row: row, delete: { delete(row) })
                 }
             }
         }
-        .padding(EdgeInsets(top: Spacing.s20, leading: Spacing.screen, bottom: Spacing.s20, trailing: Spacing.screen))
     }
 }
 
-/// 已到手的一行：左边时间线圆点 (最近一件实心绿、其余空心) 与竖线，名称与到手日期，右边金额与折合搬砖天数，下沿一条分隔线。
-/// 悬停时金额左边出现删除按钮。
-private struct EarnedGoalRow: View {
+/// 已到手的一行 (surface 底，整行 muted，同目标页的已完成行)：对勾、名称、到手日期，右边金额，金额下面折合搬砖天数 (日薪为 0 时没有)。
+private struct EarnedGoalRowView: View {
     let row: CompletedGoalRow
-    let isNewest: Bool
-    /// 这一年的第一行、最后一行：时间线竖线不再往上、往下延。
-    let isFirst: Bool
-    let isLast: Bool
     let delete: () -> Void
 
     @State private var hovering = false
 
-    private static let rail: CGFloat = 26
-
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            timeline.frame(width: Self.rail)
-            // 两行各自按基线对齐：名称与金额一行、到手日期与折合天数一行；删除按钮悬停时贴在金额左边。
-            VStack(spacing: Spacing.s4) {
-                HStack(alignment: .firstTextBaseline, spacing: Spacing.s6) {
-                    Text(row.name).font(AppFont.ui(14, .bold)).foregroundStyle(Palette.ink)
-                    Spacer(minLength: Spacing.s4)
-                    if hovering {
-                        IconButton(systemName: "trash", help: "删除", action: delete).iconOnTextBaseline(14)
-                    }
-                    Text(BoldNumber.grouped(row.amountText)).font(AppFont.heavy(15)).foregroundStyle(Palette.ink).fixedSize()
-                }
-                HStack(alignment: .firstTextBaseline) {
-                    Text(row.receivedText).font(AppFont.small).foregroundStyle(Palette.muted)
-                    Spacer(minLength: Spacing.s4)
-                    if let workDays = row.workDaysText {
-                        Text(workDays).font(AppFont.num(10)).foregroundStyle(Palette.muted).fixedSize()
-                    }
+        HStack(spacing: Spacing.s10) {
+            PhosphorIcon(.checkCircle, size: 16)
+                .foregroundStyle(Palette.money)
+            VStack(alignment: .leading, spacing: Spacing.s2) {
+                Text(row.name).font(AppFont.bodySemibold).lineLimit(1)
+                Text(row.receivedText).font(AppFont.small)
+            }
+            Spacer(minLength: Spacing.s8)
+            if hovering {
+                IconButton(systemName: "trash", help: "删除", action: delete)
+            }
+            VStack(alignment: .trailing, spacing: Spacing.s2) {
+                Text(row.amountText).font(AppFont.num(13))
+                if let workDays = row.workDaysText {
+                    Text(workDays).font(AppFont.small)
                 }
             }
-            .lineLimit(1)
-            .padding(.vertical, Spacing.s12)
-            .overlay(alignment: .bottom) { Palette.line.frame(height: 1) }
         }
-        .contentShape(Rectangle())
+        .foregroundStyle(Palette.muted)
+        .padding(.horizontal, Spacing.s14)
+        .padding(.vertical, Spacing.s10)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r10))
         .onHover { hovering = $0 }
         .contextMenu {
             Button("删除", role: .destructive, action: delete)
         }
     }
-
-    /// 圆点对齐名称那一行；竖线穿过整行把上下圆点连起来，一年的第一行从圆点起、最后一行到圆点止。
-    private var timeline: some View {
-        VStack(spacing: 0) {
-            (isFirst ? Color.clear : Palette.line).frame(width: 2, height: Self.dotTop)
-            Circle()
-                .fill(isNewest ? Palette.money : Palette.bg)
-                .overlay(Circle().strokeBorder(Palette.ink, lineWidth: 2))
-                .frame(width: Self.dot, height: Self.dot)
-            (isLast ? Color.clear : Palette.line).frame(width: 2).frame(maxHeight: .infinity)
-        }
-        .padding(.leading, -Spacing.s4)
-    }
-
-    private static let dot: CGFloat = 12
-    /// 圆点上沿离行顶的距离，让圆点和名称那一行居中对齐。
-    private static let dotTop: CGFloat = 16
 }

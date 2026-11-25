@@ -17,11 +17,7 @@ final class TodayPanelContent {
     /// 正在播放的目标达成庆祝动画 (F9)；播放结束、点掉或关掉面板时清空。
     var celebration: GoalCelebration?
     /// 概览还是原地打开的表单；每次打开面板回到概览。
-    var route: PanelRoute = .home {
-        didSet { if route != .home { formSession += 1 } }
-    }
-    /// 每次打开扣钱、请假表单加 1，表单按它换新视图，不留上一次的输入。
-    private(set) var formSession = 0
+    var route: PanelRoute = .home
     /// 钉住：窗口始终浮在其他窗口之上。由标题栏右侧的图钉按钮切换，记在偏好里，重启后保留。
     var isPinned = false
     /// 从右边推进来的页面 (历史、目标、设置)；nil 时显示概览 (或原地的表单)。
@@ -226,18 +222,19 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
             openGoals: { [weak self] in self?.push(.goals) },
             openSettings: { [weak self] in self?.push(.settings) }
         )
-        // 内容顶到窗口上沿，彩色头图垫在红绿灯下面 (大胆版)；头图自己让出标题栏那一行。
-        // 钉住按钮放在标题栏右侧，和红绿灯同一行；推进来的页面右上角有自己的按钮，那时不显示钉住。
+        // 顶部整条让出标准标题栏 (28) 放红绿灯，概览与推进来的页面都从它下面排起。
+        // 钉住按钮放在标题栏右侧，和红绿灯同一行。
         let view = TodayPanelView(
             content: content, actions: actions, navigation: navigation,
             page: { [weak self] page in self?.pageView(page) ?? AnyView(EmptyView()) }
         )
+            .padding(.top, WindowChrome.Titlebar.standard.height)
             .overlay(alignment: .topTrailing) {
                 PinButton(content: content) { [weak self] in self?.togglePin() }
-                    .frame(height: WindowChrome.Titlebar.hero.height)
+                    .frame(height: WindowChrome.Titlebar.standard.height)
                     .padding(.trailing, Spacing.s12)
             }
-        let panel = WindowChrome.makeWindow(PanelWindow.self, title: "今日概览", titlebar: .hero, rootView: view)
+        let panel = WindowChrome.makeWindow(PanelWindow.self, title: "今日概览", titlebar: .standard, rootView: view)
         panel.delegate = self
         panel.onCancel = { [weak self] in
             guard let self, content.page != nil else { return false }
@@ -270,19 +267,12 @@ private struct PinButton: View {
     let content: TodayPanelContent
     let toggle: () -> Void
 
-    /// 推进来的页面右上角有自己的按钮 (历史日历的改工资、翻月)，那时不显示钉住。
     var body: some View {
-        if content.page == nil { button }
-    }
-
-    private var button: some View {
         Button(action: toggle) {
-            // 垫在各色头图上：白底小圆片托着，哪种主色上都看得清。
-            PhosphorIcon(content.isPinned ? .pushPinFill : .pushPin, size: 12)
-                .foregroundStyle(content.isPinned ? Palette.accent : Palette.ink)
+            PhosphorIcon(content.isPinned ? .pushPinFill : .pushPin, size: 14)
+                .foregroundStyle(content.isPinned ? Palette.accent : Palette.muted)
                 .frame(width: 20, height: 20)
-                .background(.white.opacity(0.85), in: Circle())
-                .contentShape(Circle())
+                .contentShape(Rectangle())
         }
         .buttonStyle(.highlight(radius: Radius.r4, outset: 2))
         .help(content.isPinned ? "取消钉住" : "钉住：窗口始终在最前")
@@ -290,7 +280,8 @@ private struct PinButton: View {
     }
 }
 
-/// 今日概览窗口：按 Esc 先退回上一页 (推进来的页面)，在概览上再按才关窗 (表单里的 Esc 先被「算了」按钮接走，回到概览)。
+/// 今日概览窗口：按 Esc 先退回上一页 (推进来的页面，平时由页头的返回按钮接走，这里兜底)，在概览上再按才关窗
+/// (表单里的 Esc 先被「算了」按钮接走，回到概览)。
 private final class PanelWindow: NSWindow {
     /// 返回 true 表示已经退回一页，不关窗。
     var onCancel: () -> Bool = { false }

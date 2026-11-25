@@ -2,32 +2,29 @@ import Observation
 import SwiftUI
 import WageCore
 
-/// 目标页当前要展示的内容，由窗口控制器按快照刷新；`route` 是窗口里正在显示的页面，视图切页时改它。
+/// 目标页当前要展示的内容，由 `GoalsPage` 按快照刷新；`showsEarned` 由视图切页时改。
 @MainActor
 @Observable
 final class GoalsContent {
     var list = GoalList.empty
-    var route = GoalsRoute.queue {
-        didSet { if case .form = route { formSession += 1 } }
-    }
-    /// 每次打开目标表单加 1，表单按它换一个新视图，上一次没保存或刚保存过的输入不会留下来。
-    private(set) var formSession = 0
+    /// 队列为空时的提示，如「给自己定个目标吧」。
+    var emptyText: String?
+    /// 正在看「已到手」页；false 时是目标页 (攒钱队列与已完成)。
+    var showsEarned = false
 
     /// 按快照填好各项。
     func update(from snap: Snapshot) {
         list = snap.goals ?? .empty
+        if case .empty(let text) = snap.panel?.goal {
+            emptyText = text
+        } else {
+            emptyText = nil
+        }
     }
 }
 
-/// 目标页里的子页面：攒钱队列 (首页)、已到手、新建或编辑目标的表单；后两个从右边推进来。
-enum GoalsRoute: Equatable {
-    case queue
-    case earned
-    case form(GoalFormView.Mode)
-}
-
 /// 目标页 (PRD F8，页面 P3)：在今日概览窗口里从右边推进来，从面板底部入口、目标卡、左键菜单或主菜单「目标 ⌘2」打开。
-/// 只在这一页显示时每秒刷新一次，让累计中目标的累计额跟着走。每次进来回到攒钱队列；头图上的「返回」退回概览。
+/// 只在这一页显示时每秒刷新一次，让累计中目标的累计额跟着走。每次进来回到攒钱队列；页头的返回退回概览。
 @MainActor
 final class GoalsPage {
     private static let refreshInterval: TimeInterval = 1
@@ -41,7 +38,7 @@ final class GoalsPage {
     }
 
     func appear() {
-        content.route = .queue
+        content.showsEarned = false
         refresh()
     }
 
