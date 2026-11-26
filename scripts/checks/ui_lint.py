@@ -255,6 +255,34 @@ def fonts(lint):
         lint.fail('FONT-BUNDLED', rel, 'makeFont 要用打包字体文件的描述建字体 (CTFontCreateWithFontDescriptor)，不能按名字取')
 
 
+def goals(lint):
+    """目标管理页：累计中一行不带「累计中」标签；名称放不下时悬停滚动；目标金额有上限、预计完成不逐天数到天荒地老。"""
+    lint.forbid('GOALS-ROW', r'Text\("累计中"\)', ['WageTick/Goals'],
+                '目标管理页累计中一行不带「累计中」标签 (Allen 2026-11-26 定)，标签会把名称挤得只剩两三个字')
+    lint.forbid('GOALS-ROW', r'Text\((row|card)\.name\)', ['WageTick/Goals'],
+                '目标管理页的目标名称要用 HoverMarqueeText：放不下时省略，悬停时滚动露出全文 (Allen 2026-11-26 定)')
+    queue = 'WageTick/Goals/GoalQueueList.swift'
+    for name in ('card.name', 'row.name'):
+        lint.require('GOALS-ROW', queue, r'HoverMarqueeText\(' + re.escape(name) + r', isActive: showsButtons\)',
+                     f'攒钱队列的行里没找到 HoverMarqueeText({name}, isActive: showsButtons)：名称换了写法，这条规则要跟着改，不能因为找不到就算过')
+    lint.require('GOALS-ROW', 'WageTick/Goals/GoalsView.swift', r'HoverMarqueeText\(row\.name, isActive: hovering\)',
+                 '已完成目标的行里没找到 HoverMarqueeText(row.name, isActive: hovering)：名称换了写法，这条规则要跟着改')
+    lint.require('GOALS-LIMIT', 'WageCore/Sources/WageCore/Goals/GoalValidation.swift', r'goalAmountLimit: Decimal = 999999\b',
+                 '目标金额最多 999999 (Allen 2026-11-26 定)，不设上限时金额输得极大 App 会卡死')
+    card = 'WageCore/Sources/WageCore/Goals/GoalCard.swift'
+    finish = lint.body(card, 'func finishDay(')
+    if finish is None:
+        lint.fail('GOALS-LIMIT', card, '找不到 finishDay (改名了要同步改 ui_lint.py)')
+    elif 'estimateDayLimit' not in finish:
+        lint.fail('GOALS-LIMIT', card, 'finishDay 要先看 estimateDayLimit 再逐天数：金额极大或日薪极小时一天天数下去会卡死')
+    # 逐天数的 attendanceDay 只能由 finishDay 调 (它先看上限)。
+    for rel in lint.swift_files('WageCore/Sources'):
+        for number, line in enumerate(lint.read(rel).splitlines(), 1):
+            if 'attendanceDay(' not in line or line.lstrip().startswith('///') or 'func attendanceDay(' in line:
+                continue
+            if not (rel == card and finish and line.strip() in finish):
+                lint.fail('GOALS-LIMIT', f'{rel}:{number}', f'预计完成日要经 finishDay 数 (带天数上限)，不要直接调 attendanceDay：{line.strip()[:70]}')
+
 def repository(lint):
     """仓库：本机专用的目录不能进 git。"""
     try:
@@ -271,7 +299,7 @@ def main():
     args = parser.parse_args()
     lint = Lint(os.path.abspath(args.root))
     try:
-        for group in (restore_boundary, page_header, navigation, fonts, repository):
+        for group in (restore_boundary, page_header, navigation, fonts, goals, repository):
             group(lint)
     except Blocked as blocked:
         print(f'BLOCKED: {blocked}')

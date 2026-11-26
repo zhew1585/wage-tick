@@ -61,6 +61,15 @@ LINT_VIOLATIONS = [
      '            return NSFont(descriptor: descriptor, size: size) ?? .systemFont(ofSize: size)', 'FONT-BUNDLED'),
     ('视图里按字体名取字', 'WageTick/Panel/PanelFooter.swift', None, '\nprivate let named = Font.custom("Noto Sans SC", size: 12)\n', 'FONT-BUNDLED'),
     ('退场后定时器又被拉起', 'WageTick/Goals/GoalsPage.swift', '        guard isActive else { return }\n', '', 'NAV-TIMER'),
+    ('目标页又带上「累计中」标签', 'WageTick/Goals/GoalQueueList.swift', '                Spacer(minLength: Spacing.s4)\n',
+     '                Text("累计中").font(AppFont.chip)\n                Spacer(minLength: Spacing.s4)\n', 'GOALS-ROW'),
+    ('累计中名称改回普通文字', 'WageTick/Goals/GoalQueueList.swift', 'HoverMarqueeText(card.name, isActive: showsButtons)', 'Text(card.name).lineLimit(1)', 'GOALS-ROW'),
+    ('已完成名称改回普通文字', 'WageTick/Goals/GoalsView.swift', 'HoverMarqueeText(row.name, isActive: hovering)', 'Text(row.name).lineLimit(1)', 'GOALS-ROW'),
+    ('目标金额上限被放开', 'WageCore/Sources/WageCore/Goals/GoalValidation.swift', 'goalAmountLimit: Decimal = 999999', 'goalAmountLimit: Decimal = 99999999', 'GOALS-LIMIT'),
+    ('预计完成日又直接逐天数', 'WageCore/Sources/WageCore/Goals/GoalQueueSection.swift',
+     '.flatMap { finishDay($0, after: day) }', '.map { attendanceDay(NSDecimalNumber(decimal: $0).intValue, after: day) }', 'GOALS-LIMIT'),
+    ('finishDay 不再看天数上限', 'WageCore/Sources/WageCore/Goals/GoalCard.swift',
+     '        guard days <= Decimal(ActiveGoalCard.estimateDayLimit) else { return nil }\n', '', 'GOALS-LIMIT'),
 ]
 
 WINDOW, MARGIN, INK, PAPER = 360, 24, (60, 40, 30), (255, 253, 248)
