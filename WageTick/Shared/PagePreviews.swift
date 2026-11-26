@@ -51,6 +51,7 @@ private enum PagePreviews {
         return [
             ("P3-goals", goals(snap)),
             ("P3-goals-empty", goals(snapshot(of: try onboarded(), at: now))),
+            ("P3-goals-long-name", goals(snapshot(of: try longGoalName(), at: moment(day: 26, 18, 0)))),
             ("P4-history", history(snap)),
             ("P5-calendar", history(snap, month: today.yearMonth)),
             ("P5-calendar-october", history(snap, month: YearMonth(year: 2026, month: 10))),
@@ -77,6 +78,17 @@ private enum PagePreviews {
     private static func onboarded() throws -> AppState {
         let input = OnboardingInput(salary: 20000, schedule: schedule, launchAtLogin: false)
         return try apply(.completeOnboarding(input), to: AppState(), at: moment(month: 10, day: 15, 9, 0)).state
+    }
+
+    /// 累计中目标名称放不下的样子：10 月 1 日早上引导 (月薪 20000) 并新建「给自己换一台顶配的十六寸笔记本电脑」200000，
+    /// 后面排一个「去趟大理」。11 月 26 日下班时累计 10 月整月 20000 + 11 月 21 个应出勤日里的 19 个，即「¥38095.24 / ¥200000」。
+    private static func longGoalName() throws -> AppState {
+        let input = OnboardingInput(salary: 20000, schedule: schedule, launchAtLogin: false)
+        let state = try apply(.completeOnboarding(input), to: AppState(), at: moment(month: 10, day: 1, 9, 0)).state
+        return try at(state, month: 10, day: 1, 9, 0) {
+            try $0.send(.createGoal(name: "给自己换一台顶配的十六寸笔记本电脑", amount: 200000))
+            try $0.send(.createGoal(name: "去趟大理", amount: 8000))
+        }
     }
 
     /// 设计稿 P5 的 11 月：4 日迟到扣 50、18:00 至 19:42 白干，今天 (5 日) 扣 50，11 日请假 14:00 至 16:00 (28.57%)，30 日改成不上班；

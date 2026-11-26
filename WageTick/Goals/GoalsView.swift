@@ -107,6 +107,7 @@ struct GoalsView: View {
 }
 
 /// 已完成的一行 (surface 底，整行 muted)：对勾、名称、达成日期，右边金额。不可拖动 (AC-GOAL-10)。
+/// 名称放不下时悬停在整行上横向滚动 (`HoverMarqueeText`)。
 private struct CompletedGoalRowView: View {
     let row: CompletedGoalRow
     let delete: () -> Void
@@ -118,7 +119,7 @@ private struct CompletedGoalRowView: View {
             PhosphorIcon(.checkCircle, size: 16)
                 .foregroundStyle(Palette.money)
             VStack(alignment: .leading, spacing: Spacing.s2) {
-                Text(row.name).font(AppFont.bodySemibold).lineLimit(1)
+                HoverMarqueeText(row.name, isActive: hovering).font(AppFont.bodySemibold)
                 Text(row.completedText).font(AppFont.small)
             }
             Spacer(minLength: Spacing.s8)
