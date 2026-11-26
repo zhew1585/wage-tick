@@ -48,11 +48,37 @@ enum Spacing {
 }
 
 /// 所有窗口 (引导、今日概览；目标、历史、设置在今日概览窗口里) 统一的固定内容尺寸，不能拉伸：
-/// 宽 360 (设计稿各屏同宽)；高 760，接近手机的比例 (Allen 定)，设计稿各屏都放得下，放不下的在窗口里滚动。
-/// 放不下的 (目标多了、设置页、提示条多了的面板) 在窗口里滚动中间内容区，页头和底部按钮栏不动 (`ScrollBody`)。
+/// 宽 360 (设计稿各屏同宽)；高 574，是首页七个区域叠起来正好的高度 (见 `HomeLayout`，Allen 定)。
+/// 放不下的 (目标多了、历史月份多了、设置页、单日详情) 在窗口里滚动中间内容区，页头和底部按钮栏不动 (`ScrollBody`)。
 /// 弹出的 sheet (改月薪、补记等小表单) 不在此列，仍按内容大小。
 enum WindowMetrics {
-    static let size = CGSize(width: 360, height: 760)
+    static let size = CGSize(width: 360, height: 574)
+}
+
+/// 今日概览首页七个区域的上沿与高度 (相对窗口左上角，含标题栏)。所有状态下都一样，换状态只换区域里的内容，不挪位置。
+/// 块间距：日期行到主数字区 24，主数字区到进度区 16，其余 12。各区域叠到底正好是 `WindowMetrics.size.height`。
+enum HomeLayout {
+    /// 日期与状态行。
+    static let topBar = Band(top: 40, height: 24)
+    /// 主数字区：小标题、主数字、说明行。休息日时与进度区合成一整块放小牛和「今天休息」。
+    static let hero = Band(top: 88, height: 108)
+    /// 进度区：「已工作」行、分段条、两端时间；已下班、白干中换成白干计时按钮，上下留白居中。
+    static let progress = Band(top: 212, height: 56)
+    /// 统计卡。
+    static let stats = Band(top: 280, height: 64)
+    /// 攒钱队列：不滑动，最多显示 3 个目标。
+    static let goals = Band(top: 356, height: 104)
+    /// 情绪按钮。
+    static let actions = Band(top: 472, height: 44)
+    /// 底部入口栏。
+    static let footer = Band(top: 528, height: 46)
+
+    /// 一个区域：上沿与高度。
+    struct Band {
+        let top: CGFloat
+        let height: CGFloat
+        var bottom: CGFloat { top + height }
+    }
 }
 
 /// 控件高度 token (设计稿里直接写的高度)。
