@@ -115,7 +115,7 @@ struct TodayPanelRestDayTests {
         #expect(panel.body == .rest(RestPanel(
             headline: "今天休息",
             tagline: "不搬砖，不计钱。",
-            nextAttendanceText: "下一个上班日 2月16日 周一",
+            nextAttendanceDate: "2月16日 周一",
             stats: [
                 StatItem(title: "本月已上班", value: "10/20 天"),
                 StatItem(title: "本月累计", value: "¥10000"),

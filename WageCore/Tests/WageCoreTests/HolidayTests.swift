@@ -75,7 +75,7 @@ struct HolidayDayStatusTests {
         #expect(snap.panel?.body == .rest(RestPanel(
             headline: "今天休息",
             tagline: "不搬砖，不计钱。",
-            nextAttendanceText: "下一个上班日 10月8日 周四",
+            nextAttendanceDate: "10月8日 周四",
             stats: [
                 StatItem(title: "本月已上班", value: "0/18 天"),
                 // 今天就在国庆假期里。
