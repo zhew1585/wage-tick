@@ -23,7 +23,7 @@ public struct ActiveGoalCard: Sendable, Equatable {
     public let progress: Double
     /// 进度百分比，固定 2 位小数，如「30.00%」「28.57%」；与 `progress` 同样夹在 0% 至 100%。
     public let percentText: String
-    /// 预计完成 (PRD 4.5.3)，如「还需搬砖 7 天 · 2月20日」或「今天就能达成」。
+    /// 预计完成 (PRD 4.5.3)，如「还需搬砖 7 天 · 2月20日」或「今天就能达成」；预计完成日在今天一年以后时「还需搬砖大于 1 年」。
     public let estimate: String
     /// 面板攒钱队列卡片里的短版预计，和金额挤在一行：如「还需 7 天 · 2月20日」「今天就能达成」「还需大于 1 年」「暂时没法预计」。
     public let shortEstimate: String

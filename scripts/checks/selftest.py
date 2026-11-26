@@ -69,6 +69,12 @@ LINT_VIOLATIONS = [
     ('预计完成日又直接逐天数', 'WageCore/Sources/WageCore/Goals/GoalQueueSection.swift',
      '.flatMap { finishDay($0, after: day, from: today) }',
      '.flatMap { attendanceDay(NSDecimalNumber(decimal: $0).intValue, after: day, through: today.adding(days: 100_000)) }', 'GOALS-LIMIT'),
+    ('finishDay 只删掉开头的天数守卫', 'WageCore/Sources/WageCore/Goals/GoalCard.swift',
+     '        guard days <= Decimal(ActiveGoalCard.estimateDayLimit) else { return nil }\n', '', 'GOALS-LIMIT'),
+    ('别的函数里照抄 finishDay 的逐天数那一行', 'WageCore/Sources/WageCore/Goals/GoalCard.swift', None,
+     '\nextension AttendanceRule {\n    func sneaky(_ days: Decimal, after day: LocalDate, from today: LocalDate) -> LocalDate? {\n'
+     '        return attendanceDay(NSDecimalNumber(decimal: days).intValue, after: day, through: today.adding(days: ActiveGoalCard.estimateDayLimit))\n    }\n}\n',
+     'GOALS-LIMIT'),
     ('finishDay 不再看天数上限', 'WageCore/Sources/WageCore/Goals/GoalCard.swift',
      '        guard days <= Decimal(ActiveGoalCard.estimateDayLimit) else { return nil }\n'
      '        return attendanceDay(NSDecimalNumber(decimal: days).intValue, after: day, through: today.adding(days: ActiveGoalCard.estimateDayLimit))\n',

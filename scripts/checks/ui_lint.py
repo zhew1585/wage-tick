@@ -271,17 +271,24 @@ def goals(lint):
                  '目标金额最多 999999 (Allen 2026-11-26 定)，不设上限时金额输得极大 App 会卡死')
     card = 'WageCore/Sources/WageCore/Goals/GoalCard.swift'
     finish = lint.body(card, 'func finishDay(')
+    inside = range(0)
     if finish is None:
         lint.fail('GOALS-LIMIT', card, '找不到 finishDay (改名了要同步改 ui_lint.py)')
-    elif 'estimateDayLimit' not in finish:
-        lint.fail('GOALS-LIMIT', card, 'finishDay 要先看 estimateDayLimit 再逐天数：金额极大或日薪极小时一天天数下去会卡死')
-    # 逐天数的 attendanceDay 只能由 finishDay 调 (它先看上限)。
+    else:
+        first = lint.read(card)[:lint.read(card).index(finish)].count('\n') + 1
+        inside = range(first, first + finish.count('\n') + 1)
+        if not re.search(r'guard[^\n]*days <= Decimal\(ActiveGoalCard\.estimateDayLimit\)[^\n]*else \{ return nil \}', finish):
+            lint.fail('GOALS-LIMIT', card, 'finishDay 开头要有 guard days <= Decimal(ActiveGoalCard.estimateDayLimit)：天数极大时转成整数会溢出，逐天数也数不完')
+        if not re.search(r'through:[^\n]*estimateDayLimit', finish):
+            lint.fail('GOALS-LIMIT', card, 'finishDay 逐天数时截止日 (through:) 要按 estimateDayLimit 算，否则会一直数下去')
+    # 逐天数的 attendanceDay 只能在 finishDay 的函数体里调 (它先看上限)；按行号判断，注释里提到不算。
     for rel in lint.swift_files('WageCore/Sources'):
         for number, line in enumerate(lint.read(rel).splitlines(), 1):
-            if 'attendanceDay(' not in line or line.lstrip().startswith('///') or 'func attendanceDay(' in line:
+            if 'attendanceDay(' not in line or line.lstrip().startswith('//') or 'func attendanceDay(' in line:
                 continue
-            if not (rel == card and finish and line.strip() in finish):
+            if not (rel == card and number in inside):
                 lint.fail('GOALS-LIMIT', f'{rel}:{number}', f'预计完成日要经 finishDay 数 (带天数上限)，不要直接调 attendanceDay：{line.strip()[:70]}')
+
 
 def repository(lint):
     """仓库：本机专用的目录不能进 git。"""

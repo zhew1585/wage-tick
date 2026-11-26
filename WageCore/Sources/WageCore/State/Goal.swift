@@ -20,7 +20,8 @@ public struct Goal: Sendable, Equatable, Codable, Identifiable {
 
     private enum CodingKeys: String, CodingKey { case id, name, amount, status, baseline, completedAt }
 
-    /// 从文件读入时按新建同一套规则校验 (PRD 4.3.5 #9)，不合法抛解码错误。
+    /// 从文件读入时校验名称与金额大于 0 (`Validation.storedGoal`，PRD 4.3.5 #9)，不合法抛解码错误；
+    /// 不查新建、编辑时的金额上限，之前存下的超过上限的目标照常读入。
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(Int.self, forKey: .id)
