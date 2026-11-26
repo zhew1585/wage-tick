@@ -1,7 +1,7 @@
 import SwiftUI
 import WageCore
 
-/// 2 步引导：月薪 (含休息模式) → 作息 (含饭点) (PRD 4.1.1、F1；设计稿 P1 引导 · 1 月薪 · 760、P1 引导 · 2 作息 · 760)。
+/// 2 步引导：月薪 (含休息模式) → 作息 (含饭点) (PRD 4.1.1、F1；设计稿 P1 引导 · 1 月薪 · 574、P1 引导 · 2 作息 · 574)。
 /// 开机自启不再询问，按 PRD 4.7.2 的默认值 (开) 保存并注册登录项，之后在设置里改。
 /// 标题栏下是步骤条，中间是当前步，底部「上一步」与「下一步 / 开始搬砖」。
 /// 每一步点"下一步"时用核心的 `Validation` 校验，失败停留当前步并展示提示。
@@ -155,7 +155,8 @@ struct OnboardingStepper: View {
     }
 }
 
-/// 引导页的排版尺寸 (设计稿 P1 引导 · 760)，`Spacing` 里没有的值集中在这里。
+/// 引导页的排版尺寸 (设计稿 P1 引导 · 574)，`Spacing` 里没有的值集中在这里。
+/// 窗口高 574：步骤条下沿在 y 56，两步的内容都从 y 74 排起，底部按钮在 506 至 550。
 enum OnboardingLayout {
     /// 左右内边距。
     static let side = Spacing.s24
@@ -165,13 +166,18 @@ enum OnboardingLayout {
     static let buttonHeight: CGFloat = 44
     /// 步骤点间隔。
     static let dotGap: CGFloat = 5
-    /// 步骤条下面第一块 (第 1 步小牛、第 2 步标题) 的上边距。
-    static let firstTop: CGFloat = 44
-    /// 第 1 步标题离小牛。
-    static let introAfterMascot: CGFloat = 28
-    /// 正文区上下内边距。
+    /// 第 1 步小牛框的上边距 (小牛图上方带约 6 的透明边，画出来的小牛顶在 y 74)。
+    static let mascotTop: CGFloat = 12
+    /// 第 1 步标题离小牛框：小牛图下方带约 5 的透明边，画出来的小牛离标题 12。
+    static let introAfterMascot: CGFloat = 7
+    /// 第 2 步标题的上边距 (标题顶在 y 74)。
+    static let firstTop: CGFloat = 18
+    /// 正文区上边距：第 1 步 36，第 2 步 20；下边距两步都是 22。
     static let bodyTop: CGFloat = 36
+    static let scheduleBodyTop: CGFloat = 20
     static let bodyBottom = Spacing.s22
+    /// 「按这个作息算」卡片每行的高。
+    static let rateRowHeight: CGFloat = 54
     /// 时间输入框里的向下箭头。
     static let caretSize: CGFloat = 14
     /// 工资换算卡片里两项之间的竖线高。

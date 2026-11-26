@@ -2,11 +2,12 @@ import AppKit
 import SwiftUI
 import WageCore
 
-/// 第 1 步 · 工资 (设计稿 P1 引导 · 1 月薪 · 双休 / 大小周 · 760，按天见「按天算工资」方案 A)：大小牛、标题、
+/// 第 1 步 · 工资 (设计稿 P1 引导 · 1 月薪 · 双休 / 大小周 · 574，按天见「按天算工资」方案 A)：大小牛、标题、
 /// 「月薪 | 日薪」小切换 + 工资大号输入框 (单位跟着变「元/月」「元/日」)，下面「怎么休」选休息模式 (默认双休)。
-/// 小牛照设计稿实例框画满 104，等比缩放。
+/// 窗口高 574 时整步不用滚动：小牛画出来高 76 (原来 90)，顶在窗口 y 74，离标题 12；正文排法不变。
 struct OnboardingSalaryStep: View {
-    private static let mascotSize: CGFloat = 104
+    /// 小牛图四周带透明边：框 87 时画出来的小牛高 76，上下各空约 6。
+    private static let mascotSize: CGFloat = 87
 
     @Binding var salaryText: String
     @Binding var payBasis: PayBasis
@@ -20,13 +21,13 @@ struct OnboardingSalaryStep: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: Self.mascotSize, height: Self.mascotSize, alignment: .topLeading)
-                .padding(.top, OnboardingLayout.firstTop)
+                .padding(.top, OnboardingLayout.mascotTop)
                 .padding(.horizontal, OnboardingLayout.side)
             OnboardingIntro(
                 title: payBasis == .daily ? "嗨，牛马。\n一天赚多少？" : "嗨，牛马。\n一个月赚多少？", subtitle: "税前还是到手，你说了算。只存在这台电脑上，谁也看不到。",
                 top: OnboardingLayout.introAfterMascot
             )
-            OnboardingBody(spacing: Spacing.s16, errorMessage: errorMessage) {
+            OnboardingBody(top: OnboardingLayout.bodyTop, spacing: Spacing.s16, errorMessage: errorMessage) {
                 VStack(alignment: .leading, spacing: Spacing.s6) {
                     PayBasisSwitch(selection: payBasis) { payBasis = $0 }
                     Field(nil, text: $salaryText, suffix: payBasis.unit, size: .large)
@@ -42,8 +43,9 @@ struct OnboardingSalaryStep: View {
     }
 }
 
-/// 第 2 步 · 作息 (设计稿 P1 引导 · 2 作息 · 760)：上下班一行两格；饭点开关，打开后饭点时段一行两格；
+/// 第 2 步 · 作息 (设计稿 P1 引导 · 2 作息 · 574)：上下班一行两格；饭点开关，打开后饭点时段一行两格；
 /// 分隔线下是「按这个作息算」的工资换算卡片。
+/// 窗口高 574 时打开饭点也不用滚动：标题顶在窗口 y 74，正文上边距 20、块间隔 14，饭点开关与时段间隔 8。
 /// 字段名与尺寸照设计稿 (「上班」「饭点」、加高输入框)，与设置页共用的 `ScheduleFields` 不同，所以单独排。
 struct OnboardingScheduleStep: View {
     @Binding var draft: ScheduleDraft
@@ -56,9 +58,9 @@ struct OnboardingScheduleStep: View {
                 title: "几点上班，几点下班？", subtitle: "按计划时间算钱，不打卡。饭点时段数字会暂停。",
                 top: OnboardingLayout.firstTop
             )
-            OnboardingBody(spacing: Spacing.s22, errorMessage: errorMessage) {
+            OnboardingBody(top: OnboardingLayout.scheduleBodyTop, spacing: Spacing.s14, errorMessage: errorMessage) {
                 timeRow("上班", $draft.start, "下班", $draft.end)
-                VStack(alignment: .leading, spacing: Spacing.s12) {
+                VStack(alignment: .leading, spacing: Spacing.s8) {
                     Toggle(isOn: $draft.lunchEnabled) {
                         Text("饭点").font(AppFont.bodyMedium).foregroundStyle(Palette.muted)
                     }
@@ -88,13 +90,13 @@ struct OnboardingScheduleStep: View {
     }
 }
 
-/// 「按这个作息算」(设计稿 Summary)：上边一条分隔线、上 18，12 号 muted 小标题，下面 surface 底的 2×2 卡片。
+/// 「按这个作息算」(设计稿 Summary)：上边一条分隔线、上 12，12 号 muted 小标题，下面 surface 底的 2×2 卡片 (每行高 54)。
 /// 数字全部来自核心的试算快照 (`WageRates`)，这里只排版。
 struct OnboardingRatesSection: View {
     let rates: WageRates
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.s10) {
+        VStack(alignment: .leading, spacing: Spacing.s8) {
             Text("按这个作息算").font(AppFont.caption).foregroundStyle(Palette.muted)
             VStack(spacing: 0) {
                 row(rates.attendanceDays, rates.dailyWage)
@@ -103,19 +105,19 @@ struct OnboardingRatesSection: View {
             }
             .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r10))
         }
-        .padding(.top, Spacing.s18)
+        .padding(.top, Spacing.s12)
         .overlay(alignment: .top) { CardDivider() }
         .accessibilityElement(children: .combine)
     }
 
-    /// 一行两项，中间一条 34 高的竖线；两项等宽，右项左边再空 14。
+    /// 一行两项 (高 54、两项上下居中)，中间一条 34 高的竖线；两项等宽，右项左边再空 14。
     private func row(_ left: StatItem, _ right: StatItem) -> some View {
         HStack(spacing: 0) {
             cell(left).frame(maxWidth: .infinity, alignment: .leading)
             Rectangle().fill(Palette.line).frame(width: 1, height: OnboardingLayout.statDividerHeight)
             cell(right).padding(.leading, Spacing.s14).frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, Spacing.s14)
+        .frame(height: OnboardingLayout.rateRowHeight)
         .padding(.horizontal, Spacing.s16)
     }
 
@@ -163,8 +165,9 @@ struct OnboardingIntro: View {
     }
 }
 
-/// 设计稿 Body：上 36、下 22、左右 24，块间隔按步不同；最后是校验失败的提示。
+/// 设计稿 Body：下 22、左右 24，上边距与块间隔按步不同；最后是校验失败的提示。
 struct OnboardingBody<Content: View>: View {
+    let top: CGFloat
     let spacing: CGFloat
     let errorMessage: String?
     @ViewBuilder let content: () -> Content
@@ -176,7 +179,7 @@ struct OnboardingBody<Content: View>: View {
                 Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
             }
         }
-        .padding(.top, OnboardingLayout.bodyTop)
+        .padding(.top, top)
         .padding(.bottom, OnboardingLayout.bodyBottom)
         .padding(.horizontal, OnboardingLayout.side)
     }

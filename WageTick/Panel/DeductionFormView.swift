@@ -22,10 +22,11 @@ enum DeductionFormRequest: Identifiable, Equatable {
     }
 }
 
-/// 扣钱表单 (PRD F5，设计稿 F5 · 760)：按金额 / 按日薪百分比、大号金额输入、原因标签、备注，
+/// 扣钱表单 (PRD F5，设计稿 F5 · 574)：按金额 / 按日薪百分比、大号金额输入、原因标签、备注，
 /// 实时预览「今日上限 ¥x → ¥y」(按日薪百分比时前面加「扣 ¥z ·」)。
 /// 预览与校验都来自核心：草稿交给 `dryRun` 试算，拿试算后快照里的扣钱入口与当前的对比。
 /// 今日概览面板记今天的，历史单日详情补记那一天的 (#15)。
+/// 窗口高 574 时内容区不用滚动：金额框高 92、备注框高 96，小标题与下面的控件间距 6 (没有超日薪提醒、校验提示时)。
 struct DeductionFormView: View {
     let request: DeductionFormRequest
     /// 当前快照里的扣钱入口，预览的起点；跨过零点变成休息日时为 nil。
@@ -72,7 +73,7 @@ struct DeductionFormView: View {
     var body: some View {
         FormSheet(title: title, subtitle: subtitle, back: dismiss) {
             ThemeSegmented(selection: $method, options: [(.fixed, "按金额"), (.percent, "按日薪百分比")], size: .large)
-            VStack(alignment: .leading, spacing: Spacing.s6) {
+            VStack(alignment: .leading, spacing: Spacing.s4) {
                 valueInput
                 previewLine
                 messages
@@ -92,7 +93,7 @@ struct DeductionFormView: View {
         .onChange(of: valueText) { errorMessage = nil }
     }
 
-    /// 大号金额输入 (白底、圆角 12)：左边 loss 色的负号 36/600，数字 48/700，右边单位 (元 / %) 18；获得焦点时描边换成 loss。
+    /// 大号金额输入 (白底、圆角 12、高 92)：左边 loss 色的负号 36/600，数字 48/700，右边单位 (元 / %) 18；获得焦点时描边换成 loss。
     private var valueInput: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.r12)
         return HStack(spacing: Spacing.s6) {
@@ -106,7 +107,7 @@ struct DeductionFormView: View {
             Text(method == .fixed ? "元" : "%").font(AppFont.ui(18)).foregroundStyle(Palette.muted)
         }
         .padding(.horizontal, Spacing.s16)
-        .padding(.vertical, Spacing.s18)
+        .frame(height: Self.valueHeight)
         .background(Palette.card, in: shape)
         .overlay(shape.strokeBorder(focus == .value ? Palette.loss : Palette.line, lineWidth: 1.5))
     }
@@ -143,7 +144,7 @@ struct DeductionFormView: View {
 
     /// 原因标签可不选：再点一次已选中的标签即取消。
     private var reasonPicker: some View {
-        VStack(alignment: .leading, spacing: Spacing.s8) {
+        VStack(alignment: .leading, spacing: Self.labelGap) {
             FormLabel("为啥被扣 (可不选)")
             HStack(spacing: Spacing.s6) {
                 ForEach(DeductionReason.allCases, id: \.self) { option in
@@ -155,10 +156,10 @@ struct DeductionFormView: View {
         }
     }
 
-    /// 备注框：白底、高 104、圆角 8，文字 14，右下角字数 (超出上限的部分直接截掉)。
+    /// 备注框：白底、高 96、圆角 8，文字 14，右下角字数 (超出上限的部分直接截掉)。
     private var noteField: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.control)
-        return VStack(alignment: .leading, spacing: Spacing.s8) {
+        return VStack(alignment: .leading, spacing: Self.labelGap) {
             FormLabel("备注")
             VStack(alignment: .leading, spacing: 0) {
                 TextField("备注", text: $note, prompt: Text("可不填").foregroundStyle(Palette.muted), axis: .vertical)
@@ -190,8 +191,12 @@ struct DeductionFormView: View {
         }
     }
 
+    /// 金额框高度。
+    private static let valueHeight: CGFloat = 92
     /// 备注框高度 (设计稿 Note Box)。
-    private static let noteHeight: CGFloat = 104
+    private static let noteHeight: CGFloat = 96
+    /// 小标题 (「为啥被扣」「备注」) 与下面控件的间距。
+    private static let labelGap = Spacing.s6
 
     private var title: String {
         switch (request, target) {
