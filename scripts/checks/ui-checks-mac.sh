@@ -196,6 +196,8 @@ PY
     if [[ ${HOME_CODE} -eq 0 ]]; then
         echo "ok [HOME-SIZE] 首页图是 360×574 的整窗"
         echo "ok [HOME-BAND] 首页各状态的进度、统计卡、攒钱队列、情绪按钮、入口栏位置一致"
+        echo "ok [HOME-WIDTH] 首页各状态的统计卡左右沿在 20 与 340，没有内容把首页撑宽"
+        echo "ok [HOME-GOALDATE] 大目标卡里预计日期的字底与进度条下沿对齐"
     fi
     record ${HOME_CODE} "首页区域检查 blocked"
     # 扣钱、请假表单在窗口里的页头：与目标页同一位置。图在同一个目录里 (清单上面已经核过)，按离屏预览的页头规则量。
