@@ -2,7 +2,7 @@ import SwiftUI
 import WageCore
 
 /// 月日历 (PRD F11，设计稿 P5 月日历 · 574)：页头月份与上下月切换，月薪条 (可改该月月薪)，日历格子与图例，底部月小结。
-/// 窗口高 574 时六行的月份也不用滚动：格子 44×50、行距 4，日历上下只留 4、8，月小结贴底完整可见。
+/// 窗口高 574 时六行的月份也不用滚动 (按打包的 Noto Sans SC 量)：月薪条上下 10，格子 44×50、行距 4，日历上下只留 4、8，图例下 12，月小结贴底完整可见。
 /// 颜色类型、格子金额与小字、月薪条、月小结的文字都取自快照的 `HistoryMonth`；点某天进单日详情。
 struct MonthCalendarView: View {
     let month: HistoryMonth
@@ -33,7 +33,7 @@ struct MonthCalendarView: View {
                     CalendarLegend()
                         .padding(.horizontal, Spacing.screen)
                         .padding(.top, Spacing.s6)
-                        .padding(.bottom, Spacing.s18)
+                        .padding(.bottom, Spacing.s12)
                 }
             }
             HistoryFiguresRow(figures: month.footer, valueFont: AppFont.num(14, .semibold))
@@ -79,7 +79,7 @@ struct MonthCalendarView: View {
             PhosphorIcon(.pencilSimple, size: 15).foregroundStyle(Palette.muted)
         }
         .padding(.horizontal, Spacing.screen)
-        .padding(.vertical, Spacing.s14)
+        .padding(.vertical, Spacing.s10)
         .background(Palette.surface)
         .contentShape(Rectangle())
         .onTapGesture { editingSalary = true }

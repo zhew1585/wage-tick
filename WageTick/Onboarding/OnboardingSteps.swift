@@ -4,10 +4,11 @@ import WageCore
 
 /// 第 1 步 · 工资 (设计稿 P1 引导 · 1 月薪 · 双休 / 大小周 · 574，按天见「按天算工资」方案 A)：大小牛、标题、
 /// 「月薪 | 日薪」小切换 + 工资大号输入框 (单位跟着变「元/月」「元/日」)，下面「怎么休」选休息模式 (默认双休)。
-/// 窗口高 574 时整步不用滚动：小牛画出来高 76 (原来 90)，顶在窗口 y 74，离标题 12；正文排法不变。
+/// 窗口高 574 时整步不用滚动 (按打包的 Noto Sans SC 量，行高约 1.45 倍)：小牛画出来高 68，顶在窗口 y 70；
+/// 正文上边距 20、块间隔 12，四个选项下沿在 y 486 左右，离底部按钮 20。出现校验提示时多出一行，要滚动。
 struct OnboardingSalaryStep: View {
-    /// 小牛图四周带透明边：框 87 时画出来的小牛高 76，上下各空约 6。
-    private static let mascotSize: CGFloat = 87
+    /// 小牛图四周带透明边：框 78 时画出来的小牛高 68，上下各空约 5。
+    private static let mascotSize: CGFloat = 78
 
     @Binding var salaryText: String
     @Binding var payBasis: PayBasis
@@ -27,7 +28,7 @@ struct OnboardingSalaryStep: View {
                 title: payBasis == .daily ? "嗨，牛马。\n一天赚多少？" : "嗨，牛马。\n一个月赚多少？", subtitle: "税前还是到手，你说了算。只存在这台电脑上，谁也看不到。",
                 top: OnboardingLayout.introAfterMascot
             )
-            OnboardingBody(top: OnboardingLayout.bodyTop, spacing: Spacing.s16, errorMessage: errorMessage) {
+            OnboardingBody(top: OnboardingLayout.bodyTop, spacing: Spacing.s12, errorMessage: errorMessage) {
                 VStack(alignment: .leading, spacing: Spacing.s6) {
                     PayBasisSwitch(selection: payBasis) { payBasis = $0 }
                     Field(nil, text: $salaryText, suffix: payBasis.unit, size: .large)
@@ -45,7 +46,8 @@ struct OnboardingSalaryStep: View {
 
 /// 第 2 步 · 作息 (设计稿 P1 引导 · 2 作息 · 574)：上下班一行两格；饭点开关，打开后饭点时段一行两格；
 /// 分隔线下是「按这个作息算」的工资换算卡片。
-/// 窗口高 574 时打开饭点也不用滚动：标题顶在窗口 y 74，正文上边距 20、块间隔 14，饭点开关与时段间隔 8。
+/// 窗口高 574 时打开饭点也不用滚动：标题行顶在窗口 y 70，正文上边距 14、块间隔 10，饭点开关与时段间隔 8；
+/// 打开饭点时换算卡片下沿在 y 490 左右，离底部按钮 16。
 /// 字段名与尺寸照设计稿 (「上班」「饭点」、加高输入框)，与设置页共用的 `ScheduleFields` 不同，所以单独排。
 struct OnboardingScheduleStep: View {
     @Binding var draft: ScheduleDraft
@@ -58,7 +60,7 @@ struct OnboardingScheduleStep: View {
                 title: "几点上班，几点下班？", subtitle: "按计划时间算钱，不打卡。饭点时段数字会暂停。",
                 top: OnboardingLayout.firstTop
             )
-            OnboardingBody(top: OnboardingLayout.scheduleBodyTop, spacing: Spacing.s14, errorMessage: errorMessage) {
+            OnboardingBody(top: OnboardingLayout.scheduleBodyTop, spacing: Spacing.s10, errorMessage: errorMessage) {
                 timeRow("上班", $draft.start, "下班", $draft.end)
                 VStack(alignment: .leading, spacing: Spacing.s8) {
                     Toggle(isOn: $draft.lunchEnabled) {
@@ -165,7 +167,7 @@ struct OnboardingIntro: View {
     }
 }
 
-/// 设计稿 Body：下 22、左右 24，上边距与块间隔按步不同；最后是校验失败的提示。
+/// 设计稿 Body：下 12、左右 24，上边距与块间隔按步不同；最后是校验失败的提示。
 struct OnboardingBody<Content: View>: View {
     let top: CGFloat
     let spacing: CGFloat
