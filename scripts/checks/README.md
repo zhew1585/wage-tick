@@ -51,7 +51,7 @@ blocked 表示缺图、缺清单、缺工具，没法判断，不算通过。
 | REPO-LOCAL | `roles/`、`docs/spec/` 只放本机 | `git ls-files roles docs/spec` 必须为空 | 不在 git 仓库里时不查 |
 
 成功路径：`python3 scripts/checks/ui_lint.py` 在当前源码上输出「ui_lint: 通过」，退出码 0。
-故意违规：`selftest.py` 里的 42 处改动，每处都必须让 `ui_lint.py` 以退出码 1 报出对应规则 (FONT-BUNDLED 两处：`AppFont.makeFont` 改回按字族名取字；视图里用 `Font.custom("Noto Sans SC", …)`)。
+故意违规：`selftest.py` 里的 44 处改动，每处都必须让 `ui_lint.py` 以退出码 1 报出对应规则 (FONT-BUNDLED 两处：`AppFont.makeFont` 改回按字族名取字；视图里用 `Font.custom("Noto Sans SC", …)`)。
 
 静态规则看的是源码的写法，能挡住「改回去」，挡不住「换一种写法写错」。
 导航那几条的真实行为，靠下面的交互回归与人工验收。

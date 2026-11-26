@@ -277,10 +277,14 @@ def goals(lint):
     else:
         first = lint.read(card)[:lint.read(card).index(finish)].count('\n') + 1
         inside = range(first, first + finish.count('\n') + 1)
-        if not re.search(r'guard[^\n]*days <= Decimal\(ActiveGoalCard\.estimateDayLimit\)[^\n]*else \{ return nil \}', finish):
+        # 注释掉的行不算数：只在真正的代码行里找。
+        code = '\n'.join(line for line in finish.splitlines() if not line.lstrip().startswith('//'))
+        if not re.search(r'guard[^\n]*days <= Decimal\(ActiveGoalCard\.estimateDayLimit\)[^\n]*else \{ return nil \}', code):
             lint.fail('GOALS-LIMIT', card, 'finishDay 开头要有 guard days <= Decimal(ActiveGoalCard.estimateDayLimit)：天数极大时转成整数会溢出，逐天数也数不完')
-        if not re.search(r'through:[^\n]*estimateDayLimit', finish):
+        if not re.search(r'through:[^\n]*estimateDayLimit', code):
             lint.fail('GOALS-LIMIT', card, 'finishDay 逐天数时截止日 (through:) 要按 estimateDayLimit 算，否则会一直数下去')
+    lint.require('GOALS-LIMIT', card, r'func attendanceDay\(',
+                 '找不到逐天数的 attendanceDay (改名了要同步改 ui_lint.py，否则「只能由 finishDay 调」这条查不到任何东西)')
     # 逐天数的 attendanceDay 只能在 finishDay 的函数体里调 (它先看上限)；按行号判断，注释里提到不算。
     for rel in lint.swift_files('WageCore/Sources'):
         for number, line in enumerate(lint.read(rel).splitlines(), 1):
