@@ -4,6 +4,7 @@ import SwiftUI
 import WageCore
 
 /// 离屏渲染面板与两个表单的各个状态，存成 PNG，和设计稿 (P2、F5、F6 · 760，页脚距发薪) 对照用。只在 Debug 构建里。
+/// 按整窗出图 (360×574，含标题栏那一段，不画红绿灯)，四周各留 24 白边：图上的 y 减去 24 就是窗口坐标，`scripts/checks/ui_home.py` 按这个量。
 /// 状态全部在内存里用核心命令造出来 (2026 年 11 月，月薪 21000、10:00 至 18:00、饭点 12:00 至 13:00，日薪 1000)，
 /// 不起菜单栏、不读写 state.json，可以和正在跑的 App 同时用。
 ///
@@ -52,6 +53,27 @@ private enum PanelPreviews {
         let percentItem = try at(base, day: 5, 15, 0) {
             try $0.send(.addDeduction(DeductionInput(amount: .percentOfDailyWage(10), reason: .late, note: "地铁又晚了五分钟")))
         }
+        // 攒钱队列按目标个数的几种排法：第一个都是「换台 MacBook」(长名称、长金额)。月薪 210000，到 5 日累计到带两位小数的五位数。
+        let rich = try onboarded(salary: 210000)
+        let oneGoal = try withGoals(rich, [("换台 MacBook", 200000)])
+        let twoGoals = try withGoals(rich, [("换台 MacBook", 200000), ("去趟大理", 8000)])
+        let fiveGoals = try withGoals(rich, [
+            ("换台 MacBook", 200000), ("去趟大理", 8000), ("跑路基金", 50000), ("新键盘", 1200), ("带爸妈体检", 3000),
+        ])
+        let overDeducted = try at(base, day: 5, 15, 0) {
+            try $0.send(.addDeduction(DeductionInput(amount: .fixed(1200), reason: .late, note: "")))
+        }
+        // 11 月每天都标成不上班：本月没有要上班的日子 (短提示，放得下)。
+        let noAttendance = try at(base, day: 5, 9, 0) { sender in
+            for day in 1...30 {
+                try sender.send(.editDay(LocalDate(year: 2026, month: 11, day: day), .setOverride(.dayOff)))
+            }
+        }
+        let restUnpaid = try at(base, day: 7, 10, 0) { try $0.send(.startUnpaidWork) }
+        // 2 日建的目标 1500，到 5 日推进时已攒够，当场达成，快照里有庆祝。
+        let celebration = try at(try withGoals(try onboarded(), [("新耳机", 1500)]), day: 5, 15, 0) { try $0.send(.advance) }
+        // 今年的节假日数据没拿到：长提示，放不下要滚动。
+        let missingHolidays = HolidayTable(days: [:], missingYears: [2026])
         return [
             ("P2-working", panel(base, day: 5, 15, 0)),
             ("P2-off-work", panel(base, day: 5, 18, 30)),
@@ -65,6 +87,17 @@ private enum PanelPreviews {
             ("P2-payday-countdown", panel(payday, day: 5, 15, 0)),
             ("P2-payday-tomorrow", panel(payday, day: 12, 15, 0)),
             ("P2-payday-today", panel(payday, day: 13, 15, 0)),
+            ("P2-not-started", panel(base, day: 5, 9, 0)),
+            ("P2-working-no-goal", panel(try onboarded(), day: 5, 15, 0)),
+            ("P2-working-one-goal", panel(oneGoal, day: 5, 15, 0)),
+            ("P2-working-two-goals", panel(twoGoals, day: 5, 15, 0)),
+            ("P2-working-five-goals", panel(fiveGoals, day: 5, 15, 0)),
+            ("P2-notice", panel(noAttendance, day: 5, 15, 0)),
+            // 跑马灯截的是静止的第一帧。
+            ("P2-notice-long", panel(base, day: 5, 15, 0, holidays: missingHolidays)),
+            ("P2-over-deducted", panel(overDeducted, day: 5, 15, 0)),
+            ("P2-rest-unpaid-work", panel(restUnpaid, day: 7, 11, 5)),
+            ("P2-celebration", panel(celebration, day: 5, 15, 0)),
             ("F5-add", panel(base, day: 5, 15, 0, route: .deduction(.add))),
             ("F5-edit-fixed", panel(fined, day: 5, 15, 0, route: .deduction(.edit(firstDeduction(fined, day: 5))))),
             ("F5-edit-percent", panel(percentItem, day: 5, 15, 0, route: .deduction(.edit(firstDeduction(percentItem, day: 5))))),
@@ -75,23 +108,25 @@ private enum PanelPreviews {
 
     // MARK: 造状态
 
-    /// 11 月 2 日 (周一) 早上完成引导的状态。
-    private static func onboarded() throws -> AppState {
+    /// 11 月 2 日 (周一) 早上完成引导的状态，月薪默认 21000 (日薪 1000)。
+    private static func onboarded(salary: Decimal = 21000) throws -> AppState {
         let schedule = WorkSchedule(
             start: TimeOfDay(hour: 10, minute: 0),
             end: TimeOfDay(hour: 18, minute: 0),
             lunch: LunchBreak(start: TimeOfDay(hour: 12, minute: 0), end: TimeOfDay(hour: 13, minute: 0))
         )
-        let input = OnboardingInput(salary: 21000, schedule: schedule, launchAtLogin: false)
+        let input = OnboardingInput(salary: salary, schedule: schedule, launchAtLogin: false)
         return try apply(.completeOnboarding(input), to: AppState(), at: moment(day: 2, 9, 0)).state
     }
 
-    /// 一个累计中、两个排队中的目标 (设计稿 P2)。
-    private static func withGoals(_ state: AppState) throws -> AppState {
-        try at(state, day: 2, 9, 0) {
-            try $0.send(.createGoal(name: "Switch 2", amount: 10000))
-            try $0.send(.createGoal(name: "去趟大理", amount: 8000))
-            try $0.send(.createGoal(name: "跑路基金", amount: 50000))
+    /// 按顺序新建目标，第一个累计中、其余排队中；默认是设计稿 P2 的一个累计中、两个排队中。
+    private static func withGoals(
+        _ state: AppState, _ goals: [(String, Decimal)] = [("Switch 2", 10000), ("去趟大理", 8000), ("跑路基金", 50000)]
+    ) throws -> AppState {
+        try at(state, day: 2, 9, 0) { sender in
+            for (name, amount) in goals {
+                try sender.send(.createGoal(name: name, amount: amount))
+            }
         }
     }
 
@@ -129,17 +164,20 @@ private enum PanelPreviews {
 
     // MARK: 视图
 
-    /// 与 `TodayPanelWindowController` 相同的面板尺寸 (窗口固定尺寸减去标题栏)，加圆角描边便于对照；命令只试算，不保存。
+    /// 整个窗口的内容 (`WindowMetrics.size`，含标题栏那一段，红绿灯处留空)，加圆角描边便于对照；命令只试算，不保存。
+    /// 快照里有目标达成时一并盖上庆祝遮罩。
     private static func panel(
-        _ state: AppState, day: Int, _ hour: Int, _ minute: Int, _ second: Int = 0, route: PanelRoute = .home
+        _ state: AppState, day: Int, _ hour: Int, _ minute: Int, _ second: Int = 0,
+        route: PanelRoute = .home, holidays: HolidayTable = .empty
     ) -> AnyView {
         let now = moment(day: day, hour, minute, second)
-        let snap = snapshot(of: state, at: now)
+        let snap = snapshot(of: state, at: now, holidays: holidays)
         let content = TodayPanelContent()
         content.panel = snap.panel
         content.status = snap.today?.status
         content.leaveForm = snap.leaveForm
         content.route = route
+        content.celebration = snap.celebration
         let actions = PanelActions(
             dryRun: { command in
                 Result { () throws(CommandError) in snapshot(of: try apply(command, to: state, at: now).state, at: now) }
@@ -149,7 +187,7 @@ private enum PanelPreviews {
         let navigation = PanelNavigation(openHistory: {}, openGoals: {}, openSettings: {})
         return AnyView(
             TodayPanelView(content: content, actions: actions, navigation: navigation, page: { _ in AnyView(EmptyView()) })
-                .frame(height: WindowMetrics.size.height - WindowChrome.Titlebar.standard.height)
+                .frame(height: WindowMetrics.size.height)
                 .clipShape(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius))
                 .overlay(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius).strokeBorder(Palette.line, lineWidth: 1))
                 .padding(24)
@@ -174,7 +212,9 @@ private enum PanelPreviews {
         guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { return }
         hosting.cacheDisplay(in: hosting.bounds, to: rep)
         window.orderOut(nil)
-        try rep.representation(using: .png, properties: [:])?.write(to: file)
+        // 截图按屏幕的色彩空间 (如 Display P3) 存值，饱和色 (money、accent) 的数值会偏；转成 sRGB，像素值与 `Palette` 的十六进制一致。
+        let srgb = rep.converting(to: .sRGB, renderingIntent: .default) ?? rep
+        try srgb.representation(using: .png, properties: [:])?.write(to: file)
     }
 }
 #endif
