@@ -244,22 +244,30 @@ App 拿不到前台，红绿灯是灰的，窗口也不是 key 窗口；这对�
 `scripts/checks/selftest-mac.sh <文字>` 只跑名字里含这段文字的改动。
 源码变了、找不到要改的原文时报 BLOCKED，要同步改脚本里的 `CASES`。
 
-实测 (2026-11-26，提交 023eb31 加本次的检查脚本，本机 Apple Silicon Mac；每条约 90 秒，整轮约 16 分钟)：
+实测 (2026-11-26，提交 5810365 加本次的检查脚本，本机 Apple Silicon Mac，本机装着另一版 Noto Sans SC (`~/Library/Fonts/NotoSansSC.ttf`)、没有任何强制字体的开关；每条约 135 秒，整轮约 35 分钟)：
 
 | 改动 | 改了什么 | 预期规则 | 退出码 | 实际报出 | 抓到 |
 |---|---|---|---|---|---|
+| 基线 | 不改 | 无 | 0 | 无 | — |
 | 箭头离红绿灯 6pt | `PageHeader.rootLeading` 改回 `leadingInset - Spacing.s6` | HDR-LIGHTS-GAP 或 HDR-X | 1 | HDR-LIGHTS-GAP、HDR-X | 是 |
 | 窗口改回标准标题栏 | 今日概览窗口 `titlebar: .standard` | HDR-LIGHTS 或 HDR-VCENTER | 1 | HDR-LIGHTS、HDR-VCENTER | 是 |
 | 页面预览上方多留一行 | `PagePreviews.page()` 上方加 28 的 padding | HDR-FRAME | 1 | HDR-FRAME、HDR-VCENTER | 是 |
-| 盖页后底层没停用 | `TodayPanelView` 去掉 `.disabled(content.page != nil)` | ACT-COVER | 0 | 无 | 否 |
+| 盖页后底层没停用 | `TodayPanelView` 去掉 `.disabled(content.page != nil)` | ACT-COVER | 1 | ACT-HISTORY (同一天前一轮是 ACT-ESC、ACT-HISTORY) | 否 |
 | 开着表单也换页 | `show()` 里 `push` 不再受 `hasSheet` 保护 | ACT-SHEET | 1 | ACT-SHEET | 是 |
 | Esc 兜底直接退回概览 | `handleCancel()` 里 `if !goBackInside(page) { pop() }` 改成 `pop()` | ACT-ESC | 0 | 无 | 否 |
-| 概览目标卡不可点 | `GoalCardView` 的累计中卡片去掉 `Button` 包裹 | ACT-GOALCARD | 1 | ACT-GOALCARD | 是 |
+| 概览目标卡不可点 | `GoalCardView` 的累计中大卡去掉 `tappable` (`Button`) 包裹 | ACT-GOALCARD | 1 | ACT-GOALCARD | 是 |
 | 点 Dock 图标也退页 | `applicationShouldHandleReopen` 改回 `todayPanel.show()` | ACT-DOCK | 1 | ACT-DOCK | 是 |
-| ⌘1 不回概览 | `show()` 里去掉 `pop()` 那个分支 | ACT-HOME | 1 | ACT-HOME，另有 ACT-COVER、ACT-DOCK、ACT-ESC、ACT-GOALCARD、ACT-HISTORY、ACT-SHEET 跟着报 (它们都用 ⌘1 回概览作起点) | 是 |
+| ⌘1 不回概览 | `show()` 里去掉 `pop()` 那个分支 | ACT-HOME | 2 | ACT-HOME，另有 ACT-COVER、ACT-DOCK、ACT-ESC、ACT-GOALCARD、ACT-HISTORY、ACT-SHEET 跟着报；之后 FIT-NOSCROLL 也回不到概览，记 BLOCKED，所以退出码是 2 | 否 (按脚本的判定：规则报出来了，但退出码不是 1) |
 | 历史页再进来不是月列表 | `HistoryPage.appear()` 不重置 `selectedMonth`、`selectedDay` | ACT-HISTORY | 1 | ACT-HISTORY | 是 |
+| 引导小牛放大 | 引导第 1 步小牛框 `mascotSize` 78 改成 120 | FIT-NOSCROLL | 1 | FIT-NOSCROLL | 是 |
+| AppFont 退回系统字体 | `makeFont` 里 `if let base {` 改成 `if let base, false {` | FONT-BUNDLED | 1 | FONT-BUNDLED，另有 ACT-* 七条跟着报 (字体变了，认页的参照与 ⌘1 回概览的判定对不上) | 是 |
+| 页头标题不上提 | 去掉 `PageHeader` 标题的 `.offset(y: -Self.titleLift)` | HDR-VCENTER | 1 | HDR-VCENTER | 是 |
+| 入口栏又靠内边距撑高 | `PanelFooter` 的 `.frame(height: HomeLayout.footer.height)` 改回 `.padding(.vertical, Spacing.s10)` | HOME-BAND | 1 | HOME-BAND | 是 |
+| 引导校验提示不滚过去 | `OnboardingView` 校验不过时不调 `scrollTo` | FIT-HINT | 1 | FIT-HINT | 是 |
 
-10 条里抓到 8 条。
+15 条里抓到 12 条。
+「AppFont 又按字族名取字」(改回原来的写法) 不在这里：只有装了同名字体的机器上才会报 FONT-BUNDLED，没装的机器上按字族名取到的就是注册进来的打包字体；这一条由静态规则 FONT-BUNDLED 管。
+「⌘1 不回概览」规则是报出来了，只是后面的 FIT 步骤进不去页面记了 BLOCKED；脚本只认退出码 1，照实记「否」。
 
 FIT-NOSCROLL 加进来时 (2026-11-26，提交 5634df7 加本次的检查脚本) 补测了一条；当时基线因为首页的 20 条 HOME-BAND (入口栏下沿 572.5pt，应 574pt) 不通过，`selftest-mac.sh` 会在基线处 BLOCKED，所以这条是在临时 worktree 里手工改源码直接跑 `run.sh ui` 测的：
 
