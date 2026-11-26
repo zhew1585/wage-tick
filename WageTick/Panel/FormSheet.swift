@@ -25,12 +25,14 @@ struct FormSheet<Content: View, Actions: View>: View {
         VStack(spacing: 0) {
             switch placement {
             case .window:
+                // esc 由底部的「算了」接 (两种用法都一样)，页头的返回只管点。
                 PageHeader(title, back: back, isRoot: true) {
                     if let subtitle {
                         Text(subtitle).font(AppFont.body).foregroundStyle(Palette.muted)
                             .padding(.trailing, Self.windowTrailingInset - Spacing.screen)
                     }
                 }
+                .escapeGoesBack(false)
             case .sheet:
                 head
                 PanelDivider()

@@ -4,7 +4,7 @@ import SwiftUI
 /// 高 52 (与 `.tall` 标题栏同高，红绿灯正好垂直居中)，下沿一条分隔线。
 /// 这些页面在今日概览窗口里从右边推进来 (ADR-0005 的 2026-11-13、2026-11-25 补充)，顶到窗口上沿，
 /// 页头和系统红绿灯排在同一行，返回与标题在这 52 高里垂直居中，左边让出红绿灯的位置。
-/// 标题前带返回箭头 (Phosphor caret-left 18)，esc 等同返回；返回按钮悬停、按下时外扩一圈圆角底。`back` 为 nil 时只有标题。
+/// 标题前带返回箭头 (Phosphor caret-left 18)，esc 等同返回 (`escapeGoesBack(false)` 时不接 esc，由页面里别的按钮接)；返回按钮悬停、按下时外扩一圈圆角底。`back` 为 nil 时只有标题。
 /// 两种排法：
 /// - 页面的首页 (目标、历史月列表、设置，`isRoot`)：原版这里只有标题，从 85 排起 (红绿灯右边空 12)。
 ///   现在整组仍从这条线起：返回箭头的笔画落在 85，离红绿灯和原版一样远；标题让出箭头 (笔画宽 7) 再空 8，从 100 排起。
@@ -20,6 +20,8 @@ struct PageHeader<Trailing: View>: View {
     let back: (() -> Void)?
     /// 页面的首页：返回箭头收紧，标题留在原版的位置附近 (见上)。
     let isRoot: Bool
+    /// 返回按钮接不接 esc，默认接；用 `escapeGoesBack(false)` 关掉。
+    private var handlesEscape = true
     @ViewBuilder let trailing: () -> Trailing
 
     private static var height: CGFloat { WindowChrome.Titlebar.tall.height }
@@ -53,7 +55,7 @@ struct PageHeader<Trailing: View>: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.highlight(radius: Radius.r6, outset: Spacing.s4))
-                .keyboardShortcut(.cancelAction)
+                .keyboardShortcut(handlesEscape ? .cancelAction : nil)
                 .help("返回")
             } else {
                 titleText
@@ -65,6 +67,13 @@ struct PageHeader<Trailing: View>: View {
         .padding(.trailing, Spacing.screen)
         .frame(height: Self.height)
         .overlay(alignment: .bottom) { Palette.line.frame(height: 1) }
+    }
+
+    /// 返回按钮接不接 esc。表单 (`FormSheet`) 里 esc 归底部的「算了」，页头不再接，免得一个键绑两个按钮。
+    func escapeGoesBack(_ enabled: Bool) -> Self {
+        var header = self
+        header.handlesEscape = enabled
+        return header
     }
 
     private var titleText: some View {
