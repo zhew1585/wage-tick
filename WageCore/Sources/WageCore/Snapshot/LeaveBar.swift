@@ -53,8 +53,9 @@ public struct LeaveBar: Sendable, Equatable {
 }
 
 extension LeaveBar {
-    /// 中间的时刻文字离两端、彼此至少隔开整条的这个比例 (320 宽时约 48pt)，免得「12:00」这样的文字挤在一起。
-    private static let labelSpacing = 0.15
+    /// 中间的时刻文字离两端、彼此至少隔开整条的这个比例 (320 宽时约 58pt)，免得「12:00」这样的文字和两端的上下班时间挤在一起；
+    /// 离两端更近的整点只画刻度线、不写时刻。
+    private static let labelSpacing = 0.18
     /// 中间时刻文字的间隔 (小时) 候选：从小到大取第一个让整条最多分成 4 格的。
     private static let labelIntervals = [1, 2, 3, 4, 6, 12]
 
