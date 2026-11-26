@@ -98,7 +98,7 @@ class Run:
         return self.drive.send(f'sig {x} {y} {w} {h} {INK}')['hash']
 
     def footer_rect(self):
-        height = self.state().get('height', 760)
+        height = self.state().get('height', 574)
         return (0, height - FOOTER_HEIGHT, 360, FOOTER_HEIGHT)
 
     def ax(self):
@@ -439,9 +439,9 @@ class Run:
         print(f'App 已启动 (pid {self.app.pid})，窗口 {state["width"]:.0f}×{state["height"]:.0f}，{self.screen_scale} 倍屏，前台：{state["active"]}', flush=True)
         # 启动时应在概览：辅助功能里有底栏三个入口。辅助功能树是打开后才建的，等一会儿。
         deadline = time.time() + 15
-        while not self.find('AXButton', '^设置$', below=600) and time.time() < deadline:
+        while not self.find('AXButton', '^设置$', below=self.footer_rect()[1] - 8) and time.time() < deadline:
             time.sleep(0.3)
-        if not self.find('AXButton', '^设置$', below=600):
+        if not self.find('AXButton', '^设置$', below=self.footer_rect()[1] - 8):
             raise Blocked('启动后不在今日概览 (假状态没生效？)，底栏的入口找不到')
         files = [self.capture('today')]
         _, self.refs['footer'] = self.settle()

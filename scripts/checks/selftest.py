@@ -141,6 +141,59 @@ def run_geometry_case(kind, pages):
         return run('ui_geometry.py', *args)
 
 
+# 首页各区域 (窗口坐标 pt)：与 ui-home.json 的 bands 相同，自测里按它画，再逐项挪动做反例。
+HOME = {'bar': (238, 248), 'button': (216, 264), 'stats': (280, 344), 'goals': (356, 460), 'actions': (472, 516), 'footer': (528, 574)}
+SURFACE, LINE_COLOR, MONEY, SOFT, ACCENT = (245, 240, 230), (231, 223, 209), (43, 138, 62), (253, 235, 221), (232, 89, 12)
+INK_COLOR = (31, 27, 22)
+
+
+def draw_home(path, kind='working', height=574, scale=2, **moved):
+    """画一张首页预览图 (整窗 360×height，四周 24pt 白边)，只有色块。kind：working 画进度条，offwork 画白干计时按钮，rest 两样都不画，
+    empty 把累计中目标卡换成描边的空状态卡。moved 里给某个区域新的 (上沿, 下沿) 就是把它挪了位置。"""
+    bands = {**HOME, **moved}
+    px = lambda pt: round((pt + 24) * scale)
+    box = lambda x0, band, x1, color: (px(x0), px(band[0]), px(x1), px(band[1]), color)
+    rects = [(px(0), px(0), px(360), px(height), PAPER)]
+    if kind in ('working', 'empty'):
+        rects += [box(20, bands['bar'], 340, LINE_COLOR), box(20, bands['bar'], 150, MONEY)]
+    elif kind == 'offwork':
+        rects.append(box(20, bands['button'], 340, INK_COLOR))
+    rects.append(box(20, bands['stats'], 340, SURFACE))
+    top, bottom = bands['goals']
+    if kind == 'empty':
+        rects += [box(20, (top, bottom), 340, LINE_COLOR), box(21, (top + 1, bottom - 1), 339, PAPER)]
+    else:
+        rects += [box(20, (top, bottom), 228, SOFT), box(34, (bottom - 20, bottom - 14), 154, ACCENT),
+                  box(236, (top, top + 48), 340, LINE_COLOR), box(237, (top + 1, top + 47), 339, PAPER)]
+    rects += [box(20, bands['actions'], 175, SURFACE), box(185, bands['actions'], 340, SURFACE), box(0, bands['footer'], 360, SURFACE)]
+    write_png(path, (360 + 48) * scale, (height + 48) * scale, rects, background=(255, 255, 255))
+
+
+# (说明, {图名: draw_home 的参数}, 预期退出码, 必须报出的规则)
+HOME_CASES = [
+    ('首页各状态区域位置一致', {'P2-working': {}, 'P2-off-work': {'kind': 'offwork'}, 'P2-rest-day': {'kind': 'rest'},
+                      'P2-first-half-leave-no-goal': {'kind': 'empty'}}, 0, []),
+    ('1 倍屏上的首页图', {'P2-working': {'scale': 1}, 'P2-off-work': {'kind': 'offwork', 'scale': 1}}, 0, []),
+    ('已下班时统计卡被按钮顶下去 4pt', {'P2-off-work': {'kind': 'offwork', 'stats': (284, 348)}}, 1, ['HOME-BAND']),
+    ('只有 1 个目标时目标卡变高', {'P2-working': {'goals': (356, 480)}}, 1, ['HOME-BAND']),
+    ('没有目标时空状态卡变矮', {'P2-first-half-leave-no-goal': {'kind': 'empty', 'goals': (356, 440)}}, 1, ['HOME-BAND']),
+    ('情绪按钮被上面的内容推下去', {'P2-working': {'actions': (480, 524)}}, 1, ['HOME-BAND']),
+    ('入口栏不贴底', {'P2-working': {'footer': (520, 566)}}, 1, ['HOME-BAND']),
+    ('进度条挪了位置', {'P2-working': {'bar': (244, 254)}}, 1, ['HOME-BAND']),
+    ('白干计时按钮撑满进度区', {'P2-off-work': {'kind': 'offwork', 'button': (212, 268)}}, 1, ['HOME-BAND']),
+    ('窗口高度改回 760', {'P2-working': {'height': 760}}, 1, ['HOME-SIZE']),
+    ('缺图', {'P2-working': None}, 2, ['BLOCKED']),
+]
+
+
+def run_home_case(pages):
+    with tempfile.TemporaryDirectory() as directory:
+        for name, spec in pages.items():
+            if spec is not None:
+                draw_home(os.path.join(directory, name + '.png'), **spec)
+        return run('ui_home.py', '--dir', directory, '--only', *pages)
+
+
 def run(script, *args):
     result = subprocess.run([sys.executable, os.path.join(HERE, script), *args], capture_output=True, text=True)
     return result.returncode, result.stdout + result.stderr
@@ -185,11 +238,18 @@ def main():
             problems.append(f'「{title}」预期退出码 {expected}、报出 {rules}，实际退出码 {code}：\n{output}')
         else:
             print(f"ok   几何 {'/'.join(rules) or '通过':<16} {'抓到' if expected else '放行'}：{title}")
+    for title, pages, expected, rules in HOME_CASES:
+        code, output = run_home_case(pages)
+        missing = [rule for rule in rules if rule not in output]
+        if code != expected or missing:
+            problems.append(f'「{title}」预期退出码 {expected}、报出 {rules}，实际退出码 {code}：\n{output}')
+        else:
+            print(f"ok   首页 {'/'.join(rules) or '通过':<16} {'抓到' if expected else '放行'}：{title}")
     if problems:
         print('\n'.join(['', *problems]))
         print(f'selftest: {len(problems)} 处不符合预期')
         return 1
-    print(f'selftest: 全部符合预期 ({len(LINT_VIOLATIONS)} 条静态违规、{len(GEOMETRY_CASES)} 组图)')
+    print(f'selftest: 全部符合预期 ({len(LINT_VIOLATIONS)} 条静态违规、{len(GEOMETRY_CASES)} 组页头图、{len(HOME_CASES)} 组首页图)')
     return 0
 
 

@@ -1,0 +1,36 @@
+{
+  "windowPt": [360, 574],
+  "marginPt": 24,
+  "tolPt": 1,
+  "colorTol": 12,
+  "colors": {
+    "bg": [255, 253, 248],
+    "surface": [245, 240, 230],
+    "line": [231, 223, 209],
+    "ink": [31, 27, 22],
+    "money": [43, 138, 62],
+    "accent": [232, 89, 12],
+    "accentSoft": [253, 235, 221]
+  },
+  "bands": {
+    "progressBar": [238, 248],
+    "progressButton": [216, 264],
+    "stats": [280, 344],
+    "goals": [356, 460],
+    "actions": [472, 516],
+    "footer": [528, 574]
+  },
+  "states": [
+    "P2-working", "P2-off-work", "P2-unpaid-work", "P2-unpaid-work-past-midnight", "P2-off-work-fined", "P2-rest-day",
+    "P2-first-half-leave-no-goal", "P2-middle-leave", "P2-payday-countdown", "P2-payday-tomorrow", "P2-payday-today"
+  ],
+  "noProgress": ["P2-rest-day"],
+  "noActions": [],
+  "provenance": {
+    "bands": "Allen 2026-11-26 确认的首页定稿：窗口 360×574，块间距 24 / 16 / 12 / 12 / 12 / 12，各区域在所有状态下位置一致。与 WageTick/Theme/Metrics.swift 的 HomeLayout 是同一组数，改一处要改两处",
+    "progressBar": "进度区 212–268 里的分段条：区内 26–36",
+    "progressButton": "已下班、白干中时进度区里的白干计时按钮：高 48，上下各留 4",
+    "colors": "WageTick/Theme/Palette.swift",
+    "states": "WageTick/Panel/PanelPreviews.swift 里的首页状态；加了新状态要登记到这里"
+  }
+}

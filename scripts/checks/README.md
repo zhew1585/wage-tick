@@ -16,6 +16,7 @@ blocked 表示缺图、缺清单、缺工具，没法判断，不算通过。
 
 - `ui_lint.py`、`ui-lint.json`：静态规则，只读源码。
 - `ui_geometry.py`、`ui-geometry.json`：读渲染图的像素量页头、认红绿灯、查空白图与产物清单。
+- `ui_home.py`、`ui-home.json`：读首页各状态的渲染图，查每个区域的位置是否一致。
 - `selftest.py`：检查脚本自己的回归。
   每条静态规则配一处故意违规的改动，每条几何规则配一张现画的反例图，都必须被抓到。
   仓库里不放图片：反例图只有色块，位置取自当时真实渲染图上量到的数值，自测时画进临时目录。
@@ -109,6 +110,26 @@ HDR-LIGHTS-GAP 只保证不退回被 Allen 否掉的 6 pt。
 HDR-X 只保证和当前的设计值一致，不代表这个设计值已经被认可。
 留白是否美观，要 Allen 看真窗口图确认；检查每次都会打印这一句。
 
+## 首页区域 (`ui_home.py`)
+
+2026-11-26 首页改版时 Allen 定的：首页七个区域在所有状态下高度、位置都一样，换状态只换区域里的内容。
+之前首页是按内容高度一段段叠起来的，目标数量、是否已下班、有没有提示条都会让下面的区域上下挪，留白时大时小 (1 个目标时空 125 pt)。
+
+图是首页各状态的离屏渲染 (`wagetick_render_panel_previews`)，整窗 360×574，四周各留 24 pt 白边。
+认区域靠底色，位置在 `ui-home.json`，与 `WageTick/Theme/Metrics.swift` 的 `HomeLayout` 是同一组数，改一处要改两处。
+
+| 规则 | 对应的坑 | 判定与阈值 | 误报边界 |
+|---|---|---|---|
+| HOME-SIZE | 窗口高度被改掉，或预览没按整窗出图 | 图是 360×574 四周各加 24 的 1 倍或 2 倍图 | 窗口尺寸确实要改时，同步改 `ui-home.json` |
+| HOME-BAND | 某个状态下区域被内容顶开、挪位或变高 | 进度条 238–248 (已下班、白干中是按钮 216–264)、统计卡 280–344、攒钱队列 356–460、情绪按钮 472–516、入口栏 528–574，各 ±1 | 认的是底色：换了卡片底色要改 `colors`；休息日没有进度区 (`noProgress`)；没有情绪按钮的状态登记到 `noActions` |
+| BLOCKED | 缺图、缺清单时当成通过 | 清单里的提交必须是 `HEAD`，`states` 里列的图都要在 | 加了新的首页预览状态要登记到 `states`，不登记就查不到它 |
+
+成功路径：`python3 scripts/checks/ui_home.py --dir <首页预览目录> --manifest <清单>` 输出「ui_home: 通过」，退出码 0。
+故意违规：`selftest.py` 现画只有色块的首页图，逐个区域挪位置 (统计卡下移 4、目标卡变高、空状态卡变矮、按钮被推下去、入口栏不贴底、进度条挪位、白干按钮撑满进度区、窗口改回 760)，每个都必须被抓到。
+
+查不到的：区域里面的排版 (字号、对齐、截断)、日期行与主数字区的位置 (它们是文字，没有可认的底色)、提示条。
+这些靠定稿图人工对照。
+
 ## 交互回归 (`ui-checks-mac.sh`、`ui_drive.py`)
 
 ### 一次运行做什么
@@ -119,6 +140,7 @@ HDR-X 只保证和当前的设计值一致，不代表这个设计值已经被�
    假状态：上个月 1 号完成引导，月薪 20000，10:00–18:00，饭点 12:00–13:00，双休；关掉桌面悬浮小牛与两种通知；一个累计中目标「换台 MacBook」加四个排队目标，金额远大于两个月工资，不会弹庆祝动画。
    今天设成上班日，周末、节假日、深夜跑，概览上都有「今天扣钱了」。
 4. 离屏渲染：注入库调用 `wagetick_render_page_previews`，图放 `offscreen/`，写清单 (`kind: offscreen`，`decorations` 里窗框与红绿灯都是 false)，跑 `ui_geometry.py --kind offscreen`。
+   再调用 `wagetick_render_panel_previews` 渲染首页各状态，图放 `panel/`，写清单 (`kind: panel`)，跑 `ui_home.py`。
 5. 真窗口与交互回归：`ui_drive.py` 用假主目录拉起 App (`CFFIXED_USER_HOME` 加注入库里拦截 `getpwuid`)，经 Unix 套接字给注入库发命令。
    截 `today`、`P3-goals`、`P4-history`、`P5-calendar`、`P5-day-detail`、`P6-settings` 六张真窗口图放 `realwindow/`，写清单 (`method: cacheDisplay`，`active` 按实际)，跑 `ui_geometry.py --kind realwindow`。
 6. 真实数据目录 `~/Library/Application Support/com.zhew1585.WageTick/` 在开始前、结束后各取一次校验和 (文件名加内容)，变了记 `FAIL [ENV-DATA]`。

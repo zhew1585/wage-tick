@@ -1,6 +1,6 @@
 #!/bin/bash
 # 界面检查里要 macOS 的那一半，由 scripts/checks/run.sh ui 调用。规则与每条对应的坑见 scripts/checks/README.md。
-# 一次运行：编一份 Debug (关掉 hardened runtime，放临时目录) → 离屏渲染页面预览并量页头 → 用临时目录里的假数据拉起 App，
+# 一次运行：编一份 Debug (关掉 hardened runtime，放临时目录) → 离屏渲染页面预览并量页头 → 离屏渲染首页各状态并查区域位置 → 用临时目录里的假数据拉起 App，
 # 截真窗口图并量页头 → 在 App 进程里合成按键、点击跑交互回归 → 确认真实数据目录没被碰过。
 # 不往 /Applications 写东西，不读写 ~/Library/Application Support/com.zhew1585.WageTick/ (只取校验和)，不申请任何系统权限。
 # 用法：scripts/checks/ui-checks-mac.sh [输出目录]，也可用环境变量 UI_CHECKS_OUT；默认 build/ui-checks/。
@@ -151,6 +151,41 @@ PY
     echo "· 几何 (离屏，$(ls "${OUT}/offscreen" | grep -c '\.png$') 张)"
     geometry offscreen "${OUT}/offscreen"
     record $? "离屏几何检查 blocked"
+fi
+
+# 2b. 离屏渲染首页各状态，查各区域的位置是否一致 (HOME-SIZE、HOME-BAND)。
+echo "离屏渲染首页各状态…"
+mkdir -p "${OUT}/panel"
+WAGETICK_RENDER_ENTRY=wagetick_render_panel_previews WAGETICK_RENDER_DIR="${OUT}/panel" CFFIXED_USER_HOME="${FAKE_HOME}" WAGETICK_FAKE_HOME="${FAKE_HOME}" \
+    DYLD_INSERT_LIBRARIES="${WORK}/libdrive.dylib" "${EXE}" > "${OUT}/panel.log" 2>&1
+RENDER=$?
+if [[ ${RENDER} -ne 0 ]]; then
+    cat "${OUT}/panel.log"
+    record 2 "首页离屏渲染失败 (退出码 ${RENDER}，见 panel.log)"
+else
+    python3 - "${OUT}/panel" "${COMMIT}" <<'PY'
+import datetime, json, os, sys
+directory, commit = sys.argv[1], sys.argv[2]
+files = sorted(name for name in os.listdir(directory) if name.endswith('.png'))
+manifest = {
+    'commit': commit,
+    'kind': 'panel',
+    'capturedAt': datetime.datetime.now().astimezone().isoformat(timespec='seconds'),
+    'method': '离屏渲染：注入 Debug 版 App，调用 wagetick_render_panel_previews (WageTick/Panel/PanelPreviews.swift)，按屏幕倍数出图，四周留 24pt',
+    'decorations': {'windowFrame': False, 'trafficLights': False},
+    'files': files,
+}
+json.dump(manifest, open(os.path.join(directory, 'manifest.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
+PY
+    echo "· 首页区域 ($(ls "${OUT}/panel" | grep -c '\.png$') 张)"
+    HOME_TEXT="$(python3 scripts/checks/ui_home.py --dir "${OUT}/panel" --manifest "${OUT}/panel/manifest.json")"
+    HOME_CODE=$?
+    echo "${HOME_TEXT}"
+    if [[ ${HOME_CODE} -eq 0 ]]; then
+        echo "ok [HOME-SIZE] 首页图是 360×574 的整窗"
+        echo "ok [HOME-BAND] 首页各状态的进度、统计卡、攒钱队列、情绪按钮、入口栏位置一致"
+    fi
+    record ${HOME_CODE} "首页区域检查 blocked"
 fi
 
 # 3. 真窗口图与交互回归 (同一次启动)。
