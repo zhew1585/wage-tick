@@ -6,9 +6,7 @@
 //   驱动哪个窗口按标题认：默认「今日概览」，WAGETICK_DRIVE_TITLE 可换 (引导窗口是「牛马鼓励器」)。
 // 两种用法都拦截 getpwuid：WAGETICK_FAKE_HOME 给了时把主目录换成它 (WidgetPayload 按 getpwuid 取真实主目录)，
 // 配合 CFFIXED_USER_HOME，App 只读写临时目录里的假数据。
-// WAGETICK_BUNDLED_FONT 给了时，两种用法都让「Noto Sans SC」一律取 App 包里打包的那份：机器上另装了同名字体时，
-// App 按字族名取到的是装的那份，行高差得很多 (2026-11-26 引导页在一台机器上放得下、在另一台上要滚动)。
-// FIT-NOSCROLL、FIT-PREVIEW 要量用户拿到的打包字体，所以带上它；其余检查暂时照旧用本机按字族名取到的字体。
+// 两种用法都能报出 App 里 `AppFont` 实际取到的字体文件 (FONT-BUNDLED)：离屏渲染完写进 <目录>/fonts.json，驱动时用 font 命令。
 #import <AppKit/AppKit.h>
 #import <dlfcn.h>
 #import <mach-o/dyld.h>
@@ -16,8 +14,6 @@
 #import <sys/socket.h>
 #import <sys/un.h>
 #import <unistd.h>
-#import <CoreText/CoreText.h>
-#import <objc/runtime.h>
 
 #pragma mark 主目录
 
@@ -38,53 +34,6 @@ __attribute__((used, section("__DATA,__interpose"))) static const struct {
     const void *original;
 } interposers[] = {{(const void *)fake_getpwuid, (const void *)getpwuid}};
 
-#pragma mark 字体
-
-static IMP originalFontWithDescriptor;
-
-/// App 包里打包的 Noto Sans SC (Resources/Fonts/NotoSansSC-GB2312.ttf) 的字体描述；找不到时为 NULL。
-static CTFontDescriptorRef bundledNoto(void) {
-    static CTFontDescriptorRef base;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        NSURL *url = [NSBundle.mainBundle URLForResource:@"NotoSansSC-GB2312" withExtension:@"ttf"];
-        CFArrayRef all = url ? CTFontManagerCreateFontDescriptorsFromURL((__bridge CFURLRef)url) : NULL;
-        if (all && CFArrayGetCount(all) > 0) base = CFRetain(CFArrayGetValueAtIndex(all, 0));
-        if (all) CFRelease(all);
-    });
-    return base;
-}
-
-/// +[NSFont fontWithDescriptor:size:] 的替身：字族是 Noto Sans SC 时用打包那份的描述，带上原描述里的字重轴；其余照旧。
-static NSFont *bundledFontWithDescriptor(id self, SEL _cmd, NSFontDescriptor *descriptor, CGFloat size) {
-    CTFontDescriptorRef base = bundledNoto();
-    if (base && [descriptor.fontAttributes[NSFontFamilyAttribute] isEqualToString:@"Noto Sans SC"]) {
-        id variation = descriptor.fontAttributes[(__bridge NSString *)kCTFontVariationAttribute];
-        NSDictionary *attributes = variation ? @{(__bridge NSString *)kCTFontVariationAttribute: variation} : @{};
-        CTFontDescriptorRef copy = CTFontDescriptorCreateCopyWithAttributes(base, (__bridge CFDictionaryRef)attributes);
-        CTFontRef font = CTFontCreateWithFontDescriptor(copy, size, NULL);
-        CFRelease(copy);
-        return (__bridge_transfer NSFont *)font;
-    }
-    return ((NSFont *(*)(id, SEL, NSFontDescriptor *, CGFloat))originalFontWithDescriptor)(self, _cmd, descriptor, size);
-}
-
-static void useBundledFont(void) {
-    Method method = class_getClassMethod(NSFont.class, @selector(fontWithDescriptor:size:));
-    originalFontWithDescriptor = method_setImplementation(method, (IMP)bundledFontWithDescriptor);
-}
-
-/// 不经替身按字族名取「Noto Sans SC」时拿到的字体文件 (App 本来会用的那份) 与打包的那份；两者不同说明本机另装了同名字体。
-/// forced：这次是否换成了打包的那份。
-static NSDictionary *fontInfo(void) {
-    NSFontDescriptor *descriptor = [NSFontDescriptor fontDescriptorWithFontAttributes:@{NSFontFamilyAttribute: @"Noto Sans SC"}];
-    IMP lookup = originalFontWithDescriptor ?: method_getImplementation(class_getClassMethod(NSFont.class, @selector(fontWithDescriptor:size:)));
-    NSFont *system = ((NSFont *(*)(id, SEL, NSFontDescriptor *, CGFloat))lookup)(NSFont.class, @selector(fontWithDescriptor:size:), descriptor, 14);
-    NSURL *systemURL = system ? (__bridge_transfer NSURL *)CTFontCopyAttribute((__bridge CTFontRef)system, kCTFontURLAttribute) : nil;
-    NSURL *bundled = [NSBundle.mainBundle URLForResource:@"NotoSansSC-GB2312" withExtension:@"ttf"];
-    return @{@"byName": systemURL.path ?: @"", @"bundled": bundled.path ?: @"", @"forced": @(originalFontWithDescriptor != NULL && bundledNoto() != NULL)};
-}
-
 #pragma mark 离屏渲染
 
 static void *appDebugLibrary(void) {
@@ -97,6 +46,16 @@ static void *appDebugLibrary(void) {
     return dlopen(lib, RTLD_NOW);
 }
 
+/// App 里 Debug 才有的 wagetick_font_report() (WageTick/Theme/AppFontReport.swift) 返回的 JSON；没有这个入口时是一个带 error 的 JSON。
+static NSString *fontReport(void) {
+    char *(*report)(void) = dlsym(appDebugLibrary(), "wagetick_font_report");
+    if (!report) return @"{\"error\": \"没找到 wagetick_font_report，要用 Debug 构建\"}";
+    char *text = report();
+    NSString *result = [NSString stringWithUTF8String:text];
+    free(text);
+    return result;
+}
+
 static void render(const char *dir) {
     void *handle = appDebugLibrary();
     if (!handle) { fprintf(stderr, "%s\n", dlerror()); exit(2); }
@@ -104,6 +63,13 @@ static void render(const char *dir) {
     void (*entry)(const char *) = dlsym(handle, name ? name : "wagetick_render_page_previews");
     if (!entry) { fprintf(stderr, "没找到渲染入口 %s，要用 Debug 构建\n", name ? name : "wagetick_render_page_previews"); exit(3); }
     entry(dir);
+    // 渲染完再取：AppFont 在渲染入口里注册、建好缓存，取到的就是这次渲染用的字体。
+    NSString *report = fontReport();
+    NSString *path = [[NSString stringWithUTF8String:dir] stringByAppendingPathComponent:@"fonts.json"];
+    if (![report writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil]) {
+        fprintf(stderr, "写不了 %s\n", path.UTF8String);
+        exit(4);
+    }
     exit(0);
 }
 
@@ -333,7 +299,7 @@ static NSString *handle(NSString *line) {
         [responder deleteBackward:nil];
         return json(@{@"ok": @YES});
     }
-    if ([command isEqualToString:@"font"]) return json(fontInfo());
+    if ([command isEqualToString:@"font"]) return fontReport();
     if ([command isEqualToString:@"reopen"]) {
         // 点 Dock 图标时系统调的就是这个代理方法。
         id<NSApplicationDelegate> delegate = NSApp.delegate;
@@ -379,7 +345,6 @@ static void serve(const char *path) {
 }
 
 __attribute__((constructor)) static void start(void) {
-    if (getenv("WAGETICK_BUNDLED_FONT")) useBundledFont();
     const char *dir = getenv("WAGETICK_RENDER_DIR");
     if (dir) {
         render(dir);

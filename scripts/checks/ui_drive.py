@@ -8,7 +8,9 @@
   1. 截真窗口图 today、P3-goals、P4-history、P5-calendar、P5-day-detail、P6-settings (2 倍，整窗含红绿灯)，写 realwindow/manifest.json。
   2. 交互回归 ACT-PUSH、ACT-HOME、ACT-ESC、ACT-SHEET、ACT-GOALCARD、ACT-DOCK、ACT-COVER、ACT-HISTORY (规则见 README)。
   3. FIT-NOSCROLL：月日历、今天扣钱了、请假 (新增、修改) 在真窗口里不用滚动；给了 --onboarding-home 时
-     用空的假主目录再起一次 App，引导两步同样量；给了 --onboarding-previews 时再跑 FIT-PREVIEW (引导的离屏预览与真窗口一致)。
+     用空的假主目录再起一次 App，引导两步同样量，并查 FIT-HINT (引导第 1 步的校验提示不被底部按钮栏盖住)；
+     给了 --onboarding-previews 时再跑 FIT-PREVIEW (引导的离屏预览与真窗口一致)。
+  每次拉起 App 都查 FONT-BUNDLED (App 实际用的字体文件在 App 包内，见 ui_font.py)。
      这一步的真窗口图放 fit/。
 认页靠像素：页头区域 (窗口顶部 4–44pt、红绿灯右边) 的墨迹指纹与本次运行里 ⌘2、⌘3、⌘, 截下的参照逐像素相同；
 概览靠底部入口栏 (历史、目标、设置那一条) 的指纹与启动时的参照相同。两块都避开了时钟与滚动的数字。
@@ -18,6 +20,7 @@ import argparse, datetime, json, os, re, signal, socket, subprocess, sys, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import ui_font  # noqa: E402
 import ui_geometry  # noqa: E402
 
 GEOMETRY = json.load(open(os.path.join(HERE, 'ui-geometry.json'), encoding='utf-8'))
@@ -33,6 +36,8 @@ PREVIEW_TOLERANCE = 1.0
 PREVIEW_TOP = 30
 # 引导窗口的标题与 FIT-PREVIEW 比较的三个状态 (真窗口图名与离屏预览同名，见 OnboardingPreviews.swift)。
 ONBOARDING_TITLE = '牛马鼓励器'
+# FIT-HINT：引导第 1 步月薪空着点「下一步」时的校验提示 (WageCore 的 CommandError.salaryNotPositive)。
+HINT_SALARY = '^月薪得是个正数$'
 
 
 class Blocked(Exception):
@@ -204,13 +209,10 @@ class Run:
 
     # MARK: 启动
 
-    def launch(self, home=None, title='今日概览', bundled_font=False):
-        """拉起 App 并等窗口出现。bundled_font：让注入库把 Noto Sans SC 换成打包的那份 (FIT-NOSCROLL、FIT-PREVIEW 用)。"""
+    def launch(self, home=None, title='今日概览'):
+        """拉起 App 并等窗口出现，再查 App 实际用的字体 (FONT-BUNDLED)。"""
         home = home or self.args.home
         env = dict(os.environ)
-        env.pop('WAGETICK_BUNDLED_FONT', None)
-        if bundled_font:
-            env['WAGETICK_BUNDLED_FONT'] = '1'
         env.pop('WAGETICK_DRIVE_TITLE', None)
         env.update({
             'CFFIXED_USER_HOME': home,
@@ -232,11 +234,22 @@ class Run:
             if state.get('exists') and state.get('visible'):
                 self.window_number = state['number']
                 self.screen_scale = 1 if state.get('scale', 2) < 1.5 else 2
+                self.check_font(title)
                 return state
             if self.app.poll() is not None:
                 raise Blocked(f'App 启动后退出了 (退出码 {self.app.returncode})，见 {self.out}/app.log')
             time.sleep(0.3)
         raise Blocked(f'{self.args.launch_timeout} 秒内{title}窗口没出现 (没有图形会话，或启动卡住了)；窗口状态：{self.state()}')
+
+    def check_font(self, title):
+        """FONT-BUNDLED：窗口出来以后 App 里界面字体、数字字体实际用的字体文件在 App 包内。"""
+        code, lines = ui_font.check(self.drive.send('font'), f'真窗口 ({title})')
+        for line in lines:
+            print(line, flush=True)
+        if code == 2:
+            raise Blocked(f'真窗口 ({title}) 没取到字体报告')
+        if code == 1:
+            self.failures.append('FONT-BUNDLED')
 
     def stop(self):
         if self.app and self.app.poll() is None:
@@ -508,10 +521,10 @@ class Run:
         self.until(lambda: self.find('AXButton', '^设置$', below=self.footer_rect()[1] - 8) and not self.ax_title(), '⌘1 回不到概览')
 
     def fit_panel(self):
-        """用打包字体重新拉起今日概览窗口，量该不滚动的页面：每个月的月日历、今天扣钱了、请假 (新增)、修改请假 (先新请一条全天的)。"""
+        """重新拉起今日概览窗口 (前面的交互回归留下的页面状态不带过来)，量该不滚动的页面：每个月的月日历、今天扣钱了、请假 (新增)、修改请假 (先新请一条全天的)。"""
         os.makedirs(os.path.join(self.out, 'fit'), exist_ok=True)
         self.stop()
-        self.launch(bundled_font=True)
+        self.launch()
         self.fit_home()
         self.key('cmd-3')
         self.until(lambda: self.ax_title() == '历史', '⌘3 进不了历史月列表')
@@ -552,7 +565,7 @@ class Run:
     def fit_onboarding(self):
         """用空的假主目录再起一次 App (没有 state.json 就打开引导窗口)：引导第 1 步月薪空、日薪已填，第 2 步饭点开、关。"""
         self.stop()
-        state = self.launch(home=self.args.onboarding_home, title=ONBOARDING_TITLE, bundled_font=True)
+        state = self.launch(home=self.args.onboarding_home, title=ONBOARDING_TITLE)
         print(f'引导窗口已打开 (pid {self.app.pid})，{state["width"]:.0f}×{state["height"]:.0f}', flush=True)
         deadline = time.time() + 15
         while not self.find('AXButton', '^下一步$') and time.time() < deadline:
@@ -568,6 +581,8 @@ class Run:
         self.click_button('^月薪$', '月薪')
         self.click_button('', '工资输入框', role='AXTextField')
         self.drive.send('clear')
+        self.fit_hint()
+        self.click_button('', '工资输入框', role='AXTextField')
         self.drive.send('text 20000')
         self.click_button('^下一步$', '引导第 2 步')
         self.wait_for('^开始搬砖', '引导第 2 步')
@@ -575,14 +590,30 @@ class Run:
         self.click_button('^饭点$', '饭点开关', role='AXCheckBox')
         self.fit('引导第 2 步 (饭点关闭)', 'P1-2-schedule-nolunch')
 
+    def fit_hint(self):
+        """FIT-HINT：引导第 1 步工资空着点「下一步」，校验提示整行露在滚动区域里 (不被底部按钮栏盖住)。"""
+        self.click_button('^下一步$', '下一步')
+        hint = HINT_SALARY
+        deadline = time.time() + 3
+        while not self.find('AXStaticText', hint) and time.time() < deadline:
+            time.sleep(0.2)
+        self.settle()
+        self.snap(os.path.join(self.out, 'fit', 'P1-1-salary-hint.png'))
+        found = [e for e in self.ax() if e['role'] == 'AXStaticText' and re.search(hint, e['label'] + e['value'])]
+        if not found:
+            return self.fail('FIT-HINT', f'引导第 1 步工资空着点「下一步」，没出现校验提示「{hint}」')
+        scrolls = [area for area in self.drive.send('scrolls')['scrolls'] if area['visible'] > 40]
+        if not scrolls:
+            return self.fail('FIT-HINT', '引导第 1 步找不到滚动区域 (页面结构变了？)')
+        area = max(scrolls, key=lambda a: a['h'])
+        top, bottom = area['y'], area['y'] + area['h']
+        e = found[0]
+        if e['y'] < top - FIT_TOLERANCE or e['y'] + e['h'] > bottom + FIT_TOLERANCE:
+            return self.fail('FIT-HINT', f'引导第 1 步的校验提示在 {e["y"]:g}–{e["y"] + e["h"]:g}，露出来的只有 {top:g}–{bottom:g} (底部按钮栏上沿 {bottom:g})，被盖住了')
+        return self.ok('FIT-HINT', f'引导第 1 步的校验提示在 {e["y"]:g}–{e["y"] + e["h"]:g}，整行在 {top:g}–{bottom:g} 里 (底部按钮栏上沿 {bottom:g})')
+
     def fit_preview(self):
         """引导三个状态的离屏预览与真窗口图逐段比较：每一段内容 (非底色的连续行) 的上下沿相差不超过 1pt。"""
-        font = self.drive.send('font')
-        where = f'按字族名取到的 Noto Sans SC 是 {font["byName"] or "(没有)"}'
-        if font['byName'] != font['bundled']:
-            where += '，不是打包的那份 (本机另装了同名字体)；检查里强制用打包的那份'
-        if not font.get('forced'):
-            return self.fail('FIT-PREVIEW', f'注入库没能换成打包的 Noto Sans SC ({font["bundled"] or "App 包里没有"})')
         good, worst = True, 0.0
         for name in ('P1-1-salary-empty', 'P1-1-salary-daily', 'P1-2-schedule'):
             preview = os.path.join(self.args.onboarding_previews, name + '.png')
@@ -596,7 +627,7 @@ class Run:
             if diff > PREVIEW_TOLERANCE:
                 good = self.fail('FIT-PREVIEW', f'{name}: 离屏预览与真窗口相差 {diff:g}pt (预览 {fmt_spans(a)}；真窗口 {fmt_spans(b)})')
         if good:
-            self.ok('FIT-PREVIEW', f'引导 3 个状态的离屏预览与真窗口逐段一致 (最大差 {worst:g}pt)；{where}')
+            self.ok('FIT-PREVIEW', f'引导 3 个状态的离屏预览与真窗口逐段一致 (最大差 {worst:g}pt)')
         return good
 
     def main(self):

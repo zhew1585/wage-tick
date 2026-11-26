@@ -64,6 +64,18 @@ CASES = [
     ('引导小牛放大', 'WageTick/Onboarding/OnboardingSteps.swift',
      'private static let mascotSize: CGFloat = 78', 'private static let mascotSize: CGFloat = 120',
      ('FIT-NOSCROLL',), '引导第 1 步小牛框 78 改成 120，内容放不下'),
+    ('AppFont 退回系统字体', 'WageTick/Theme/AppFont.swift',
+     'if let base {', 'if let base, false {',
+     ('FONT-BUNDLED',), 'makeFont 不用打包字体文件的描述，界面字体、数字字体都成了系统字体'),
+    ('页头标题不上提', 'WageTick/Components/PageHeader.swift',
+     '            .offset(y: -Self.titleLift)\n', '',
+     ('HDR-VCENTER',), '去掉页头标题的上提 1，标题墨迹比箭头、红绿灯低'),
+    ('入口栏又靠内边距撑高', 'WageTick/Panel/PanelFooter.swift',
+     '.frame(height: HomeLayout.footer.height)', '.padding(.vertical, Spacing.s10)',
+     ('HOME-BAND',), 'PanelFooter 改回上下内边距 10，打包字体下撑到 49 高'),
+    ('引导校验提示不滚过去', 'WageTick/Onboarding/OnboardingView.swift',
+     'withAnimation { proxy.scrollTo(OnboardingLayout.errorID, anchor: .bottom) }', '_ = proxy',
+     ('FIT-HINT',), '校验不过时不滚到提示'),
 ]
 
 
