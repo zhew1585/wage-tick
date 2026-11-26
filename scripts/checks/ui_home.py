@@ -83,9 +83,9 @@ def check_state(name, path, cfg, report):
     # 统计卡、情绪按钮、入口栏都在各自左内边距里的一窄条上量：那里没有文字和图标，圆角也已经收平，不受内容多少影响。
     expect('stats', image.band(sum(stats) / 2, 31, 35, [colors['surface']], 0.99), '统计卡')
     footer = cfg['bands']['footer']
-    # 入口栏在中间没有内容的一段上量 (左边三个入口到 x 130 为止，右边的发薪标识从 x 200 以后)；窗口左下角是圆角，贴边的窄条会被圆角吃掉一点。
-    # 预览图的窗框描边占掉最下面 1pt，所以下沿多容 1pt。
-    expect('footer', image.band(sum(footer) / 2, 150, 180, [colors['surface']], 0.99), '入口栏', bottom_extra=1)
+    # 入口栏在左内边距里量 (三个入口从 x 20 起)。窗口左下角是圆角，预览图的窗框描边在这里会多吃掉半个到 1 个 pt，
+    # 再加上描边本身占最下面 1pt，所以下沿多容 1pt (Mac 上 2 倍图量到 572.5)。
+    expect('footer', image.band(sum(footer) / 2, 14, 18, [colors['surface']], 0.99), '入口栏', bottom_extra=1)
     if name not in cfg['noActions']:
         actions = cfg['bands']['actions']
         expect('actions', image.band(sum(actions) / 2, 27, 33, [colors['surface']], 0.99, reach_pt=10), '情绪按钮')
