@@ -16,8 +16,9 @@ blocked 表示缺图、缺清单、缺工具，没法判断，不算通过。
 
 - `ui_lint.py`、`ui-lint.json`：静态规则，只读源码。
 - `ui_geometry.py`、`ui-geometry.json`：读渲染图的像素量页头、认红绿灯、查空白图与产物清单。
-- `selftest.py`、`fixtures/`：检查脚本自己的回归。
-  每条静态规则配一处故意违规的改动，每条几何规则配一张当时真出过问题的图，都必须被抓到。
+- `selftest.py`：检查脚本自己的回归。
+  每条静态规则配一处故意违规的改动，每条几何规则配一张现画的反例图，都必须被抓到。
+  仓库里不放图片：反例图只有色块，位置取自当时真实渲染图上量到的数值，自测时画进临时目录。
 - `ui-checks-mac.sh`：Mac 上的一次完整运行：编 Debug、离屏渲染、真窗口截图、交互回归、真实数据目录校验。
 - `ui_drive.py`：拉起 App、截真窗口图、跑交互回归 (由 `ui-checks-mac.sh` 调用)。
 - `harness/drive.m`：注入 Debug 版 App 的库，在 App 进程里合成按键与点击、截窗口图、读窗口状态与辅助功能树。
@@ -74,20 +75,25 @@ blocked 表示缺图、缺清单、缺工具，没法判断，不算通过。
 | BLOCKED | 缺图、缺清单时当成通过 | 同上 | 整套检查不给清单、清单里的图不在、该有的图缺了，都退出码 2 | 真窗口图里月日历等几页可以没有，会记一行 MANUAL |
 
 成功路径：`python3 scripts/checks/ui_geometry.py --kind offscreen --dir <页面预览目录> --manifest <清单>` 输出「ui_geometry: 通过」，退出码 0。
-故意违规：`fixtures/` 里是从当时的渲染图上截下来的顶部一条，`selftest.py` 确认每张都被对应的规则抓到。
+故意违规：`selftest.py` 按下表现画反例图，确认每张都被对应的规则抓到。
 
-| 反例图 | 来自 | 必须被抓到 |
+| 反例 | 位置数值来自 | 必须被抓到 |
 |---|---|---|
-| `offscreen-extra-row-73f794d` | 页头排在多出的一行里 | HDR-FRAME |
-| `offscreen-right-947880d` | 标题比原版靠右 26 | HDR-X |
-| `offscreen-tight-84b2b71` | 箭头离红绿灯 6 | HDR-LIGHTS-GAP、HDR-X |
-| `realwindow-tight-84b2b71` | 同上，真窗口图 | HDR-LIGHTS-GAP |
-| `realwindow-blank` | 裁成空白的近景 | IMG-BLANK |
-| 把真窗口图当离屏查，或反过来 | 标识与内容不符 | IMG-KIND |
+| 页头排在多出的一行里：分隔线 79，没有箭头 | `73f794d` 的渲染图 | HDR-FRAME |
+| 标题比原版靠右 26：箭头 90，标题 114 | `947880d` 的渲染图 | HDR-X |
+| 箭头离红绿灯 6：箭头 78，离屏与真窗口各一 | `84b2b71` 的渲染图与真窗口图 | HDR-LIGHTS-GAP、HDR-X |
+| 页头没有箭头 | 构造 | HDR-BACK |
+| 返回与标题偏下 3 | 构造 | HDR-VCENTER |
+| 目标与历史的箭头差 1 | 构造 | HDR-CONSISTENT |
+| 红绿灯在 8 至 60、中心 14 | 28 高标题栏的系统位置 | HDR-LIGHTS |
+| 只有底色的图 | `3d73c4c` 里裁成空白的近景 | IMG-BLANK |
+| 图宽对不上；离屏宽的图里有红绿灯；真窗口宽的图里没有 | 构造 | IMG-KIND |
+| 清单里的提交不是 `HEAD`，还缺 `method` | 构造 | IMG-VERSION、IMG-MANIFEST |
+| 不给清单；缺图 | 构造 | BLOCKED (退出码 2) |
 
-`offscreen-original-9c69fd3` 是原版月日历的页头，必须放行。
-`offscreen-sheets-023eb31` 是离屏预览里的三张弹出表单，比窗口窄，表单标题在红绿灯的位置上，必须放行 (几何检查头一回在整套渲染图上跑时把它们误报成 IMG-KIND)。
-`offscreen-d107b63`、`realwindow-d107b63` 是当前设计 (箭头离红绿灯 13) 的页头，也必须放行。
+必须放行的：原版月日历页头 (`9c69fd3`：箭头 90 至 96.5，标题 112)；当前设计的首页页头 (`d107b63`：箭头 85 至 91.5，离红绿灯 13)，离屏与真窗口各一组。
+还有比窗口窄的弹出表单图：表单标题的三个字正好在红绿灯的位置上，不能被认成红绿灯 (几何检查头一回在整套渲染图上跑时把它们误报成 IMG-KIND)。
+反例图没有抗锯齿和真实字形，只验证规则的判定；对真实渲染的判定由 `run.sh ui` 在当前提交上跑、由 `selftest-mac.sh` 做故意违规。
 
 ### 关于美观
 

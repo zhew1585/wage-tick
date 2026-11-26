@@ -1,6 +1,6 @@
 #!/bin/bash
 # 界面规则检查的统一入口，本机与 CI 都走这里。规则与每条对应的坑见 scripts/checks/README.md。
-# 用法：scripts/checks/run.sh static   只读源码与自带的反例图，哪里都能跑 (CI「核心测试」里跑)
+# 用法：scripts/checks/run.sh static   只读源码，反例图现画，哪里都能跑 (CI「核心测试」里跑)
 #       scripts/checks/run.sh ui       要 macOS 与 Xcode：渲染、量页头、真窗口与交互回归 (CI「App 编译与启动」里跑)
 #       scripts/checks/run.sh all      两样都跑
 # 退出码：0 通过；1 有规则不过；2 blocked (缺工具、缺图，没法判断)。blocked 不算通过。
