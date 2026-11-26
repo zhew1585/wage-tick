@@ -186,6 +186,13 @@ PY
         echo "ok [HOME-BAND] 首页各状态的进度、统计卡、攒钱队列、情绪按钮、入口栏位置一致"
     fi
     record ${HOME_CODE} "首页区域检查 blocked"
+    # 扣钱、请假表单在窗口里的页头：与目标页同一位置。图在同一个目录里 (清单上面已经核过)，按离屏预览的页头规则量。
+    echo "· 表单页头"
+    FORM_TEXT="$(python3 scripts/checks/ui_geometry.py --kind offscreen --dir "${OUT}/panel" --only F5-add F5-edit-fixed F5-edit-percent F6-request F6-edit-middle)"
+    FORM_CODE=$?
+    echo "${FORM_TEXT}"
+    [[ ${FORM_CODE} -eq 0 ]] && echo "ok [HDR-X] 表单页头：箭头、标题的位置与目标页一致"
+    record ${FORM_CODE} "表单页头检查 blocked"
 fi
 
 # 3. 真窗口图与交互回归 (同一次启动)。

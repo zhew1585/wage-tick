@@ -126,8 +126,16 @@ def page_header(lint):
     controller = 'WageTick/Panel/TodayPanelWindowController.swift'
     lint.require('HDR-TITLEBAR', controller, r'makeWindow\(PanelWindow\.self,[^\n]*titlebar: \.tall',
                  '今日概览窗口要用 52 高的 .tall 标题栏 (页头与红绿灯同一行；Allen 2026-11-26 已接受)')
-    lint.require('HDR-TITLEBAR', controller, r'titlebarInset: WindowChrome\.Titlebar\.standard\.height',
-                 '概览与原地表单的内容仍从 28 处排起 (titlebarInset 取标准标题栏高度)')
+    # 首页各区域按 HomeLayout 从窗口顶边定位，所有状态下位置一致 (Allen 2026-11-26 定)；不再按内容高度叠、放不下就收紧。
+    panel = 'WageTick/Panel/TodayPanelView.swift'
+    lint.require('HOME-LAYOUT', panel, r'HomeLayout\.', '首页各区域要按 HomeLayout 的位置排 (各状态下位置一致)，不能按内容高度一段段叠起来')
+    lint.require('HOME-LAYOUT', 'WageTick/Theme/Metrics.swift', r'static let size = CGSize\(width: 360, height: 574\)',
+                 '窗口是 360×574 (首页七个区域叠起来正好)；要改尺寸得同步改 HomeLayout 与 scripts/checks/ui-home.json')
+    lint.forbid('HOME-LAYOUT', r'\b(ViewThatFits|GoalDensity|titlebarInset)\b', ['WageTick/Panel'],
+                '首页不再随内容伸缩：放不下就收紧、让出标题栏高度这些做法都已去掉')
+    lint.require('HDR-FORM', 'WageTick/Panel/FormSheet.swift', r'PageHeader\(title, back: back, isRoot: true\)',
+                 '扣钱、请假表单在窗口里的页头要用和目标页一样的 PageHeader (与红绿灯同一行，箭头 85、标题 100)')
+    lint.require('HDR-FORM', panel, r'\.environment\(\\\.formSheetPlacement, \.window\)', '首页窗口里原地打开的表单要标成 .window，页头才会排到红绿灯那一行')
     lint.require('HDR-TITLEBAR', 'WageTick/Components/WindowChrome.swift', r'case \.tall: 52', '.tall 标题栏的高度是 52')
     lint.require('HDR-TITLEBAR', 'WageTick/Components/PageHeader.swift', r'height: CGFloat \{ WindowChrome\.Titlebar\.tall\.height \}',
                  '页头高度取 .tall 标题栏的高度，返回与标题才会和红绿灯在一条线上')
@@ -177,8 +185,14 @@ def navigation(lint):
     reopen = lint.body('WageTick/App/AppDelegate.swift', 'func applicationShouldHandleReopen')
     if reopen is None or 'todayPanel.show(returnsToOverview: false)' not in reopen:
         lint.fail('NAV-DOCK', 'WageTick/App/AppDelegate.swift', '点 Dock 图标只把窗口找回来，不能从页面退回概览')
-    lint.require('NAV-GOALCARD', 'WageTick/Panel/GoalCardView.swift', r'case \.active\(let goal\):\s*(//[^\n]*\n\s*)*Button\(action: openGoals\)',
-                 '概览上累计中目标的卡片要能点进目标页 (Allen 2026-11-26 定)')
+    lint.require('NAV-GOALCARD', 'WageTick/Panel/GoalCardView.swift',
+                 r'func tappable\([^)]*\)[^{]*\{\s*Button\(action: openGoals\)', '概览上的目标卡片要能点进目标页 (Allen 2026-11-26 定)')
+    cards = lint.read('WageTick/Panel/GoalCardView.swift')
+    for view in ('ActiveGoalCardView(', 'QueuedGoalTile('):
+        for match in re.finditer(re.escape(view), cards):
+            before = cards[max(0, match.start() - 40):match.start()]
+            if 'struct ' not in before and 'tappable {' not in before:
+                lint.fail('NAV-GOALCARD', 'WageTick/Panel/GoalCardView.swift', f'{view}…) 要包在 tappable {{ }} 里，点了才进目标页')
     history = 'WageTick/History/HistoryPage.swift'
     disappear = lint.body(history, 'func disappear()')
     if disappear is None:

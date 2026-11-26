@@ -190,7 +190,7 @@ def check_page(name, path, kind, cfg, report, screen_scale=2):
     origin = margin * scale
     expected_width = full_width_pt * scale
     one_x = cfg['oneX'] if screen_scale == 1 else {'verticalTolPt': cfg['verticalTolPt'], 'extraTolPt': 0}
-    role = 'root' if name in cfg['root']['pages'] else 'sub' if name in cfg['sub']['pages'] else None
+    role = 'root' if name in cfg['root']['pages'] + cfg.get('formPages', []) else 'sub' if name in cfg['sub']['pages'] else None
     # 离屏预览里的弹出表单 (sheet) 本来就比窗口窄，图宽只对页面图与真窗口图查。
     if width != expected_width and (role or kind == 'realwindow'):
         wanted = f'{expected_width}px (2 倍屏) 或 {full_width_pt}px (1 倍屏)' if kind == 'offscreen' else f'{expected_width}px'

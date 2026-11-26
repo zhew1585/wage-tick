@@ -10,6 +10,7 @@
     "WageTick/History/HistoryView.swift": "root",
     "WageTick/Settings/SettingsView.swift": "root",
     "WageTick/History/MonthCalendarView.swift": "sub",
-    "WageTick/History/DayDetailView.swift": "sub"
+    "WageTick/History/DayDetailView.swift": "sub",
+    "WageTick/Panel/FormSheet.swift": "root"
   }
 }

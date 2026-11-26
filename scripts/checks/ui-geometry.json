@@ -27,6 +27,7 @@
     "offscreen": ["P5-unpaid-work-form-overnight", "P6-settings-payday-sheet", "P6-settings-rest-mode-sheet", "U1-update-found", "U2-update-downloading", "U3-update-ready", "U4-update-up-to-date"],
     "realwindow": ["today"]
   },
+  "formPages": ["F5-add", "F5-edit-fixed", "F5-edit-percent", "F6-request", "F6-edit-middle"],
   "realwindowOptional": ["P3-goals-empty", "P5-calendar", "P5-calendar-october", "P5-day-detail", "P5-day-detail-today", "P5-day-detail-leave", "P5-day-detail-overnight", "P5-day-detail-auto-stopped"],
   "provenance": {
     "titlebarHeightPt": "Allen 2026-11-26 00:38 接受 52 高标题栏与概览红绿灯比原版低 12",
@@ -35,6 +36,7 @@
     "root.arrowLeftPt": "d107b63 的设计值：箭头落在原版内容起点 85，离红绿灯 13。是否美观待 Allen 看真窗口图确认，确认后若调整要同步改这里",
     "sub": "原版 9c69fd3 月日历页头实测：箭头 90–96.5，标题 111.5",
     "verticalTolPt": "原版月日历页头的墨迹中心偏移是 +0.5",
+    "formPages": "扣钱、请假表单在首页窗口里的页头，与目标页同一位置 (Allen 2026-11-26)。它们是首页预览 (panel/) 里的图，用 --only 单独查",
     "oneX": "PR #34 的 CI (托管 macos-15，1 倍屏) 实测：箭头左沿 86 与 91 (2 倍屏 85 与 90)，墨迹中心偏移 +1.5 至 +2.0 (2 倍屏 +0.75)。字按整像素对齐造成，不是排版变了"
   }
 }

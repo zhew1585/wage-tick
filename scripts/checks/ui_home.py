@@ -87,8 +87,8 @@ def check_state(name, path, cfg, report):
         actions = cfg['bands']['actions']
         expect('actions', image.band(sum(actions) / 2, 36, 150, [colors['surface']], 0.4, reach_pt=10), '情绪按钮')
     goals = cfg['bands']['goals']
-    # 累计中目标卡：accentSoft 底，里面的进度条是 accent 与 line 色，一起算，不然量到进度条那几行就断了。
-    card = image.band(sum(goals) / 2, 36, 200, [colors['accentSoft'], colors['accent'], colors['line']], 0.6)
+    # 累计中目标卡：在卡片左内边距里的一窄条上量 (x 28–31，圆角 12 在这里已经收平，旗子与文字从 32 起)，不受卡片里内容多少影响。
+    card = image.band(sum(goals) / 2, 28, 31, [colors['accentSoft']], 0.99)
     if card is None:
         # 没有累计中目标：空状态卡是 line 色描边，上下各一条 1pt 的线。
         top = image.band(goals[0], 40, 320, [colors['line']], 0.8, reach_pt=12)
