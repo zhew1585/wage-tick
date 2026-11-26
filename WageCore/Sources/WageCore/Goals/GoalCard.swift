@@ -81,23 +81,28 @@ extension ActiveGoalCard {
         guard rest > 0 else { return (reachedToday, reachedToday, finishToday, today.date) }
         // 本月全部覆盖为不上班时日薪为 0 (PRD 4.3.5 #19)，没法按当月日薪估算。
         guard let days = workDays(for: rest, dailyWage: today.dailyWage) else { return (noEstimate, noEstimateShort, nil, nil) }
-        let finish = rule.attendanceDay(days, after: today.date)
+        let count = NSDecimalNumber(decimal: days).stringValue
+        // 超过 `estimateDayLimit` 个应出勤日时太远了，只说还需多少天，不数日期。
+        guard let finish = rule.finishDay(days, after: today.date) else { return ("还需搬砖 \(count) 天", "还需 \(count) 天", nil, nil) }
         let date = Format.monthDay(finish)
-        return ("还需搬砖 \(days) 天 · \(date)", "还需 \(days) 天 · \(date)", Format.estimateDate(finish, today: today.date), finish)
+        return ("还需搬砖 \(count) 天 · \(date)", "还需 \(count) 天 · \(date)", Format.estimateDate(finish, today: today.date), finish)
     }
 
-    /// 攒够 `amount` 需要的应出勤日数 = `amount` ÷ 日薪 向上取整，如 6.5714 → 7。
+    /// 攒够 `amount` 需要的应出勤日数 = `amount` ÷ 日薪 向上取整，如 6.5714 → 7；结果是整数，但可能大到放不进 `Int`。
     /// 先四舍五入到 `noiseScale` 位小数，去掉十进制除法的末位误差 (如 1/7 往返后的 9.000…0003)，免得多算一天。
-    /// 当月应出勤日数为 0 (如全部覆盖为不上班) 时日薪为 0 (PRD 4.3.5 #19)，没法估算，为 nil。
-    static func workDays(for amount: Decimal, dailyWage: Decimal) -> Int? {
+    /// 当月应出勤日数为 0 (如全部覆盖为不上班) 时日薪为 0 (PRD 4.3.5 #19)，没法估算，为 nil；大到十进制也算不出时同样为 nil。
+    static func workDays(for amount: Decimal, dailyWage: Decimal) -> Decimal? {
         guard dailyWage > 0 else { return nil }
         var quotient = amount / dailyWage
         var cleaned = Decimal()
         NSDecimalRound(&cleaned, &quotient, noiseScale, .plain)
         var result = Decimal()
         NSDecimalRound(&result, &cleaned, 0, .up)
-        return NSDecimalNumber(decimal: result).intValue
+        return result.isNaN ? nil : result
     }
+
+    /// 预计完成最多往后数多少个应出勤日，约 40 年；再远就不数日期了，免得金额极大或日薪极小时一天天数下去卡死。
+    static let estimateDayLimit = 10000
 
     /// 排队中目标拖到第一个时已攒够：松手即完成【D6】。
     static let reachedPreview = "已经攒够，排到第一个就达成"
@@ -119,6 +124,12 @@ extension ActiveGoalCard {
 }
 
 extension AttendanceRule {
+    /// `day` 之后 (不含当天) 的第 `days` 个应出勤日；`days` 超过 `ActiveGoalCard.estimateDayLimit` 时不数，为 nil。
+    func finishDay(_ days: Decimal, after day: LocalDate) -> LocalDate? {
+        guard days <= Decimal(ActiveGoalCard.estimateDayLimit) else { return nil }
+        return attendanceDay(NSDecimalNumber(decimal: days).intValue, after: day)
+    }
+
     /// `day` 之后 (不含当天) 的第 `count` 个应出勤日，`count` 至少为 1。
     func attendanceDay(_ count: Int, after day: LocalDate) -> LocalDate {
         var found = 0

@@ -116,6 +116,7 @@ public enum CommandError: Error, Sendable, Equatable {
     case unpaidWorkAlreadyRunning
     case unpaidWorkNotRunning
     case invalidGoal
+    case goalAmountTooLarge
     case goalNotFound
     case goalCompleted
     case dateOutOfRange
@@ -149,6 +150,7 @@ public enum CommandError: Error, Sendable, Equatable {
         case .unpaidWorkAlreadyRunning: "已经在白干计时了"
         case .unpaidWorkNotRunning: "没有在白干计时"
         case .invalidGoal: "给目标起个名字，金额得大于 0"
+        case .goalAmountTooLarge: "金额最多 \(Format.editable(Validation.goalAmountLimit))"
         // 以下两条 PRD 没给文案：外壳只对快照允许的行提供编辑、删除，只在攒钱队列一组里拖动，
         // 正常只在列表过期 (如目标刚好达成) 时用到。
         case .goalNotFound: "这个目标已经不在了"

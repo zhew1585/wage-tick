@@ -2,7 +2,8 @@ import SwiftUI
 import WageCore
 
 /// 攒钱队列 (PRD F8)：line 描边的卡片，整组按住一行上下拖动排序【D6】。
-/// 第一行是累计中 (accent-soft 底，进度条、累计额 / 目标金额、预计完成，设计稿 P3 目标管理 · 760)，其余排队中。
+/// 第一行是累计中 (accent-soft 底、accent 色手柄与金额，进度条、预计完成，设计稿 P3 目标管理 · 760)，其余排队中；
+/// 累计中不另加标签，靠这些和后面排队中的行区分。名称放不下时悬停在行上横向滚动 (`HoverMarqueeText`)，拖动排序时不滚。
 /// 第一行的样子按「眼下排在第几」决定，拖到第一位的行即时显示成累计中，内容取快照里的 `asFirst` 预览。
 /// 被拖的行实时跟着鼠标，其余行带动画让位，松手才把新顺序交给核心。
 /// 用列表内的拖动手势而不是系统拖放 (`onDrag`)：系统拖放要生成拖拽图、走跨 App 的拖放流程，起拖慢、跟手差。
@@ -149,6 +150,7 @@ private struct QueueGoalRowView: View {
             .help("拖动调整顺序，排在第一个的就是累计中")
     }
 
+    /// 悬停且没有任何行在拖动：出编辑、删除按钮，名称放不下时滚动。
     private var showsButtons: Bool { hovering && state == .idle }
 
     @ViewBuilder
@@ -159,19 +161,12 @@ private struct QueueGoalRowView: View {
         }
     }
 
-    /// 累计中：名称与「累计中」标记、累计额 / 目标金额；进度条；预计完成。
+    /// 累计中：第一行名称、悬停时的按钮、累计额 / 目标金额；第二行整宽进度条；第三行预计完成。
     private var accumulating: some View {
         let card = row.asFirst
         return VStack(alignment: .leading, spacing: Spacing.s6) {
             HStack(spacing: Spacing.s6) {
-                Text(card.name).font(AppFont.ui(14, .bold)).foregroundStyle(Palette.ink).lineLimit(1)
-                Text("累计中")
-                    .font(AppFont.chip)
-                    .foregroundStyle(Palette.accent)
-                    .padding(.horizontal, Spacing.s6)
-                    .padding(.vertical, Spacing.s1)
-                    .background(Palette.card, in: Capsule())
-                    .fixedSize()
+                HoverMarqueeText(card.name, isActive: showsButtons).font(AppFont.ui(14, .bold)).foregroundStyle(Palette.ink)
                 Spacer(minLength: Spacing.s4)
                 buttons
                 amount(card)
@@ -185,7 +180,7 @@ private struct QueueGoalRowView: View {
     private var queued: some View {
         HStack(spacing: Spacing.s10) {
             VStack(alignment: .leading, spacing: Spacing.s2) {
-                Text(row.name).font(AppFont.bodySemibold).foregroundStyle(Palette.ink).lineLimit(1)
+                HoverMarqueeText(row.name, isActive: showsButtons).font(AppFont.bodySemibold).foregroundStyle(Palette.ink)
                 Text("排队中").font(AppFont.small).foregroundStyle(Palette.muted)
             }
             Spacer(minLength: Spacing.s8)

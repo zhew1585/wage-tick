@@ -162,6 +162,27 @@ struct LeaveBarTests {
         #expect(try leaveForm(schedule: schedule).bar.labels.map(\.text) == expected)
     }
 
+    @Test("离两端不到 0.18 的整点只画刻度线、不写时刻，免得和两端的上下班时间叠在一起", arguments: [
+        // 10:00 在 35/215 ≈ 0.163 处，靠近开头。
+        ("09:25", "13:00", "10:00", 35.0 / 215, ["09:25", "11:00", "12:00", "13:00"]),
+        // 12:00 在 180/215 处，离结尾 ≈ 0.163。
+        ("09:00", "12:35", "12:00", 180.0 / 215, ["09:00", "10:00", "11:00", "12:35"]),
+    ])
+    func labelsKeepClearOfEnds(start: String, end: String, hour: String, position: Double, expected: [String]) throws {
+        let bar = try leaveForm(schedule: WorkSchedule(start: clock(start), end: clock(end), lunch: nil)).bar
+
+        #expect(bar.labels.map(\.text) == expected)
+        #expect(!bar.labels.map(\.text).contains(hour))
+        #expect(bar.ticks.contains { $0.isHour && abs($0.position - position) < 1e-9 })
+    }
+
+    @Test("离开头刚好不小于 0.18 的整点照旧写时刻：09:20 至 13:00 的 10:00 在 40/220 ≈ 0.182 处")
+    func labelAtSpacingIsKept() throws {
+        let bar = try leaveForm(schedule: WorkSchedule(start: clock("09:20"), end: clock("13:00"), lunch: nil)).bar
+
+        #expect(bar.labels.map(\.text) == ["09:20", "10:00", "11:00", "12:00", "13:00"])
+    }
+
     @Test("时段说明：时段与请掉的有效工时", arguments: [
         ("14:00", "16:00", "14:00 – 16:00", "2 小时"),
         ("11:00", "14:00", "11:00 – 14:00", "2 小时"),
