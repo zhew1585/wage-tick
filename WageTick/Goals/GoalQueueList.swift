@@ -123,8 +123,12 @@ private struct QueueGoalRowView: View {
     static let height: CGFloat = 76
 
     private static let trackHeight: CGFloat = 6
-    /// 名称一栏至少留多宽：上限出现之前存下的超大金额先截断金额，名称仍露出开头几个字 (悬停时滚动露出全文)。
+    /// 排队中的行名称一栏至少留多宽：上限出现之前存下的超大金额先截断金额，名称仍露出开头几个字 (悬停时滚动露出全文)。
     private static let nameMinWidth: CGFloat = 56
+    /// 累计中的行名称一栏至少留多宽，比排队中的小：首行宽 268，悬停时还要放编辑、删除两个 16 pt 按钮、
+    /// 最短 4 的 Spacer 和四个 6 的间距，名称留 32 时金额能用 268 − 32 − 4 − 32 − 24 = 176，
+    /// 放得下最宽的合法金额「¥999998.99 / ¥999998.99」(173.5)；名称仍露出开头两个字。
+    private static let accumulatingNameMinWidth: CGFloat = 32
     private static let dragRadius = Radius.r10
 
     @State private var hovering = false
@@ -169,7 +173,7 @@ private struct QueueGoalRowView: View {
         return VStack(alignment: .leading, spacing: Spacing.s6) {
             HStack(spacing: Spacing.s6) {
                 HoverMarqueeText(card.name, isActive: showsButtons).font(AppFont.ui(14, .bold)).foregroundStyle(Palette.ink)
-                    .frame(minWidth: Self.nameMinWidth, alignment: .leading)
+                    .frame(minWidth: Self.accumulatingNameMinWidth, alignment: .leading)
                 Spacer(minLength: Spacing.s4)
                 buttons
                 amount(card)
@@ -196,7 +200,7 @@ private struct QueueGoalRowView: View {
     }
 
     /// accent 大号累计额，后跟小号「/ 目标金额」。先于名称排版、正常金额完整显示；
-    /// 上限出现之前存下的超大金额比整行还宽时单行截断，不溢出卡片，名称至少留 `nameMinWidth`。
+    /// 上限出现之前存下的超大金额比整行还宽时单行截断，不溢出卡片，名称至少留 `accumulatingNameMinWidth`。
     private func amount(_ card: ActiveGoalCard) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.s4) {
             Text(card.accumulatedText).font(AppFont.num(15, .bold)).foregroundStyle(Palette.accent)
