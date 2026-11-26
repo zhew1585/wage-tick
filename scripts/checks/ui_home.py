@@ -70,20 +70,22 @@ def check_state(name, path, cfg, report):
         return None
     found = {}
 
-    def expect(key, band, label):
+    def expect(key, band, label, bottom_extra=0):
         want = cfg['bands'][key]
         if band is None:
             report.fail('HOME-BAND', name, f'没找到{label} (应在 {want[0]}–{want[1]}pt)')
             return
         found[key] = band
-        if abs(band[0] - want[0]) > tol or abs(band[1] - want[1]) > tol:
+        if abs(band[0] - want[0]) > tol or abs(band[1] - want[1]) > tol + bottom_extra:
             report.fail('HOME-BAND', name, f'{label}在 {band[0]:g}–{band[1]:g}pt，应在 {want[0]}–{want[1]}pt：各区域在所有状态下位置都要一样')
 
     stats = cfg['bands']['stats']
     # 统计卡、情绪按钮、入口栏都在各自左内边距里的一窄条上量：那里没有文字和图标，圆角也已经收平，不受内容多少影响。
     expect('stats', image.band(sum(stats) / 2, 31, 35, [colors['surface']], 0.99), '统计卡')
     footer = cfg['bands']['footer']
-    expect('footer', image.band(sum(footer) / 2, 14, 18, [colors['surface']], 0.99), '入口栏')
+    # 入口栏在中间没有内容的一段上量 (左边三个入口到 x 130 为止，右边的发薪标识从 x 200 以后)；窗口左下角是圆角，贴边的窄条会被圆角吃掉一点。
+    # 预览图的窗框描边占掉最下面 1pt，所以下沿多容 1pt。
+    expect('footer', image.band(sum(footer) / 2, 150, 180, [colors['surface']], 0.99), '入口栏', bottom_extra=1)
     if name not in cfg['noActions']:
         actions = cfg['bands']['actions']
         expect('actions', image.band(sum(actions) / 2, 27, 33, [colors['surface']], 0.99, reach_pt=10), '情绪按钮')
