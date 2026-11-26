@@ -3,9 +3,13 @@
 
 由 ui-checks-mac.sh 调用，不单独用：
   python3 scripts/checks/ui_drive.py --exe <App 可执行文件> --dylib <libdrive.dylib> --home <假主目录> --out <输出目录>
-做两件事：
+      [--onboarding-home <空的假主目录> --onboarding-previews <引导离屏预览目录>]
+做这些事：
   1. 截真窗口图 today、P3-goals、P4-history、P5-calendar、P5-day-detail、P6-settings (2 倍，整窗含红绿灯)，写 realwindow/manifest.json。
   2. 交互回归 ACT-PUSH、ACT-HOME、ACT-ESC、ACT-SHEET、ACT-GOALCARD、ACT-DOCK、ACT-COVER、ACT-HISTORY (规则见 README)。
+  3. FIT-NOSCROLL：月日历、今天扣钱了、请假 (新增、修改) 在真窗口里不用滚动；给了 --onboarding-home 时
+     用空的假主目录再起一次 App，引导两步同样量；给了 --onboarding-previews 时再跑 FIT-PREVIEW (引导的离屏预览与真窗口一致)。
+     这一步的真窗口图放 fit/。
 认页靠像素：页头区域 (窗口顶部 4–44pt、红绿灯右边) 的墨迹指纹与本次运行里 ⌘2、⌘3、⌘, 截下的参照逐像素相同；
 概览靠底部入口栏 (历史、目标、设置那一条) 的指纹与启动时的参照相同。两块都避开了时钟与滚动的数字。
 退出码：0 全部通过；1 有规则不过；2 blocked (窗口没出现、驱动连不上等环境问题)。
@@ -22,6 +26,13 @@ HEADER = (76, 4, 284, 40)
 # 墨迹阈值：深色的字与图标；悬停时浅色的圆角底不算。
 INK = 160
 FOOTER_HEIGHT = 46
+# FIT-NOSCROLL 的误差 (pt)。
+FIT_TOLERANCE = 0.5
+# FIT-PREVIEW：离屏预览与真窗口逐段比较时允许的差 (pt)，以及从哪一行比起 (避开红绿灯)。
+PREVIEW_TOLERANCE = 1.0
+PREVIEW_TOP = 30
+# 引导窗口的标题与 FIT-PREVIEW 比较的三个状态 (真窗口图名与离屏预览同名，见 OnboardingPreviews.swift)。
+ONBOARDING_TITLE = '牛马鼓励器'
 
 
 class Blocked(Exception):
@@ -193,12 +204,19 @@ class Run:
 
     # MARK: 启动
 
-    def launch(self):
+    def launch(self, home=None, title='今日概览', bundled_font=False):
+        """拉起 App 并等窗口出现。bundled_font：让注入库把 Noto Sans SC 换成打包的那份 (FIT-NOSCROLL、FIT-PREVIEW 用)。"""
+        home = home or self.args.home
         env = dict(os.environ)
+        env.pop('WAGETICK_BUNDLED_FONT', None)
+        if bundled_font:
+            env['WAGETICK_BUNDLED_FONT'] = '1'
+        env.pop('WAGETICK_DRIVE_TITLE', None)
         env.update({
-            'CFFIXED_USER_HOME': self.args.home,
-            'WAGETICK_FAKE_HOME': self.args.home,
+            'CFFIXED_USER_HOME': home,
+            'WAGETICK_FAKE_HOME': home,
             'WAGETICK_DRIVE_SOCKET': 'drive.sock',
+            'WAGETICK_DRIVE_TITLE': title,
             'DYLD_INSERT_LIBRARIES': self.args.dylib,
         })
         env.pop('WAGETICK_RENDER_DIR', None)
@@ -218,7 +236,7 @@ class Run:
             if self.app.poll() is not None:
                 raise Blocked(f'App 启动后退出了 (退出码 {self.app.returncode})，见 {self.out}/app.log')
             time.sleep(0.3)
-        raise Blocked(f'{self.args.launch_timeout} 秒内今日概览窗口没出现 (没有图形会话，或启动卡住了)；窗口状态：{self.state()}')
+        raise Blocked(f'{self.args.launch_timeout} 秒内{title}窗口没出现 (没有图形会话，或启动卡住了)；窗口状态：{self.state()}')
 
     def stop(self):
         if self.app and self.app.poll() is None:
@@ -433,6 +451,154 @@ class Run:
             return self.ok('ACT-HISTORY', '从单日详情 ⌘1 回概览后再 ⌘3，进来的是月列表')
         return False
 
+    # MARK: 放不下 (FIT-NOSCROLL、FIT-PREVIEW)
+
+    def fit(self, page, image):
+        """当前画面里每个纵向滚动区域：内容高不超过可见高，最靠下的控件不低于滚动区域下沿 (底部按钮栏的上沿)。图存 fit/<image>.png。"""
+        self.settle()
+        self.snap(os.path.join(self.out, 'fit', image + '.png'))
+        scrolls = [area for area in self.drive.send('scrolls')['scrolls'] if area['visible'] > 40]
+        if not scrolls:
+            return self.fail('FIT-NOSCROLL', f'{page}: 窗口里找不到滚动区域 (页面结构变了？)')
+        elements = [e for e in self.ax() if not e.get('scroller') and e['h'] > 0 and e['role'] not in ('AXScrollArea', 'AXScrollBar')]
+        good, texts = True, []
+        for area in scrolls:
+            top, bottom = area['y'], area['y'] + area['h']
+            inside = [e['y'] + e['h'] for e in elements if top - FIT_TOLERANCE <= e['y'] < bottom]
+            lowest = max(inside) if inside else top
+            over = area['document'] - area['visible']
+            text = f'内容高 {area["document"]:g}，可见高 {area["visible"]:g}'
+            if over > FIT_TOLERANCE:
+                good = self.fail('FIT-NOSCROLL', f'{page}: {text}，超出 {over:g}')
+            elif lowest > bottom + FIT_TOLERANCE:
+                good = self.fail('FIT-NOSCROLL', f'{page}: {text}，但最下面的控件下沿 {lowest:g} 低于底栏上沿 {bottom:g}，被盖住 {lowest - bottom:g}')
+            texts.append(f'{text}，最下面的控件下沿 {lowest:g}，底栏上沿 {bottom:g}')
+        if good:
+            self.ok('FIT-NOSCROLL', f'{page}：' + '；'.join(texts))
+        return good
+
+    def wait_for(self, pattern, what, role='AXButton'):
+        """等辅助功能树里出现文字匹配 pattern 的元素 (最多 3 秒)，返回它的中心点；没等到是 BLOCKED。"""
+        deadline = time.time() + 3
+        while True:
+            found = self.find(role, pattern)
+            if found:
+                return found
+            if time.time() > deadline:
+                raise Blocked(f'FIT-NOSCROLL 进不去{what}：找不到「{pattern or role}」')
+            time.sleep(0.2)
+
+    def click_button(self, pattern, what, role='AXButton'):
+        found = self.wait_for(pattern, what, role)
+        self.click(found[0], found[1])
+        return found
+
+    def until(self, test, what, timeout=4.0):
+        """等 test() 成立 (每 0.2 秒看一次)；等不到是 BLOCKED。"""
+        deadline = time.time() + timeout
+        while not test():
+            if time.time() > deadline:
+                raise Blocked(f'FIT-NOSCROLL：{what}')
+            time.sleep(0.2)
+        self.settle()
+
+    def fit_home(self):
+        """⌘1 回概览：等底部入口栏的「设置」出现、页头没有标题。这一次启动换了字体，认页的指纹参照用不上，改用辅助功能树认。"""
+        self.key('cmd-1')
+        self.until(lambda: self.find('AXButton', '^设置$', below=self.footer_rect()[1] - 8) and not self.ax_title(), '⌘1 回不到概览')
+
+    def fit_panel(self):
+        """用打包字体重新拉起今日概览窗口，量该不滚动的页面：每个月的月日历、今天扣钱了、请假 (新增)、修改请假 (先新请一条全天的)。"""
+        os.makedirs(os.path.join(self.out, 'fit'), exist_ok=True)
+        self.stop()
+        self.launch(bundled_font=True)
+        self.fit_home()
+        self.key('cmd-3')
+        self.until(lambda: self.ax_title() == '历史', '⌘3 进不了历史月列表')
+        months = [e for e in self.ax() if e['role'] == 'AXButton' and re.search(r'^\d{4}年\d{1,2}月、', e['label']) and e['y'] >= 52]
+        if not months:
+            raise Blocked('FIT-NOSCROLL：月列表里没有月份')
+        most = 0
+        for index, month in enumerate(months):
+            title = month['label'].split('、')[0]
+            self.click(month['x'] + month['w'] / 2, month['y'] + month['h'] / 2)
+            self.until(lambda: self.ax_title() == title, f'点「{title}」没进月日历')
+            rows = len({round(e['y']) for e in self.ax() if e['role'] == 'AXButton' and re.search(r'^\d{1,2}(、|$)', e['label']) and e['y'] >= 52})
+            most = max(most, rows)
+            self.fit(f'月日历 ({title}，{rows} 行)', f'calendar-{index}')
+            self.key('esc')
+            self.until(lambda: self.ax_title() == '历史', '月日历按 Esc 没回到月列表')
+        if most < 6:
+            self.notes.append(f'FIT-NOSCROLL：假状态里的月份最多 {most} 行，六行的月份这次没量到 (要看今天是几月)')
+            print(f'note: {self.notes[-1]}', flush=True)
+        self.fit_home()
+        self.click_button('^今天扣钱了$', '扣钱表单')
+        self.until(lambda: self.ax_title() == '今天扣钱了', '点「今天扣钱了」没打开扣钱表单')
+        self.fit('今天扣钱了', 'deduction')
+        # 表单开着时 ⌘1 不换页 (同 ACT-SHEET)，先按 Esc 关掉。
+        self.key('esc')
+        self.fit_home()
+        self.click_button('^请假$', '请假表单')
+        self.until(lambda: self.ax_title() == '请假', '点「请假」没打开请假表单')
+        self.fit('请假 (新增)', 'leave-request')
+        self.click_button('^就这么请', '新请一条')
+        self.fit_home()
+        self.click_button('请假、扣薪', '修改请假')
+        self.until(lambda: self.ax_title() == '修改请假', '点概览上的请假没打开修改请假')
+        self.fit('修改请假', 'leave-edit')
+        # 新请的那条留在临时目录的假状态里，这是这次启动的最后一步，不再撤销。
+        self.key('esc')
+
+    def fit_onboarding(self):
+        """用空的假主目录再起一次 App (没有 state.json 就打开引导窗口)：引导第 1 步月薪空、日薪已填，第 2 步饭点开、关。"""
+        self.stop()
+        state = self.launch(home=self.args.onboarding_home, title=ONBOARDING_TITLE, bundled_font=True)
+        print(f'引导窗口已打开 (pid {self.app.pid})，{state["width"]:.0f}×{state["height"]:.0f}', flush=True)
+        deadline = time.time() + 15
+        while not self.find('AXButton', '^下一步$') and time.time() < deadline:
+            time.sleep(0.3)
+        if not self.find('AXButton', '^下一步$'):
+            raise Blocked('FIT-NOSCROLL：空主目录下打开的不是引导第 1 步 (找不到「下一步」)')
+        self.settle()
+        self.fit('引导第 1 步 (月薪、空)', 'P1-1-salary-empty')
+        self.click_button('^日薪$', '日薪')
+        self.click_button('', '工资输入框', role='AXTextField')
+        self.drive.send('text 200')
+        self.fit('引导第 1 步 (日薪、已填)', 'P1-1-salary-daily')
+        self.click_button('^月薪$', '月薪')
+        self.click_button('', '工资输入框', role='AXTextField')
+        self.drive.send('clear')
+        self.drive.send('text 20000')
+        self.click_button('^下一步$', '引导第 2 步')
+        self.wait_for('^开始搬砖', '引导第 2 步')
+        self.fit('引导第 2 步 (饭点打开)', 'P1-2-schedule')
+        self.click_button('^饭点$', '饭点开关', role='AXCheckBox')
+        self.fit('引导第 2 步 (饭点关闭)', 'P1-2-schedule-nolunch')
+
+    def fit_preview(self):
+        """引导三个状态的离屏预览与真窗口图逐段比较：每一段内容 (非底色的连续行) 的上下沿相差不超过 1pt。"""
+        font = self.drive.send('font')
+        where = f'按字族名取到的 Noto Sans SC 是 {font["byName"] or "(没有)"}'
+        if font['byName'] != font['bundled']:
+            where += '，不是打包的那份 (本机另装了同名字体)；检查里强制用打包的那份'
+        if not font.get('forced'):
+            return self.fail('FIT-PREVIEW', f'注入库没能换成打包的 Noto Sans SC ({font["bundled"] or "App 包里没有"})')
+        good, worst = True, 0.0
+        for name in ('P1-1-salary-empty', 'P1-1-salary-daily', 'P1-2-schedule'):
+            preview = os.path.join(self.args.onboarding_previews, name + '.png')
+            real = os.path.join(self.out, 'fit', name + '.png')
+            a, b = content_spans(preview), content_spans(real)
+            if len(a) != len(b):
+                good = self.fail('FIT-PREVIEW', f'{name}: 离屏预览分 {len(a)} 段、真窗口 {len(b)} 段 (预览 {fmt_spans(a)}；真窗口 {fmt_spans(b)})')
+                continue
+            diff = max((max(abs(x[0] - y[0]), abs(x[1] - y[1])) for x, y in zip(a, b)), default=0)
+            worst = max(worst, diff)
+            if diff > PREVIEW_TOLERANCE:
+                good = self.fail('FIT-PREVIEW', f'{name}: 离屏预览与真窗口相差 {diff:g}pt (预览 {fmt_spans(a)}；真窗口 {fmt_spans(b)})')
+        if good:
+            self.ok('FIT-PREVIEW', f'引导 3 个状态的离屏预览与真窗口逐段一致 (最大差 {worst:g}pt)；{where}')
+        return good
+
     def main(self):
         os.makedirs(os.path.join(self.out, 'realwindow'), exist_ok=True)
         state = self.launch()
@@ -459,7 +625,28 @@ class Run:
         self.act_esc(files)
         self.act_history()
         self.write_manifest(files, bool(self.state().get('active')))
+        self.fit_panel()
+        if self.args.onboarding_home:
+            self.fit_onboarding()
+            if self.args.onboarding_previews:
+                self.fit_preview()
         return 1 if self.failures else 0
+
+
+def content_spans(path):
+    """图里内容的纵向分段 (pt)：从 PREVIEW_TOP 起，x 24–336pt 里有非底色像素的连续行并成一段。底色取左边 4pt 处。"""
+    width, height, rows, pixel = ui_geometry.load_png(path)
+    scale = width / 360
+    background = pixel(int(4 * scale), int(300 * scale))
+    x0, x1, step = int(24 * scale), int(336 * scale), max(1, int(scale))
+    flags = []
+    for y in range(int(PREVIEW_TOP * scale), rows):
+        flags.append(any(sum(abs(c - d) for c, d in zip(pixel(x, y), background)) > 12 for x in range(x0, x1, step)))
+    return [((start + PREVIEW_TOP * scale) / scale, (end + 1 + PREVIEW_TOP * scale) / scale) for start, end in ui_geometry.runs(flags, 0)]
+
+
+def fmt_spans(spans):
+    return ' '.join(f'{a:g}–{b:g}' for a, b in spans)
 
 
 NAMES = {'goals': '目标页', 'history': '历史月列表', 'settings': '设置页', 'calendar': '月日历', 'day': '单日详情', 'overview': '概览', 'unknown': '认不出的画面', '窗口已关': '窗口已关'}
@@ -474,6 +661,8 @@ def main():
     parser.add_argument('--workdir', required=True)
     parser.add_argument('--out', required=True)
     parser.add_argument('--launch-timeout', type=float, default=60)
+    parser.add_argument('--onboarding-home', help='空的假主目录：给了就再起一次 App 量引导两步 (FIT-NOSCROLL)')
+    parser.add_argument('--onboarding-previews', help='引导的离屏预览目录：给了就比较预览与真窗口 (FIT-PREVIEW)')
     args = parser.parse_args()
     run = Run(args)
     # 被 ui-checks-mac.sh 的超时或 Ctrl-C 打断时也要把自己拉起的 App 关掉。

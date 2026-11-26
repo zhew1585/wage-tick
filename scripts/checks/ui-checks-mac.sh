@@ -1,7 +1,10 @@
 #!/bin/bash
 # 界面检查里要 macOS 的那一半，由 scripts/checks/run.sh ui 调用。规则与每条对应的坑见 scripts/checks/README.md。
-# 一次运行：编一份 Debug (关掉 hardened runtime，放临时目录) → 离屏渲染页面预览并量页头 → 离屏渲染首页各状态并查区域位置 → 用临时目录里的假数据拉起 App，
-# 截真窗口图并量页头 → 在 App 进程里合成按键、点击跑交互回归 → 确认真实数据目录没被碰过。
+# 一次运行：编一份 Debug (关掉 hardened runtime，放临时目录) → 离屏渲染页面预览并量页头 → 离屏渲染首页各状态并查区域位置 → 离屏渲染引导两步 →
+# 用临时目录里的假数据拉起 App，截真窗口图并量页头 → 在 App 进程里合成按键、点击跑交互回归，量该不滚动的页面放不放得下 →
+# 用空的假主目录再起一次 App，量引导两步、与引导的离屏预览对照 → 确认真实数据目录没被碰过。
+# 量放不放得下的几步 (引导离屏渲染、FIT-NOSCROLL、FIT-PREVIEW) 由注入库把「Noto Sans SC」换成 App 打包的那份
+# (本机另装了同名字体时 App 按字族名会取到装的那份，行高差很多)；其余检查用本机按字族名取到的字体。
 # 不往 /Applications 写东西，不读写 ~/Library/Application Support/com.zhew1585.WageTick/ (只取校验和)，不申请任何系统权限。
 # 用法：scripts/checks/ui-checks-mac.sh [输出目录]，也可用环境变量 UI_CHECKS_OUT；默认 build/ui-checks/。
 #       UI_CHECKS_DERIVED_DATA=<目录>：复用一份已经编好的 Debug 构建 (要 ENABLE_HARDENED_RUNTIME=NO)，跳过编译 (selftest-mac.sh 不用它)。
@@ -77,7 +80,7 @@ EXE="${DD}/${APP_EXE_REL}"
 [[ -x "${EXE}" ]] || blocked "构建目录里没有 App 可执行文件：${EXE}"
 
 # 注入库与假状态生成器。
-clang -fobjc-arc -dynamiclib -framework AppKit -o "${WORK}/libdrive.dylib" scripts/checks/harness/drive.m > "${OUT}/harness.log" 2>&1 \
+clang -fobjc-arc -dynamiclib -framework AppKit -framework CoreText -o "${WORK}/libdrive.dylib" scripts/checks/harness/drive.m > "${OUT}/harness.log" 2>&1 \
     || { cat "${OUT}/harness.log"; blocked "注入库编不出来 (见 harness.log)"; }
 cp scripts/checks/harness/FakeState.swift "${WORK}/main.swift"
 swiftc -swift-version 6 -Onone -module-name FakeState -o "${WORK}/fakestate" \
@@ -195,9 +198,25 @@ PY
     record ${FORM_CODE} "表单页头检查 blocked"
 fi
 
-# 3. 真窗口图与交互回归 (同一次启动)。
-echo "拉起 App (假数据在临时目录)，截真窗口图并跑交互回归…"
-python3 scripts/checks/ui_drive.py --exe "${EXE}" --dylib "${WORK}/libdrive.dylib" --home "${FAKE_HOME}" --workdir "${WORK}" --out "${OUT}"
+# 2c. 离屏渲染引导两步，给 FIT-PREVIEW 与真窗口对照。
+echo "离屏渲染引导两步…"
+ONBOARDING_HOME="${WORK}/onboarding-home"
+mkdir -p "${OUT}/onboarding" "${ONBOARDING_HOME}"
+PREVIEW_ARGS=()
+WAGETICK_BUNDLED_FONT=1 WAGETICK_RENDER_ENTRY=wagetick_render_onboarding_previews WAGETICK_RENDER_DIR="${OUT}/onboarding" CFFIXED_USER_HOME="${ONBOARDING_HOME}" WAGETICK_FAKE_HOME="${ONBOARDING_HOME}" \
+    DYLD_INSERT_LIBRARIES="${WORK}/libdrive.dylib" "${EXE}" > "${OUT}/onboarding.log" 2>&1
+RENDER=$?
+if [[ ${RENDER} -ne 0 || ! -f "${OUT}/onboarding/P1-1-salary-empty.png" ]]; then
+    cat "${OUT}/onboarding.log"
+    record 2 "引导离屏渲染失败 (退出码 ${RENDER}，见 onboarding.log)，FIT-PREVIEW 没法比"
+else
+    PREVIEW_ARGS=(--onboarding-previews "${OUT}/onboarding")
+fi
+
+# 3. 真窗口图、交互回归与 FIT-NOSCROLL (今日概览窗口一次启动，引导窗口用空的假主目录再起一次)。
+echo "拉起 App (假数据在临时目录)，截真窗口图、跑交互回归、量放不放得下…"
+python3 scripts/checks/ui_drive.py --exe "${EXE}" --dylib "${WORK}/libdrive.dylib" --home "${FAKE_HOME}" --workdir "${WORK}" --out "${OUT}" \
+    --onboarding-home "${ONBOARDING_HOME}" ${PREVIEW_ARGS[@]+"${PREVIEW_ARGS[@]}"}
 DRIVE=$?
 record ${DRIVE} "交互回归 blocked (见上面的 BLOCKED 行)"
 if [[ -f "${OUT}/realwindow/manifest.json" ]]; then
