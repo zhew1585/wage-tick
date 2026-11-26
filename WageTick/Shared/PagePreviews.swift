@@ -93,7 +93,7 @@ private enum PagePreviews {
     }
 
     /// 金额上限出现之前存下的超大金额：10 月 1 日早上引导 (月薪 20000) 并新建「买房」，后面排一个「去趟大理」8000；
-    /// 新建、编辑都不让超过 999999，所以存成 JSON 后把「买房」的金额改成 1e15 再读回。
+    /// 新建、编辑都不让超过 999999，所以存成 JSON 后把「买房」的金额改成 1e30 再读回 (比整行还宽，金额单行截断)。
     private static func hugeGoalAmount() throws -> AppState {
         let input = OnboardingInput(salary: 20000, schedule: schedule, launchAtLogin: false)
         let state = try at(try apply(.completeOnboarding(input), to: AppState(), at: moment(month: 10, day: 1, 9, 0)).state, month: 10, day: 1, 9, 0) {
@@ -102,7 +102,7 @@ private enum PagePreviews {
         }
         guard var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(state)) as? [String: Any],
               var goals = json["goals"] as? [[String: Any]], !goals.isEmpty else { return state }
-        goals[0]["amount"] = "1e15"
+        goals[0]["amount"] = "1e30"
         json["goals"] = goals
         return try JSONDecoder().decode(AppState.self, from: JSONSerialization.data(withJSONObject: json))
     }
