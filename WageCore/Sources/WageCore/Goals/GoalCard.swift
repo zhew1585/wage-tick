@@ -25,14 +25,30 @@ public struct ActiveGoalCard: Sendable, Equatable {
     public let percentText: String
     /// 预计完成 (PRD 4.5.3)，如「还需搬砖 7 天 · 2月20日」或「今天就能达成」。
     public let estimate: String
-    /// 面板攒钱队列卡片里的短版预计，和金额挤在一行：如「还需 7 天 · 2月20日」「今天就能达成」「暂时没法预计」。
+    /// 面板攒钱队列卡片里的短版预计，和金额挤在一行：如「还需 7 天 · 2月20日」「今天就能达成」「还需大于 1 年」「暂时没法预计」。
     public let shortEstimate: String
-    /// 首页用的预计完成，只有日期：今年内如「2月20日」，不在今年如「2027年1月」；今天就能达成 (含已经攒够) 为「今天」；
-    /// 本月没有应出勤日 (日薪为 0) 时没法预计，为 nil。
+    /// 首页用的预计完成：今年内如「2月20日」，不在今年如「2027年1月」；今天就能达成 (含已经攒够) 为「今天」；
+    /// 预计完成日在今天一年以后时为「大于 1 年」；本月没有应出勤日 (日薪为 0) 时没法预计，为 nil。
     public let finishText: String?
-    /// 预计完成日 (今天就能达成时为今天)，排队中目标从它之后起数 (PRD 4.5.3 #5)。
-    /// 本月没有应出勤日 (日薪为 0) 时没法预计，为 nil。
-    let finishDate: LocalDate?
+    /// 预计完成 (今天就能达成时为今天)，排队中目标从它之后起数 (PRD 4.5.3 #5)。
+    let finish: EstimatedFinish
+}
+
+/// 一个目标的预计完成：有日期、太远 (晚于今天之后 `ActiveGoalCard.estimateDayLimit` 个日历日) 或没法预计 (日薪为 0)。
+enum EstimatedFinish: Sendable, Equatable {
+    case date(LocalDate)
+    case tooFar
+    case unknown
+
+    /// 预计完成日，太远或没法预计时为 nil。
+    var date: LocalDate? {
+        if case .date(let day) = self { day } else { nil }
+    }
+
+    /// 按日薪 `dailyWage` 数出的预计完成日 `day`；为 nil 时日薪大于 0 说明太远，否则没法预计。
+    init(_ day: LocalDate?, dailyWage: Decimal) {
+        self = day.map(Self.date) ?? (dailyWage > 0 ? .tooFar : .unknown)
+    }
 }
 
 extension GoalCard {
@@ -62,30 +78,43 @@ extension ActiveGoalCard {
         let ratio = shown / goal.amount
         progress = NSDecimalNumber(decimal: ratio).doubleValue
         percentText = Format.percent(ratio)
-        (estimate, shortEstimate, finishText, finishDate) = Self.estimate(remaining: goal.amount - accumulated, today: today, rule: rule)
+        (estimate, shortEstimate, finishText, finish) = Self.estimate(remaining: goal.amount - accumulated, today: today, rule: rule)
     }
 
     /// 预计完成 (PRD 4.5.3)：
     /// 今天是应出勤日且未下班时，先扣除今日剩余可赚 (今日上限 - 今日已赚)，扣除后不大于 0 即「今天就能达成」；
     /// 否则 N = 剩余金额 ÷ 当月日薪 向上取整，从明天起数第 N 个应出勤日，跨月仍按当月日薪【D7】。
-    /// 返回完整文案、面板用的短版文案、首页用的只有日期的预计完成与预计完成日。
+    /// 预计完成日晚于今天之后 `estimateDayLimit` 个日历日 (含大到算不出天数) 时只说「还需搬砖大于 1 年」。
+    /// 返回完整文案、面板用的短版文案、首页用的只有日期的预计完成与预计完成。
     private static func estimate(
         remaining: Decimal, today: Today, rule: AttendanceRule
-    ) -> (text: String, short: String, finishText: String?, finish: LocalDate?) {
+    ) -> (text: String, short: String, finishText: String?, finish: EstimatedFinish) {
         // 只有目标管理页的预览会走到：真正累计中的目标达标即完成【D6】。
-        guard remaining > 0 else { return (reachedPreview, reachedPreview, finishToday, today.date) }
+        guard remaining > 0 else { return (reachedPreview, reachedPreview, finishToday, .date(today.date)) }
         var rest = remaining
         if let earnings = today.earnings, today.status != .offWork {
             rest -= earnings.cap - earnings.earned
         }
-        guard rest > 0 else { return (reachedToday, reachedToday, finishToday, today.date) }
-        // 本月全部覆盖为不上班时日薪为 0 (PRD 4.3.5 #19)，没法按当月日薪估算。
-        guard let days = workDays(for: rest, dailyWage: today.dailyWage) else { return (noEstimate, noEstimateShort, nil, nil) }
+        guard rest > 0 else { return (reachedToday, reachedToday, finishToday, .date(today.date)) }
+        let days = workDays(for: rest, dailyWage: today.dailyWage)
+        switch EstimatedFinish(days.flatMap { rule.finishDay($0, after: today.date, from: today.date) }, dailyWage: today.dailyWage) {
+        case .unknown:
+            // 本月全部覆盖为不上班时日薪为 0 (PRD 4.3.5 #19)，没法按当月日薪估算。
+            return (noEstimate, noEstimateShort, nil, .unknown)
+        case .tooFar:
+            return ("还需搬砖\(beyondLimit)", "还需\(beyondLimit)", beyondLimit, .tooFar)
+        case .date(let finish):
+            return estimate(days: days ?? 0, finish: finish, today: today.date)
+        }
+    }
+
+    /// 还需 `days` 个应出勤日、预计 `finish` 完成时的文案与预计完成。
+    private static func estimate(
+        days: Decimal, finish: LocalDate, today: LocalDate
+    ) -> (text: String, short: String, finishText: String?, finish: EstimatedFinish) {
         let count = NSDecimalNumber(decimal: days).stringValue
-        // 超过 `estimateDayLimit` 个应出勤日时太远了，只说还需多少天，不数日期。
-        guard let finish = rule.finishDay(days, after: today.date) else { return ("还需搬砖 \(count) 天", "还需 \(count) 天", nil, nil) }
         let date = Format.monthDay(finish)
-        return ("还需搬砖 \(count) 天 · \(date)", "还需 \(count) 天 · \(date)", Format.estimateDate(finish, today: today.date), finish)
+        return ("还需搬砖 \(count) 天 · \(date)", "还需 \(count) 天 · \(date)", Format.estimateDate(finish, today: today), .date(finish))
     }
 
     /// 攒够 `amount` 需要的应出勤日数 = `amount` ÷ 日薪 向上取整，如 6.5714 → 7；结果是整数，但可能大到放不进 `Int`。
@@ -101,8 +130,12 @@ extension ActiveGoalCard {
         return result.isNaN ? nil : result
     }
 
-    /// 预计完成最多往后数多少个应出勤日，约 40 年；再远就不数日期了，免得金额极大或日薪极小时一天天数下去卡死。
-    static let estimateDayLimit = 10000
+    /// 预计完成日最多看到今天之后多少个日历日 (含这一天)，即 1 年；再远只说「大于 1 年」，不数日期，
+    /// 逐天数因此最多走这么多步，金额极大或日薪极小时也不会卡死。
+    static let estimateDayLimit = 365
+
+    /// 预计完成日晚于今天之后 `estimateDayLimit` 个日历日时的说法，累计中前面接「还需搬砖」「还需」，排队中接「排队中 · 」。
+    static let beyondLimit = "大于 1 年"
 
     /// 排队中目标拖到第一个时已攒够：松手即完成【D6】。
     static let reachedPreview = "已经攒够，排到第一个就达成"
@@ -124,18 +157,20 @@ extension ActiveGoalCard {
 }
 
 extension AttendanceRule {
-    /// `day` 之后 (不含当天) 的第 `days` 个应出勤日；`days` 超过 `ActiveGoalCard.estimateDayLimit` 时不数，为 nil。
-    func finishDay(_ days: Decimal, after day: LocalDate) -> LocalDate? {
+    /// `day` 之后 (不含当天) 的第 `days` 个应出勤日；晚于 `today` 之后 `ActiveGoalCard.estimateDayLimit` 个日历日时太远，为 nil。
+    /// `days` 本身超过上限时一定太远，不用数。
+    func finishDay(_ days: Decimal, after day: LocalDate, from today: LocalDate) -> LocalDate? {
         guard days <= Decimal(ActiveGoalCard.estimateDayLimit) else { return nil }
-        return attendanceDay(NSDecimalNumber(decimal: days).intValue, after: day)
+        return attendanceDay(NSDecimalNumber(decimal: days).intValue, after: day, through: today.adding(days: ActiveGoalCard.estimateDayLimit))
     }
 
-    /// `day` 之后 (不含当天) 的第 `count` 个应出勤日，`count` 至少为 1。
-    func attendanceDay(_ count: Int, after day: LocalDate) -> LocalDate {
+    /// `day` 之后 (不含当天) 的第 `count` 个应出勤日，`count` 至少为 1；数过 `last` 还没数到时为 nil。
+    func attendanceDay(_ count: Int, after day: LocalDate, through last: LocalDate) -> LocalDate? {
         var found = 0
         var date = day
         while found < count {
             date = date.adding(days: 1)
+            guard date <= last else { return nil }
             if isAttendanceDay(date) { found += 1 }
         }
         return date

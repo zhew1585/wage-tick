@@ -18,11 +18,12 @@ public struct QueuedGoalCard: Sendable, Equatable, Identifiable {
     public let name: String
     /// 目标金额，如「¥3000」。
     public let amountText: String
-    /// 如「排队中 · 预计 2月27日」，不在今年时「排队中 · 预计 2027年1月」(PRD 4.5.3 #5)。
+    /// 如「排队中 · 预计 2月27日」，不在今年时「排队中 · 预计 2027年1月」(PRD 4.5.3 #5)；
+    /// 预计完成日在今天一年以后时「排队中 · 大于 1 年」，没法预计时「排队中 · 暂时没法预计」。
     public let estimate: String
-    /// 面板攒钱队列里的短版预计，如「预计 2月27日」「预计 2027年1月」「暂时没法预计」。
+    /// 面板攒钱队列里的短版预计，如「预计 2月27日」「预计 2027年1月」「大于 1 年」「暂时没法预计」。
     public let shortEstimate: String
-    /// 首页用的预计完成，只有日期，如「2月27日」「2027年1月」；没法预计时为 nil。
+    /// 首页用的预计完成，如「2月27日」「2027年1月」，在今天一年以后时为「大于 1 年」；没法预计时为 nil。
     public let finishText: String?
 }
 
@@ -35,7 +36,7 @@ extension GoalQueueSection {
         let queued = state.goals.filter(\.status.isQueued)
         guard let active, !queued.isEmpty else { return nil }
         let shown = Array(queued.prefix(Self.expandedLimit - 1))
-        let finishes = AttendanceRule(holidays: holidays).queuedFinishDates(shown, after: active.finishDate, dailyWage: today.dailyWage)
+        let finishes = AttendanceRule(holidays: holidays).queuedFinishDates(shown, after: active.finish, dailyWage: today.dailyWage, today: today.date)
         let cards = zip(shown, finishes).map { goal, finish in QueuedGoalCard(goal: goal, finish: finish, today: today.date) }
         let expanded = state.settings.goalQueueExpanded
         self.init(
@@ -49,13 +50,22 @@ extension GoalQueueSection {
 extension QueuedGoalCard {
     /// 排队中目标的预计完成日 (PRD 4.5.3 #5)：从前一个目标的预计完成日之后起，
     /// 按当月日薪数 ceil(目标金额 ÷ 日薪) 个应出勤日，跨月、跨年都仍按当月日薪【D7】。
-    /// `finish` 为 nil 时 (本月没有应出勤日，日薪为 0) 没法预计。
-    init(goal: Goal, finish: LocalDate?, today: LocalDate) {
+    /// `finish` 太远 (在今天一年以后) 时说「大于 1 年」，没法预计 (本月没有应出勤日，日薪为 0) 时说「暂时没法预计」。
+    init(goal: Goal, finish: EstimatedFinish, today: LocalDate) {
         id = goal.id
         name = goal.name
         amountText = Format.money(goal.amount)
-        finishText = finish.map { Format.estimateDate($0, today: today) }
-        shortEstimate = finishText.map { "预计 \($0)" } ?? ActiveGoalCard.noEstimateShort
+        switch finish {
+        case .date(let day):
+            finishText = Format.estimateDate(day, today: today)
+            shortEstimate = "预计 \(Format.estimateDate(day, today: today))"
+        case .tooFar:
+            finishText = ActiveGoalCard.beyondLimit
+            shortEstimate = ActiveGoalCard.beyondLimit
+        case .unknown:
+            finishText = nil
+            shortEstimate = ActiveGoalCard.noEstimateShort
+        }
         estimate = "排队中 · \(shortEstimate)"
     }
 }
@@ -63,14 +73,16 @@ extension QueuedGoalCard {
 extension AttendanceRule {
     /// 排队中目标依次的预计完成日 (PRD 4.5.3 #5)：每个从前一个的预计完成日之后起，
     /// 按当月日薪数 ceil(目标金额 ÷ 日薪) 个应出勤日，跨月、跨年都仍按当月日薪【D7】。
-    /// `first` 是排在它们前面那个目标 (累计中) 的预计完成日；日薪为 0 时 (PRD 4.3.5 #19) 前一个没法预计，后面的也都为 nil。
-    /// 某个目标自己就要超过 `ActiveGoalCard.estimateDayLimit` 个应出勤日时不数日期，它和后面的都为 nil。
-    func queuedFinishDates(_ goals: [Goal], after first: LocalDate?, dailyWage: Decimal) -> [LocalDate?] {
+    /// `first` 是排在它们前面那个目标 (累计中) 的预计完成；日薪为 0 时 (PRD 4.3.5 #19) 前一个没法预计，后面的也都没法预计。
+    /// 预计完成日晚于 `today` (不是前一个的完成日) 之后 `ActiveGoalCard.estimateDayLimit` 个日历日时太远，不数日期，它和后面的都是太远。
+    func queuedFinishDates(_ goals: [Goal], after first: EstimatedFinish, dailyWage: Decimal, today: LocalDate) -> [EstimatedFinish] {
         var previous = first
         return goals.map { goal in
-            let finish = previous.flatMap { day in
-                ActiveGoalCard.workDays(for: goal.amount, dailyWage: dailyWage).flatMap { finishDay($0, after: day) }
-            }
+            guard let day = previous.date else { return previous }
+            let finish = EstimatedFinish(
+                ActiveGoalCard.workDays(for: goal.amount, dailyWage: dailyWage).flatMap { finishDay($0, after: day, from: today) },
+                dailyWage: dailyWage
+            )
             previous = finish
             return finish
         }

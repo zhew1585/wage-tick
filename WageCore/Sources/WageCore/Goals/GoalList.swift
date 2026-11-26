@@ -7,7 +7,7 @@ public struct GoalList: Sendable, Equatable {
     public let queue: [QueueGoalRow]
     /// 已完成：按完成时间倒序，沉底，不参与排序、不能编辑 (AC-GOAL-10)。
     public let completed: [CompletedGoalRow]
-    /// 队列里最后一个目标的预计完成，如「全部攒完 预计 2027年4月」；队列为空或没法预计 (日薪为 0) 时为 nil。
+    /// 队列里最后一个目标的预计完成，如「全部攒完 预计 2027年4月」；队列为空、没法预计 (日薪为 0) 或在今天一年以后时为 nil。
     public let queueFinishText: String?
     /// 已完成的总结，如「共 ¥9594 · 搬砖 9.6 天」(搬砖天数 = 总额 ÷ 当前日薪，日薪为 0 时只有「共 ¥9594」)；没有已完成时为 nil。
     public let completedSummary: String?
@@ -49,7 +49,7 @@ public struct QueueGoalRow: Sendable, Equatable, Identifiable {
     /// 第一行就是此刻的累计中目标，与面板目标区同一份；其余行是拖到最前时的即时预览，
     /// 累计额 = 当前已累计的钱 (换人时转过去【D6】)，已达标的松手即完成。
     public let asFirst: ActiveGoalCard
-    /// 按眼下的位置排队时的预计，同面板「排队中 · 预计 11月26日」「排队中 · 暂时没法预计」；
+    /// 按眼下的位置排队时的预计，同面板「排队中 · 预计 11月26日」「排队中 · 大于 1 年」「排队中 · 暂时没法预计」；
     /// 第一行 (累计中) 是 `asFirst.estimate`。
     public let estimate: String
 }
@@ -104,7 +104,7 @@ extension GoalList {
         let goals = state.goals.filter { !$0.status.isCompleted }
         let cards = goals.map { ActiveGoalCard(goal: $0, accumulated: accumulated, today: today, rule: rule) }
         let finishes = cards.first.map { first in
-            [first.finishDate] + rule.queuedFinishDates(Array(goals.dropFirst()), after: first.finishDate, dailyWage: today.dailyWage)
+            [first.finish] + rule.queuedFinishDates(Array(goals.dropFirst()), after: first.finish, dailyWage: today.dailyWage, today: today.date)
         } ?? []
         let queue = zip(goals, zip(cards, finishes)).enumerated().map { index, item in
             let (goal, (card, finish)) = item
@@ -131,7 +131,7 @@ extension GoalList {
         self.init(
             queue: queue,
             completed: done,
-            queueFinishText: finishes.last.flatMap { $0 }.map { "全部攒完 预计 \(Format.estimateDate($0, today: today.date))" },
+            queueFinishText: finishes.last.flatMap(\.date).map { "全部攒完 预计 \(Format.estimateDate($0, today: today.date))" },
             completedSummary: Self.summary(done, dailyWage: today.dailyWage)
         )
     }
