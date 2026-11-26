@@ -7,7 +7,7 @@
 做这些事：
   1. 截真窗口图 today、P3-goals、P4-history、P5-calendar、P5-day-detail、P6-settings (2 倍，整窗含红绿灯)，写 realwindow/manifest.json。
   2. 交互回归 ACT-PUSH、ACT-HOME、ACT-ESC、ACT-SHEET、ACT-GOALCARD、ACT-DOCK、ACT-COVER、ACT-HISTORY (规则见 README)。
-  3. FIT-NOSCROLL：月日历、今天扣钱了、请假 (新增、修改) 在真窗口里不用滚动；给了 --onboarding-home 时
+  3. FIT-NOSCROLL：月日历、今天扣钱了、请假 (新增、修改) 在真窗口里不用滚动；月日历同时查 FIT-CELL (每个格子里的字都在格子里)；给了 --onboarding-home 时
      用空的假主目录再起一次 App，引导两步同样量，并查 FIT-HINT (引导第 1 步的校验提示不被底部按钮栏盖住)；
      给了 --onboarding-previews 时再跑 FIT-PREVIEW (引导的离屏预览与真窗口一致)。
   每次拉起 App 都查 FONT-BUNDLED (App 实际用的字体文件在 App 包内，见 ui_font.py)。
@@ -16,7 +16,7 @@
 概览靠底部入口栏 (历史、目标、设置那一条) 的指纹与启动时的参照相同。两块都避开了时钟与滚动的数字。
 退出码：0 全部通过；1 有规则不过；2 blocked (窗口没出现、驱动连不上等环境问题)。
 """
-import argparse, datetime, json, os, re, signal, socket, subprocess, sys, time
+import argparse, datetime, json, math, os, re, signal, socket, subprocess, sys, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -34,6 +34,9 @@ FIT_TOLERANCE = 0.5
 # FIT-PREVIEW：离屏预览与真窗口逐段比较时允许的差 (pt)，以及从哪一行比起 (避开红绿灯)。
 PREVIEW_TOLERANCE = 1.0
 PREVIEW_TOP = 30
+# FIT-CELL：日历格子里文字的墨迹离格子上下沿至少多少 (pt)；描边 (1pt，悬停 1.5pt) 那几行不算墨迹。
+CELL_MARGIN = 2.0
+CELL_STROKE = 1.5
 # 引导窗口的标题与 FIT-PREVIEW 比较的三个状态 (真窗口图名与离屏预览同名，见 OnboardingPreviews.swift)。
 ONBOARDING_TITLE = '牛马鼓励器'
 # FIT-HINT：引导第 1 步月薪空着点「下一步」时的校验提示 (WageCore 的 CommandError.salaryNotPositive)。
@@ -490,6 +493,34 @@ class Run:
             self.ok('FIT-NOSCROLL', f'{page}：' + '；'.join(texts))
         return good
 
+    def fit_cells(self, title, image):
+        """FIT-CELL：月日历每个日子格子里的字 (日号、小字、金额) 都在格子里，离上下沿至少 2pt，彼此不重叠。
+        格子的框取自辅助功能树 (日子按钮，文字如「26、改班、¥952」，按「、」分开的段数就是格子里的行数)；
+        墨迹在 fit/<image>.png 上量：格子中间 x+8 至 x+w-8 里与格子底色相差明显的像素 (今天的格子是深底浅字，字出了格子就看不见，所以只量格子里面)。"""
+        cells = [e for e in self.ax() if e['role'] == 'AXButton' and re.search(r'^\d{1,2}(、|$)', e['label']) and e['y'] >= 52]
+        if not cells:
+            return self.fail('FIT-CELL', f'月日历 ({title})：辅助功能树里找不到日子格子')
+        problems, crowded, tightest = [], [], None
+        for cell, (lines, top, bottom, runs) in zip(cells, cell_ink(os.path.join(self.out, 'fit', image + '.png'), cells)):
+            name = cell['label'].replace('、', ' ')
+            y0, y1 = cell['y'], cell['y'] + cell['h']
+            if top is None:
+                problems.append(f'「{name}」格子 {y0:g}–{y1:g} 里没有字')
+                continue
+            margin = min(top - y0, y1 - bottom)
+            tightest = margin if tightest is None else min(tightest, margin)
+            text = f'「{name}」格子 {y0:g}–{y1:g}，墨迹 {top:g}–{bottom:g}'
+            if lines >= 3:
+                crowded.append(text)
+            if margin < CELL_MARGIN:
+                problems.append(f'{text}，离格子{"上" if top - y0 < y1 - bottom else "下"}沿只有 {margin:g}pt (要至少 {CELL_MARGIN:g})，字被格子裁掉或顶边')
+            elif runs < lines:
+                problems.append(f'{text}，{lines} 行字只分出 {runs} 段，有字叠在一起')
+        if problems:
+            return self.fail('FIT-CELL', f'月日历 ({title})：' + '；'.join(problems))
+        detail = f'；三行的格子：{"；".join(crowded)}' if crowded else '；这个月没有三行的格子'
+        return self.ok('FIT-CELL', f'月日历 ({title})：{len(cells)} 个格子的字都在格子里，离上下沿最少 {tightest:g}pt{detail}')
+
     def wait_for(self, pattern, what, role='AXButton'):
         """等辅助功能树里出现文字匹配 pattern 的元素 (最多 3 秒)，返回它的中心点；没等到是 BLOCKED。"""
         deadline = time.time() + 3
@@ -539,6 +570,7 @@ class Run:
             rows = len({round(e['y']) for e in self.ax() if e['role'] == 'AXButton' and re.search(r'^\d{1,2}(、|$)', e['label']) and e['y'] >= 52})
             most = max(most, rows)
             self.fit(f'月日历 ({title}，{rows} 行)', f'calendar-{index}')
+            self.fit_cells(title, f'calendar-{index}')
             self.key('esc')
             self.until(lambda: self.ax_title() == '历史', '月日历按 Esc 没回到月列表')
         if most < 6:
@@ -662,6 +694,28 @@ class Run:
             if self.args.onboarding_previews:
                 self.fit_preview()
         return 1 if self.failures else 0
+
+
+def cell_ink(path, cells):
+    """每个格子里字的墨迹：(行数、墨迹上沿、墨迹下沿、墨迹分成几段)，单位 pt，相对窗口左上角；格子里没有墨迹时上下沿为 None。
+    底色取格子左边 2.5pt、半高处；只看 x+8 至 x+w-8 (避开圆角与左右描边)，上下各去掉描边的 1.5pt。"""
+    width, height, rows, pixel = ui_geometry.load_png(path)
+    scale = width / 360
+    result = []
+    for cell in cells:
+        x, y, w, h = cell['x'], cell['y'], cell['w'], cell['h']
+        fill = pixel(int((x + 2.5) * scale), int((y + h / 2) * scale))
+        x0, x1 = int((x + 8) * scale), int((x + w - 8) * scale)
+        first, last = int(math.ceil((y + CELL_STROKE) * scale)), int((y + h - CELL_STROKE) * scale)
+        flags = [any(sum(abs(c - d) for c, d in zip(pixel(px, py), fill)) > 60 for px in range(x0, x1))
+                 for py in range(first, min(last, rows))]
+        spans = ui_geometry.runs(flags, 0)
+        lines = len(cell['label'].split('、'))
+        if not spans:
+            result.append((lines, None, None, 0))
+            continue
+        result.append((lines, (first + spans[0][0]) / scale, (first + spans[-1][1] + 1) / scale, len(spans)))
+    return result
 
 
 def content_spans(path):

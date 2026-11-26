@@ -3,6 +3,8 @@
 // 内容：上个月 1 号 09:00 完成引导 (月薪 20000，10:00–18:00，饭点 12:00–13:00，双休)，关掉桌面悬浮小牛与两种通知；
 // 一个累计中目标、四个排队目标 (金额远大于两个月的工资，检查期间攒不满，不会弹庆祝动画挡住概览)；
 // 今天设成上班日，周末、节假日跑也有「今天扣钱了」与进度区，概览的布局每天一样。
+// 上个月塞几个挤的格子给 FIT-CELL：第一个周一至周五改成上班 (碰上节假日也算上班日) 再请 2 小时假 (日号、「2h」、金额三行)，
+// 第一个周六改成上班并扣一笔钱 (日号、小圆点、「改班」、金额)。今天改成上班也是三行 (日号、「改班」、今日已赚)。
 import Foundation
 
 let output = CommandLine.arguments.dropFirst().first ?? "state.json"
@@ -43,6 +45,22 @@ for (name, amount) in [("换台 MacBook", 200_000), ("去趟大理", 80_000), ("
 }
 send(.advance, at: now)
 send(.editDay(LocalDate(year: today.year!, month: today.month!, day: today.day!), .setOverride(.attendanceDay)), at: now)
+
+/// 上个月里第一个落在 `weekdays` (公历 1 是周日) 上的日子。
+@MainActor func firstDay(of weekdays: Set<Int>) -> LocalDate {
+    var day = calendar.date(from: start)!
+    while !weekdays.contains(calendar.component(.weekday, from: day)) {
+        day = calendar.date(byAdding: .day, value: 1, to: day)!
+    }
+    let parts = calendar.dateComponents([.year, .month, .day], from: day)
+    return LocalDate(year: parts.year!, month: parts.month!, day: parts.day!)
+}
+let leaveDay = firstDay(of: [2, 3, 4, 5, 6])
+send(.editDay(leaveDay, .setOverride(.attendanceDay)), at: now)
+send(.editDay(leaveDay, .setLeave(Leave(start: TimeOfDay(hour: 10, minute: 0), end: TimeOfDay(hour: 12, minute: 0), deductionPercent: 25))), at: now)
+let swappedDay = firstDay(of: [7])
+send(.editDay(swappedDay, .setOverride(.attendanceDay)), at: now)
+send(.editDay(swappedDay, .addDeduction(DeductionInput(amount: .fixed(50), reason: .late, note: ""))), at: now)
 
 // 与 App 的 StateStore 一样包一层版本号 (StateFile，当前版本 1)。
 struct StateFile: Encodable {
