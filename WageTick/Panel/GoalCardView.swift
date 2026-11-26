@@ -149,7 +149,8 @@ private struct QueuedGoalTile: View {
 }
 
 /// 队列为空：纸底、1 pt line 描边的整块卡，横排、垂直居中，左右 16、间距 12：
-/// accentSoft 圆 36 里放旗子 16 (accent)、提示 14/600、最右边「新目标」次要按钮 (高 32，加号 12 + 13/500)。整张卡与按钮都进入目标管理。
+/// accentSoft 圆 36 里放旗子 16 (accent)、提示 14/600、最右边「新目标」(长得像次要按钮，高 32，加号 12 + 13/500)。
+/// 整张卡是一个按钮，点击、键盘聚焦、悬停高亮都只在卡片这一层；「新目标」只是画出来的样子，不另外接点击。
 private struct EmptyGoalCard: View {
     let prompt: String
     let openGoals: () -> Void
@@ -163,10 +164,7 @@ private struct EmptyGoalCard: View {
                     .background(Palette.accentSoft, in: Circle())
                 Text(prompt).font(AppFont.section).foregroundStyle(Palette.ink).lineLimit(1)
                 Spacer(minLength: 0)
-                Button(action: openGoals) {
-                    Label { Text("新目标") } icon: { PhosphorIcon(.plus, size: 12) }
-                }
-                .buttonStyle(.secondary(fullWidth: false, height: 32))
+                NewGoalBadge()
             }
             .padding(.horizontal, Spacing.s16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -175,6 +173,25 @@ private struct EmptyGoalCard: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.highlight(radius: Radius.card))
+    }
+}
+
+/// 空状态卡里的「新目标」：与 `.secondary(fullWidth: false, height: 32)` 的次要按钮静止时逐像素相同 (surface 底、圆角 8、左右 14、
+/// 加号 14 宽框里 12 + 间距 6 + 13/500 ink)，但不是按钮，不接点击、不进焦点，悬停时只有外面整张卡的那层高亮。
+private struct NewGoalBadge: View {
+    var body: some View {
+        HStack(spacing: Spacing.s6) {
+            PhosphorIcon(.plus, size: 12)
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 14, height: 14)
+            Text("新目标")
+        }
+        .font(AppFont.bodyMedium)
+        .foregroundStyle(Palette.ink)
+        .lineLimit(1)
+        .padding(.horizontal, Spacing.s14)
+        .frame(minHeight: 32)
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.control))
     }
 }
 
