@@ -60,7 +60,7 @@ struct PanelTopBar: View {
 /// 首页提示条 (节假日数据缺失、本月没有要上班的日子、扣款超过日薪)，在红绿灯那一行 (`HomeNoticeLayout`)，只占一行。
 /// accentSoft 底、圆角 8、左右 8，warning 图标 13 + 12 号文字，都是 accent 色；文案原样取自快照。
 /// 放得下就静止；放不下时跑马灯：停 1.5 秒，以每秒 30 pt 向左滚到结尾，停 1.5 秒回到开头，循环。
-/// 有多条时一条播完 (放得下的停 4 秒) 换下一条。悬停时暂停，`.help` 给出这一条的全文。
+/// 有多条时一条播完 (放得下的停 4 秒) 换下一条。悬停时暂停，`.help` 给出这一条的全文；看不见时悬停复位，不会卡在暂停。
 /// 系统开了「减弱动态效果」时不滚动，放不下的截断。
 /// 省电：只在真的滚动时按帧推进，停留用一次长睡眠，只有一条又放得下时播一遍开头就不再醒；
 /// 看不见 (`isActive` 为 false：窗口被挡住、最小化、关掉，或首页被推进来的页面盖住) 时整个停掉，再看得见时从头播。
@@ -125,6 +125,8 @@ struct PanelNoticeBanner: View {
         .help(text)
         .task(id: Playback(texts: texts, isActive: isActive, reduceMotion: reduceMotion)) {
             rewind()
+            // 看不见时复位悬停：悬停着关窗或被推进来的页面盖住时系统可能不回调移开，再露出来会一直当作悬停、停着不播。
+            if !isActive { isHovered = false }
             guard isActive, !texts.isEmpty else { return }
             // 被取消 (看不见了、换了文字) 时睡眠抛出，立刻退出。
             try? await play()
