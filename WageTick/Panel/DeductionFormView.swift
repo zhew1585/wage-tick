@@ -26,7 +26,8 @@ enum DeductionFormRequest: Identifiable, Equatable {
 /// 实时预览「今日上限 ¥x → ¥y」(按日薪百分比时前面加「扣 ¥z ·」)。
 /// 预览与校验都来自核心：草稿交给 `dryRun` 试算，拿试算后快照里的扣钱入口与当前的对比。
 /// 今日概览面板记今天的，历史单日详情补记那一天的 (#15)。
-/// 窗口高 574 时内容区不用滚动：金额框高 92、备注框高 96，小标题与下面的控件间距 6 (没有超日薪提醒、校验提示时)。
+/// 窗口高 574 时内容区不用滚动 (按打包的 Noto Sans SC 量；没有超日薪提醒、校验提示时)：金额框高 76、备注框高 96，
+/// 原因与备注两块间隔 18 (其余块间隔 26)，小标题与下面的控件间距 4。
 struct DeductionFormView: View {
     let request: DeductionFormRequest
     /// 当前快照里的扣钱入口，预览的起点；跨过零点变成休息日时为 nil。
@@ -78,8 +79,10 @@ struct DeductionFormView: View {
                 previewLine
                 messages
             }
-            reasonPicker
-            noteField
+            VStack(alignment: .leading, spacing: Self.reasonNoteGap) {
+                reasonPicker
+                noteField
+            }
         } actions: {
             Button("算了", action: dismiss)
                 .keyboardShortcut(.cancelAction)
@@ -93,7 +96,7 @@ struct DeductionFormView: View {
         .onChange(of: valueText) { errorMessage = nil }
     }
 
-    /// 大号金额输入 (白底、圆角 12、高 92)：左边 loss 色的负号 36/600，数字 48/700，右边单位 (元 / %) 18；获得焦点时描边换成 loss。
+    /// 大号金额输入 (白底、圆角 12、高 76)：左边 loss 色的负号 36/600，数字 48/700，右边单位 (元 / %) 18；获得焦点时描边换成 loss。
     private var valueInput: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.r12)
         return HStack(spacing: Spacing.s6) {
@@ -192,11 +195,13 @@ struct DeductionFormView: View {
     }
 
     /// 金额框高度。
-    private static let valueHeight: CGFloat = 92
+    private static let valueHeight: CGFloat = 76
     /// 备注框高度 (设计稿 Note Box)。
     private static let noteHeight: CGFloat = 96
     /// 小标题 (「为啥被扣」「备注」) 与下面控件的间距。
-    private static let labelGap = Spacing.s6
+    private static let labelGap = Spacing.s4
+    /// 原因与备注两块之间的间隔 (比表单的块间隔 26 紧一些)。
+    private static let reasonNoteGap = Spacing.s18
 
     private var title: String {
         switch (request, target) {

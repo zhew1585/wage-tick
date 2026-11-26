@@ -6,7 +6,7 @@ import WageCore
 /// 选中的一段 accentSoft 底、accent 1.5 描边，两头各一个把手 (14×40 白底、accent 描边、圆角 7、三道横纹)。
 /// 下面每 10 分钟一根刻度 (整点更高)、几个时刻文字，再下面快捷的全天、前半天、后半天。
 /// 拖把手改开始、结束，拖选中的一段整体平移；吸附与边界都交给核心的 `LeaveBar`，这里只把比例换成坐标。
-/// 窗口高 574 时为了让表单不用滚动，标题、刻度、快捷几处的间距从 10、10、12 收到 6、6、8。
+/// 窗口高 574 时为了让表单不用滚动，标题、刻度、快捷几处的间距从 10、10、12 收到 4、6、6。
 struct LeaveBarView: View {
     let bar: LeaveBar
     @Binding var range: LeaveRange
@@ -19,7 +19,7 @@ struct LeaveBarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header.padding(.bottom, Spacing.s6)
+            header.padding(.bottom, Spacing.s4)
             GeometryReader { geometry in
                 track(width: geometry.size.width)
             }
@@ -27,7 +27,7 @@ struct LeaveBarView: View {
             .coordinateSpace(.named(Self.space))
             ticks.frame(height: 6).padding(.top, Spacing.s6)
             labels.padding(.top, Spacing.s4)
-            quickPicks.padding(.top, Spacing.s8)
+            quickPicks.padding(.top, Spacing.s6)
         }
     }
 

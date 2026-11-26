@@ -156,7 +156,7 @@ struct OnboardingStepper: View {
 }
 
 /// 引导页的排版尺寸 (设计稿 P1 引导 · 574)，`Spacing` 里没有的值集中在这里。
-/// 窗口高 574：步骤条下沿在 y 56，两步的内容都从 y 74 排起，底部按钮在 506 至 550。
+/// 窗口高 574：步骤条下沿在 y 56，两步的内容都从 y 70 排起，底部按钮在 506 至 550；内容区 (y 56 至 506) 放不下才滚动。
 enum OnboardingLayout {
     /// 左右内边距。
     static let side = Spacing.s24
@@ -166,16 +166,16 @@ enum OnboardingLayout {
     static let buttonHeight: CGFloat = 44
     /// 步骤点间隔。
     static let dotGap: CGFloat = 5
-    /// 第 1 步小牛框的上边距 (小牛图上方带约 6 的透明边，画出来的小牛顶在 y 74)。
-    static let mascotTop: CGFloat = 12
-    /// 第 1 步标题离小牛框：小牛图下方带约 5 的透明边，画出来的小牛离标题 12。
-    static let introAfterMascot: CGFloat = 7
-    /// 第 2 步标题的上边距 (标题顶在 y 74)。
-    static let firstTop: CGFloat = 18
-    /// 正文区上边距：第 1 步 36，第 2 步 20；下边距两步都是 22。
-    static let bodyTop: CGFloat = 36
-    static let scheduleBodyTop: CGFloat = 20
-    static let bodyBottom = Spacing.s22
+    /// 第 1 步小牛框的上边距 (小牛图上方带约 5 的透明边，画出来的小牛顶在 y 70)。
+    static let mascotTop: CGFloat = 9
+    /// 第 1 步标题行离小牛框：小牛图下方带约 5 的透明边，画出来的小牛离标题行 10。
+    static let introAfterMascot: CGFloat = 5
+    /// 第 2 步标题的上边距 (标题行顶在 y 70)。
+    static let firstTop: CGFloat = 14
+    /// 正文区上边距：第 1 步 20，第 2 步 14；下边距两步都是 12 (内容最下沿离底部按钮至少 12)。
+    static let bodyTop: CGFloat = 20
+    static let scheduleBodyTop: CGFloat = 14
+    static let bodyBottom = Spacing.s12
     /// 「按这个作息算」卡片每行的高。
     static let rateRowHeight: CGFloat = 54
     /// 时间输入框里的向下箭头。

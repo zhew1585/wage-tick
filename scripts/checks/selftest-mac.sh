@@ -61,6 +61,9 @@ CASES = [
     ('历史页再进来不是月列表', 'WageTick/History/HistoryPage.swift',
      '        content.selectedMonth = nil\n        content.selectedDay = nil\n        refresh()', '        refresh()',
      ('ACT-HISTORY',), 'HistoryPage.appear() 不重置 selectedMonth / selectedDay'),
+    ('引导小牛放大', 'WageTick/Onboarding/OnboardingSteps.swift',
+     'private static let mascotSize: CGFloat = 78', 'private static let mascotSize: CGFloat = 120',
+     ('FIT-NOSCROLL',), '引导第 1 步小牛框 78 改成 120，内容放不下'),
 ]
 
 
