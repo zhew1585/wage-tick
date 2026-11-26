@@ -236,6 +236,23 @@ def navigation(lint):
             lint.fail('NAV-TIMER', rel, '页面退出去之后的刷新不能再排定时器 (refresh 里要先看 isActive)')
 
 
+def fonts(lint):
+    """字体：界面字体与数字字体只从 App 打包的字体文件建，不按字族名、字体名让系统挑 (机器上另装了同名字体时会被顶替)。"""
+    lint.forbid(
+        'FONT-BUNDLED',
+        r'\.family\s*:|kCTFontFamilyNameAttribute|NSFontFamilyAttribute|NSFontDescriptor\.AttributeName\.family'
+        r'|Font\.custom\(|\.custom\(\s*"|CTFontCreateWithName\(|NSFont\(name:|withFamily:|fontNamed',
+        SHELL, '按字族名或字体名建字体，本机另装了同名字体时取到的是装的那份 (行高差很多)；要从打包的字体文件建 (AppFont)')
+    rel = 'WageTick/Theme/AppFont.swift'
+    lint.require('FONT-BUNDLED', rel, r'CTFontManagerCreateFontDescriptorsFromURL',
+                 'AppFont 要从 App 包里的字体文件取字体描述 (CTFontManagerCreateFontDescriptorsFromURL)')
+    make = lint.body(rel, 'private static func makeFont(')
+    if make is None:
+        lint.fail('FONT-BUNDLED', rel, '找不到 makeFont (改名了要同步改 ui_lint.py)')
+    elif 'CTFontCreateWithFontDescriptor' not in make:
+        lint.fail('FONT-BUNDLED', rel, 'makeFont 要用打包字体文件的描述建字体 (CTFontCreateWithFontDescriptor)，不能按名字取')
+
+
 def repository(lint):
     """仓库：本机专用的目录不能进 git。"""
     try:
@@ -252,7 +269,7 @@ def main():
     args = parser.parse_args()
     lint = Lint(os.path.abspath(args.root))
     try:
-        for group in (restore_boundary, page_header, navigation, repository):
+        for group in (restore_boundary, page_header, navigation, fonts, repository):
             group(lint)
     except Blocked as blocked:
         print(f'BLOCKED: {blocked}')

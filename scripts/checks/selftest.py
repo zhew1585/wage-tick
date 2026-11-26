@@ -52,6 +52,14 @@ LINT_VIOLATIONS = [
     ('历史页退场清空内容', 'WageTick/History/HistoryPage.swift',
      '        isActive = false\n        timer?.invalidate()\n        timer = nil\n    }\n\n    /// 退一级',
      '        isActive = false\n        timer?.invalidate()\n        timer = nil\n        content.snapshot = nil\n    }\n\n    /// 退一级', 'NAV-HISTORY'),
+    ('AppFont 又按字族名取字', 'WageTick/Theme/AppFont.swift',
+     '            let descriptor = CTFontDescriptorCreateCopyWithAttributes(\n'
+     '                base, [kCTFontVariationAttribute: [wghtAxis: weight.rawValue]] as CFDictionary)\n'
+     '            return CTFontCreateWithFontDescriptor(descriptor, size, nil) as NSFont',
+     '            _ = base\n'
+     '            let descriptor = NSFontDescriptor(fontAttributes: [.family: "Noto Sans SC"])\n'
+     '            return NSFont(descriptor: descriptor, size: size) ?? .systemFont(ofSize: size)', 'FONT-BUNDLED'),
+    ('视图里按字体名取字', 'WageTick/Panel/PanelFooter.swift', None, '\nprivate let named = Font.custom("Noto Sans SC", size: 12)\n', 'FONT-BUNDLED'),
     ('退场后定时器又被拉起', 'WageTick/Goals/GoalsPage.swift', '        guard isActive else { return }\n', '', 'NAV-TIMER'),
 ]
 

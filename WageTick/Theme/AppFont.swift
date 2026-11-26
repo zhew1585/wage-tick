@@ -5,9 +5,11 @@ import SwiftUI
 
 /// 字体 token：界面文字用 Noto Sans SC (设计稿 font-ui)，数字用 JetBrains Mono (font-num，等宽，滚动不抖)。
 /// 两者都随 App 打包 (`Resources/Fonts`，SIL OFL 1.1，许可文件同目录)，启动时由 `register()` 注册到本进程。
+/// 注册之后字体一律从打包的字体文件建，不按字族名让系统挑：机器上另装了同名字体 (如完整版 Noto Sans SC) 时，按字族名取到的是装的那份，
+/// 行高差很多，开发机上量的排版就不是用户看到的 (界面检查 FONT-BUNDLED 守着)。
 /// Noto Sans SC 只保留 GB2312 汉字与常用符号 (约 4 MB)；子集外的字由系统自动回退到苹方。
 /// 子集做法：`pyftsubset NotoSansSC[wght].ttf --text-file=<GB2312 + ASCII + 常用标点> --layout-features='*' --name-IDs='*'`。
-/// 字体缺失 (注册失败) 时退回系统字体：界面文字用苹方/SF，数字用 SF Mono。
+/// 没注册 (小组件扩展本来就不打包字体，小组件预览跟它一致) 或打包的字体文件缺失时用系统字体：界面文字用苹方/SF，数字用 SF Mono。
 ///
 /// 用法：常用字号用预设 `AppFont.body`、`AppFont.numStat`；其他字号用 `AppFont.ui(15, .bold)`、`AppFont.num(40, .bold)`。
 /// AppKit 里 (菜单栏、`NSDatePicker`) 用 `AppFont.nsFont(.num, size: 13, weight: .medium)`。
@@ -18,10 +20,11 @@ enum AppFont {
         /// JetBrains Mono。
         case num
 
-        fileprivate var name: String {
+        /// App 包里的字体文件名 (不含扩展名 .ttf)。
+        fileprivate var file: String {
             switch self {
-            case .ui: "Noto Sans SC"
-            case .num: "JetBrains Mono"
+            case .ui: "NotoSansSC-GB2312"
+            case .num: "JetBrainsMono"
             }
         }
     }
@@ -119,13 +122,12 @@ enum AppFont {
     /// 每次都新建字体的话，CoreText 按字体对象缓存的排版结果全部命不中，每次刷新都要重新整形所有文字。
     private static let cache = FontCache()
 
-    private static func makeFont(_ family: Family, size: CGFloat, weight: Weight) -> NSFont {
-        let descriptor = NSFontDescriptor(fontAttributes: [
-            .family: family.name,
-            NSFontDescriptor.AttributeName(kCTFontVariationAttribute as String): [wghtAxis: weight.rawValue],
-        ])
-        if let font = NSFont(descriptor: descriptor, size: size), font.familyName == family.name {
-            return font
+    /// 从打包的字体文件 (`base` 是它的字体描述) 建字体，在 wght 轴上取字重；没有打包的字体文件时退回系统字体。
+    private static func makeFont(_ family: Family, base: CTFontDescriptor?, size: CGFloat, weight: Weight) -> NSFont {
+        if let base {
+            let descriptor = CTFontDescriptorCreateCopyWithAttributes(
+                base, [kCTFontVariationAttribute: [wghtAxis: weight.rawValue]] as CFDictionary)
+            return CTFontCreateWithFontDescriptor(descriptor, size, nil) as NSFont
         }
         return switch family {
         case .ui: NSFont.systemFont(ofSize: size, weight: weight.system)
@@ -133,7 +135,8 @@ enum AppFont {
         }
     }
 
-    /// 注册打包的字体，只对本进程生效。须在任何视图取字体之前调用 (见 `Main`)。
+    /// 注册打包的字体，只对本进程生效，并记下打包的字体文件各自的字体描述 (带文件路径，之后的字体都从这些文件建)。
+    /// 须在任何视图取字体之前调用 (见 `Main`)。不调用时 (小组件扩展、小组件预览) 一律用系统字体。
     static func register() {
         let urls = Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: nil) ?? []
         if urls.isEmpty {
@@ -146,6 +149,18 @@ enum AppFont {
                 logger.error("注册字体失败 \(url.lastPathComponent, privacy: .public)：\(message, privacy: .public)")
             }
         }
+        var descriptors: [Family: CTFontDescriptor] = [:]
+        for family in [Family.ui, .num] {
+            guard let url = Bundle.main.url(forResource: family.file, withExtension: "ttf"),
+                  let found = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor],
+                  let descriptor = found.first
+            else {
+                logger.error("没找到打包的字体 \(family.file, privacy: .public).ttf，退回系统字体")
+                continue
+            }
+            descriptors[family] = descriptor
+        }
+        cache.useBundled(descriptors)
     }
 
     /// 字体缓存，加锁，任何线程都能取。
@@ -163,12 +178,22 @@ enum AppFont {
 
         private let lock = NSLock()
         private var entries: [Key: Entry] = [:]
+        /// 打包的字体文件各自的字体描述，`register()` 之后才有；没有时建的是系统字体。
+        private var bundled: [Family: CTFontDescriptor] = [:]
+
+        /// 换成从打包的字体文件建字体；之前建好的 (系统字体) 作废。
+        func useBundled(_ descriptors: [Family: CTFontDescriptor]) {
+            lock.withLock {
+                bundled = descriptors
+                entries.removeAll()
+            }
+        }
 
         func entry(_ family: Family, _ size: CGFloat, _ weight: Weight) -> Entry {
             let key = Key(family: family, size: size, weight: weight)
             return lock.withLock {
                 if let entry = entries[key] { return entry }
-                let nsFont = makeFont(family, size: size, weight: weight)
+                let nsFont = makeFont(family, base: bundled[family], size: size, weight: weight)
                 let entry = Entry(nsFont: nsFont, font: Font(nsFont as CTFont))
                 entries[key] = entry
                 return entry

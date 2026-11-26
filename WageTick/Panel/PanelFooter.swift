@@ -1,8 +1,9 @@
 import SwiftUI
 import WageCore
 
-/// 面板底部入口栏 (PRD F4 第 8 条，设计稿 P2 Footer)：surface 底，历史、目标、设置靠左排开；
+/// 面板底部入口栏 (PRD F4 第 8 条，设计稿 P2 Footer)：surface 底，高 46 (`HomeLayout.footer`)，历史、目标、设置靠左排开、垂直居中；
 /// 设了发薪日时右侧是距发薪 (issue #20，设计稿「发薪日倒计时 · 方案」E8IYR / pyihH)。
+/// 高度定死、不靠上下内边距撑：打包的 Noto Sans SC 12 号行高 17，入口 (上下各 6) 加上下内边距 10 会撑到 49，整条被挤得上移 1.5。
 struct PanelFooter: View {
     let payday: PaydayFooter?
     let openHistory: () -> Void
@@ -20,7 +21,7 @@ struct PanelFooter: View {
             }
         }
         .padding(.horizontal, Spacing.s12)
-        .padding(.vertical, Spacing.s10)
+        .frame(height: HomeLayout.footer.height)
         .background(Palette.surface)
     }
 }

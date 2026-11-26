@@ -3,8 +3,7 @@
 # 一次运行：编一份 Debug (关掉 hardened runtime，放临时目录) → 离屏渲染页面预览并量页头 → 离屏渲染首页各状态并查区域位置 → 离屏渲染引导两步 →
 # 用临时目录里的假数据拉起 App，截真窗口图并量页头 → 在 App 进程里合成按键、点击跑交互回归，量该不滚动的页面放不放得下 →
 # 用空的假主目录再起一次 App，量引导两步、与引导的离屏预览对照 → 确认真实数据目录没被碰过。
-# 量放不放得下的几步 (引导离屏渲染、FIT-NOSCROLL、FIT-PREVIEW) 由注入库把「Noto Sans SC」换成 App 打包的那份
-# (本机另装了同名字体时 App 按字族名会取到装的那份，行高差很多)；其余检查用本机按字族名取到的字体。
+# 每次离屏渲染和每次拉起 App 都查 FONT-BUNDLED：App 实际用的字体文件在 App 包内 (本机另装了同名字体也不能被顶替)。
 # 不往 /Applications 写东西，不读写 ~/Library/Application Support/com.zhew1585.WageTick/ (只取校验和)，不申请任何系统权限。
 # 用法：scripts/checks/ui-checks-mac.sh [输出目录]，也可用环境变量 UI_CHECKS_OUT；默认 build/ui-checks/。
 #       UI_CHECKS_DERIVED_DATA=<目录>：复用一份已经编好的 Debug 构建 (要 ENABLE_HARDENED_RUNTIME=NO)，跳过编译 (selftest-mac.sh 不用它)。
@@ -128,6 +127,14 @@ geometry() {
     return ${code}
 }
 
+# 离屏渲染用的字体 (FONT-BUNDLED)：注入库渲染完把 App 实际取到的字体写进 <目录>/fonts.json，报告文件挪出图目录。
+fonts() {
+    local dir="$1" where="$2"
+    mv "${dir}/fonts.json" "${dir}.fonts.json" 2>/dev/null
+    python3 scripts/checks/ui_font.py --report "${dir}.fonts.json" --where "${where}"
+    record $? "${where}：没取到字体报告"
+}
+
 # 2. 离屏渲染页面预览，量页头。
 echo "离屏渲染页面预览…"
 WAGETICK_RENDER_DIR="${OUT}/offscreen" CFFIXED_USER_HOME="${FAKE_HOME}" WAGETICK_FAKE_HOME="${FAKE_HOME}" \
@@ -151,6 +158,7 @@ manifest = {
 }
 json.dump(manifest, open(os.path.join(directory, 'manifest.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 PY
+    fonts "${OUT}/offscreen" "离屏 (页面预览)"
     echo "· 几何 (离屏，$(ls "${OUT}/offscreen" | grep -c '\.png$') 张)"
     geometry offscreen "${OUT}/offscreen"
     record $? "离屏几何检查 blocked"
@@ -180,6 +188,7 @@ manifest = {
 }
 json.dump(manifest, open(os.path.join(directory, 'manifest.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 PY
+    fonts "${OUT}/panel" "离屏 (首页)"
     echo "· 首页区域 ($(ls "${OUT}/panel" | grep -c '\.png$') 张)"
     HOME_TEXT="$(python3 scripts/checks/ui_home.py --dir "${OUT}/panel" --manifest "${OUT}/panel/manifest.json")"
     HOME_CODE=$?
@@ -203,13 +212,14 @@ echo "离屏渲染引导两步…"
 ONBOARDING_HOME="${WORK}/onboarding-home"
 mkdir -p "${OUT}/onboarding" "${ONBOARDING_HOME}"
 PREVIEW_ARGS=()
-WAGETICK_BUNDLED_FONT=1 WAGETICK_RENDER_ENTRY=wagetick_render_onboarding_previews WAGETICK_RENDER_DIR="${OUT}/onboarding" CFFIXED_USER_HOME="${ONBOARDING_HOME}" WAGETICK_FAKE_HOME="${ONBOARDING_HOME}" \
+WAGETICK_RENDER_ENTRY=wagetick_render_onboarding_previews WAGETICK_RENDER_DIR="${OUT}/onboarding" CFFIXED_USER_HOME="${ONBOARDING_HOME}" WAGETICK_FAKE_HOME="${ONBOARDING_HOME}" \
     DYLD_INSERT_LIBRARIES="${WORK}/libdrive.dylib" "${EXE}" > "${OUT}/onboarding.log" 2>&1
 RENDER=$?
 if [[ ${RENDER} -ne 0 || ! -f "${OUT}/onboarding/P1-1-salary-empty.png" ]]; then
     cat "${OUT}/onboarding.log"
     record 2 "引导离屏渲染失败 (退出码 ${RENDER}，见 onboarding.log)，FIT-PREVIEW 没法比"
 else
+    fonts "${OUT}/onboarding" "离屏 (引导预览)"
     PREVIEW_ARGS=(--onboarding-previews "${OUT}/onboarding")
 fi
 

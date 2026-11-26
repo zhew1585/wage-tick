@@ -30,6 +30,9 @@ struct PageHeader<Trailing: View>: View {
     private static var rootLeading: CGFloat { WindowChrome.Titlebar.tall.leadingInset + Spacing.s1 }
     private static var rootIconWidth: CGFloat { 6 }
     private static var rootSpacing: CGFloat { Spacing.s8 }
+    /// 标题上提 1：打包的 Noto Sans SC 行框上高下低 (ascent 1.16 em、descent 0.29 em)，17 号汉字的墨迹中心比行框中心低约 1，
+    /// 上提后与返回箭头的墨迹中心、红绿灯中心 (y 26) 在一条线上。只挪画的位置，不改排版，横向位置不变。
+    private static var titleLift: CGFloat { 1 }
 
     init(_ title: String, back: (() -> Void)? = nil, isRoot: Bool = false, @ViewBuilder trailing: @escaping () -> Trailing) {
         self.title = title
@@ -66,6 +69,7 @@ struct PageHeader<Trailing: View>: View {
 
     private var titleText: some View {
         Text(title).font(AppFont.pageTitle).lineLimit(1).foregroundStyle(Palette.ink)
+            .offset(y: -Self.titleLift)
     }
 }
 
