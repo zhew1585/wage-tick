@@ -64,11 +64,12 @@ extension AttendanceRule {
     /// 排队中目标依次的预计完成日 (PRD 4.5.3 #5)：每个从前一个的预计完成日之后起，
     /// 按当月日薪数 ceil(目标金额 ÷ 日薪) 个应出勤日，跨月、跨年都仍按当月日薪【D7】。
     /// `first` 是排在它们前面那个目标 (累计中) 的预计完成日；日薪为 0 时 (PRD 4.3.5 #19) 前一个没法预计，后面的也都为 nil。
+    /// 某个目标自己就要超过 `ActiveGoalCard.estimateDayLimit` 个应出勤日时不数日期，它和后面的都为 nil。
     func queuedFinishDates(_ goals: [Goal], after first: LocalDate?, dailyWage: Decimal) -> [LocalDate?] {
         var previous = first
         return goals.map { goal in
             let finish = previous.flatMap { day in
-                ActiveGoalCard.workDays(for: goal.amount, dailyWage: dailyWage).map { attendanceDay($0, after: day) }
+                ActiveGoalCard.workDays(for: goal.amount, dailyWage: dailyWage).flatMap { finishDay($0, after: day) }
             }
             previous = finish
             return finish

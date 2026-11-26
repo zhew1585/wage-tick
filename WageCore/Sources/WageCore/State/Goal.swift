@@ -26,7 +26,7 @@ public struct Goal: Sendable, Equatable, Codable, Identifiable {
         id = try container.decode(Int.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
         amount = try container.decodeDecimal(forKey: .amount)
-        if let error = Validation.goal(name: name, amount: amount) {
+        if let error = Validation.storedGoal(name: name, amount: amount) {
             throw DecodingError.dataCorruptedError(forKey: .name, in: container, debugDescription: error.message)
         }
         switch try container.decode(String.self, forKey: .status) {
