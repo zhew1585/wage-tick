@@ -145,6 +145,9 @@ def check_goal_date(name, image, goals, colors, cfg, report):
     ink_rows = [y for y in range(to_px(bar[0] - 12), to_px(bar[1] + 8))
                 if any(sum(image.pixel(x, y)) / 3 < 190 for x in range(to_px(160), to_px(218)))]
     if not ink_rows:
+        # 没法预计的状态 (登记在 noGoalDate) 本来就没有日期；其余状态量不到日期就是日期丢了或挪走了，不能当作通过。
+        if name not in cfg['noGoalDate']:
+            report.fail('HOME-GOALDATE', name, '大目标卡的进度条右边没量到预计日期：日期被去掉、挪走或颜色变浅了；这个状态本来就没法预计的话登记到 ui-home.json 的 noGoalDate')
         return
     date_bottom = (ink_rows[-1] + 1) / image.scale - image.margin
     limit = cfg['goalDateTolPt'] + (0.5 if image.scale == 1 else 0)

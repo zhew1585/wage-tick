@@ -216,6 +216,8 @@ def navigation(lint):
                  r'func tappable\([^)]*\)[^{]*\{\s*Button\(action: openGoals\)', '概览上的目标卡片要能点进目标页 (Allen 2026-11-26 定)')
     cards = lint.read('WageTick/Panel/GoalCardView.swift')
     for view in ('ActiveGoalCardView(', 'QueuedGoalTile('):
+        if f'tappable {{ {view}' not in cards:
+            lint.fail('NAV-GOALCARD', 'WageTick/Panel/GoalCardView.swift', f'没找到 tappable {{ {view}…) }}：目标卡的视图改了名或换了写法，这条规则要跟着改，不能因为找不到就算过')
         for match in re.finditer(re.escape(view), cards):
             before = cards[max(0, match.start() - 40):match.start()]
             if 'struct ' not in before and 'tappable {' not in before:

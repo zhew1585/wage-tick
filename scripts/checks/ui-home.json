@@ -30,6 +30,7 @@
   ],
   "noProgress": ["P2-rest-day", "P2-notice"],
   "noActions": ["P2-rest-unpaid-work"],
+  "noGoalDate": ["P2-notice"],
   "provenance": {
     "bands": "Allen 2026-11-26 确认的首页定稿：窗口 360×574，块间距 24 / 16 / 12 / 12 / 12 / 12，各区域在所有状态下位置一致。与 WageTick/Theme/Metrics.swift 的 HomeLayout 是同一组数，改一处要改两处",
     "progressBar": "进度区 212–268 里的分段条：区内 26–36",

@@ -43,8 +43,8 @@ ONBOARDING_TITLE = '牛马鼓励器'
 HINT_SALARY = '^月薪得是个正数$'
 
 
-class Blocked(Exception):
-    """环境问题，没法判断。"""
+# 环境问题，没法判断。与 ui_geometry 用同一个类：读图失败 (缺图、坏图) 抛的是它，这里才接得住、按 blocked 退出而不是崩成失败。
+Blocked = ui_geometry.Blocked
 
 
 class Driver:
@@ -651,6 +651,9 @@ class Run:
             preview = os.path.join(self.args.onboarding_previews, name + '.png')
             real = os.path.join(self.out, 'fit', name + '.png')
             a, b = content_spans(preview), content_spans(real)
+            if not a or not b:
+                good = self.fail('FIT-PREVIEW', f'{name}: 图里没量到任何内容 (离屏预览 {len(a)} 段、真窗口 {len(b)} 段)，空白图不能算一致')
+                continue
             if len(a) != len(b):
                 good = self.fail('FIT-PREVIEW', f'{name}: 离屏预览分 {len(a)} 段、真窗口 {len(b)} 段 (预览 {fmt_spans(a)}；真窗口 {fmt_spans(b)})')
                 continue

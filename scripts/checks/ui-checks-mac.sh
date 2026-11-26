@@ -217,7 +217,7 @@ PREVIEW_ARGS=()
 WAGETICK_RENDER_ENTRY=wagetick_render_onboarding_previews WAGETICK_RENDER_DIR="${OUT}/onboarding" CFFIXED_USER_HOME="${ONBOARDING_HOME}" WAGETICK_FAKE_HOME="${ONBOARDING_HOME}" \
     DYLD_INSERT_LIBRARIES="${WORK}/libdrive.dylib" "${EXE}" > "${OUT}/onboarding.log" 2>&1
 RENDER=$?
-if [[ ${RENDER} -ne 0 || ! -f "${OUT}/onboarding/P1-1-salary-empty.png" ]]; then
+if [[ ${RENDER} -ne 0 || ! -f "${OUT}/onboarding/P1-1-salary-empty.png" || ! -f "${OUT}/onboarding/P1-1-salary-daily.png" || ! -f "${OUT}/onboarding/P1-2-schedule.png" ]]; then
     cat "${OUT}/onboarding.log"
     record 2 "引导离屏渲染失败 (退出码 ${RENDER}，见 onboarding.log)，FIT-PREVIEW 没法比"
 else
