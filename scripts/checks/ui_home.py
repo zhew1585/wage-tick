@@ -80,12 +80,13 @@ def check_state(name, path, cfg, report):
             report.fail('HOME-BAND', name, f'{label}在 {band[0]:g}–{band[1]:g}pt，应在 {want[0]}–{want[1]}pt：各区域在所有状态下位置都要一样')
 
     stats = cfg['bands']['stats']
-    expect('stats', image.band(sum(stats) / 2, 36, 324, [colors['surface']], 0.5), '统计卡')
+    # 统计卡、情绪按钮、入口栏都在各自左内边距里的一窄条上量：那里没有文字和图标，圆角也已经收平，不受内容多少影响。
+    expect('stats', image.band(sum(stats) / 2, 31, 35, [colors['surface']], 0.99), '统计卡')
     footer = cfg['bands']['footer']
-    expect('footer', image.band(sum(footer) / 2, 8, 352, [colors['surface']], 0.55), '入口栏')
+    expect('footer', image.band(sum(footer) / 2, 14, 18, [colors['surface']], 0.99), '入口栏')
     if name not in cfg['noActions']:
         actions = cfg['bands']['actions']
-        expect('actions', image.band(sum(actions) / 2, 36, 150, [colors['surface']], 0.4, reach_pt=10), '情绪按钮')
+        expect('actions', image.band(sum(actions) / 2, 27, 33, [colors['surface']], 0.99, reach_pt=10), '情绪按钮')
     goals = cfg['bands']['goals']
     # 累计中目标卡：在卡片左内边距里的一窄条上量 (x 28–31，圆角 12 在这里已经收平，旗子与文字从 32 起)，不受卡片里内容多少影响。
     card = image.band(sum(goals) / 2, 28, 31, [colors['accentSoft']], 0.99)
