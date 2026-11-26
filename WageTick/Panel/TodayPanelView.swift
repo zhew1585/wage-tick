@@ -324,8 +324,9 @@ private struct LeaveStatusLabel: View {
 
 extension View {
     /// 放进首页的一个区域：从窗口顶边往下 `band.top`，高 `band.height`，左右各让出 `inset` (默认页面内边距 20)。
+    /// 宽度定死为窗口宽减两边 `inset`：区域里的内容再长也只在区域里排，不会把整个首页撑宽、挤偏别的区域。
     func homeBand(_ band: HomeLayout.Band, inset: CGFloat = Spacing.screen) -> some View {
-        frame(maxWidth: .infinity)
+        frame(width: PanelMetrics.width - 2 * inset)
             .frame(height: band.height)
             .padding(.horizontal, inset)
             .padding(.top, band.top)

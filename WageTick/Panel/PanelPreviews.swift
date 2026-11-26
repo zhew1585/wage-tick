@@ -60,6 +60,8 @@ private enum PanelPreviews {
         let fiveGoals = try withGoals(rich, [
             ("换台 MacBook", 200000), ("去趟大理", 8000), ("跑路基金", 50000), ("新键盘", 1200), ("带爸妈体检", 3000),
         ])
+        // 月薪 21000 攒 200000：累计中的「换台 MacBook」预计明年才攒够，日期带年份 (「2027年X月」)，比今年的「11月13日」长。
+        let farFinish = try withGoals(try onboarded(), [("换台 MacBook", 200000), ("去趟大理", 8000), ("跑路基金", 50000)])
         let overDeducted = try at(base, day: 5, 15, 0) {
             try $0.send(.addDeduction(DeductionInput(amount: .fixed(1200), reason: .late, note: "")))
         }
@@ -92,6 +94,7 @@ private enum PanelPreviews {
             ("P2-working-one-goal", panel(oneGoal, day: 5, 15, 0)),
             ("P2-working-two-goals", panel(twoGoals, day: 5, 15, 0)),
             ("P2-working-five-goals", panel(fiveGoals, day: 5, 15, 0)),
+            ("P2-working-far-finish", panel(farFinish, day: 5, 15, 0)),
             ("P2-notice", panel(noAttendance, day: 5, 15, 0)),
             // 跑马灯截的是静止的第一帧。
             ("P2-notice-long", panel(base, day: 5, 15, 0, holidays: missingHolidays)),

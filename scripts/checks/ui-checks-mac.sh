@@ -1,7 +1,7 @@
 #!/bin/bash
 # 界面检查里要 macOS 的那一半，由 scripts/checks/run.sh ui 调用。规则与每条对应的坑见 scripts/checks/README.md。
 # 一次运行：编一份 Debug (关掉 hardened runtime，放临时目录) → 离屏渲染页面预览并量页头 → 离屏渲染首页各状态并查区域位置 → 离屏渲染引导两步 →
-# 用临时目录里的假数据拉起 App，截真窗口图并量页头 → 在 App 进程里合成按键、点击跑交互回归，量该不滚动的页面放不放得下 →
+# 用临时目录里的假数据拉起 App，截真窗口图并量页头 → 在 App 进程里合成按键、点击跑交互回归，量该不滚动的页面放不放得下、月日历格子里的字有没有出格 →
 # 用空的假主目录再起一次 App，量引导两步、与引导的离屏预览对照 → 确认真实数据目录没被碰过。
 # 每次离屏渲染和每次拉起 App 都查 FONT-BUNDLED：App 实际用的字体文件在 App 包内 (本机另装了同名字体也不能被顶替)。
 # 不往 /Applications 写东西，不读写 ~/Library/Application Support/com.zhew1585.WageTick/ (只取校验和)，不申请任何系统权限。
@@ -196,6 +196,8 @@ PY
     if [[ ${HOME_CODE} -eq 0 ]]; then
         echo "ok [HOME-SIZE] 首页图是 360×574 的整窗"
         echo "ok [HOME-BAND] 首页各状态的进度、统计卡、攒钱队列、情绪按钮、入口栏位置一致"
+        echo "ok [HOME-WIDTH] 首页各状态的统计卡左右沿在 20 与 340，没有内容把首页撑宽"
+        echo "ok [HOME-GOALDATE] 大目标卡里预计日期的字底与进度条下沿对齐"
     fi
     record ${HOME_CODE} "首页区域检查 blocked"
     # 扣钱、请假表单在窗口里的页头：与目标页同一位置。图在同一个目录里 (清单上面已经核过)，按离屏预览的页头规则量。

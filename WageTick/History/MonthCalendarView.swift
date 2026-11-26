@@ -117,7 +117,9 @@ struct MonthCalendarView: View {
 }
 
 /// 日历里的一天 (44×50、圆角 9)：日号 15 号等宽；被扣钱下面一个小圆点，请假、单日覆盖下面一行小字 (`HistoryDay.tag`)，
-/// 已过的应出勤日和今天最下面是当天金额 (`HistoryDay.amountText`)。
+/// 已过的应出勤日和今天最下面是当天金额 (`HistoryDay.amountText`)。各行间距 4、整体垂直居中。
+/// 日号、小字、金额三行都有时 (按打包字体行高 19.8 + 14.5 + 13.2) 行距收紧为 0 与 2，三行字才完整落在 50 高的格子里；
+/// 这时被扣钱的小圆点放到小字左边，不再单占一行。
 /// 今天整格 ink 底，盖过当天的颜色类型 (设计稿)；小圆点、小字与金额照常显示。
 /// 悬停时描一圈 1.5 的边 (颜色见 `DayCellStyle.hoverStroke`)，按下再叠一层底；手型光标。
 private struct DayCell: View {
@@ -130,15 +132,20 @@ private struct DayCell: View {
     var body: some View {
         let style = DayCellStyle(kind: day.kind, isToday: day.isToday)
         let shape = RoundedRectangle(cornerRadius: Radius.r9)
-        VStack(spacing: Spacing.s4) {
+        let isCrowded = day.tag != nil && day.amountText != nil
+        VStack(spacing: 0) {
             Text(day.dayText)
                 .font(AppFont.num(15, style.isEmphasized ? .semibold : .regular))
                 .foregroundStyle(style.text)
-            if day.kind == .deducted {
-                Circle().fill(Palette.lossDot).frame(width: Self.dotSize, height: Self.dotSize)
+            if day.kind == .deducted, day.tag == nil {
+                dot.padding(.top, Spacing.s4)
             }
             if let tag = day.tag {
-                Text(tag).font(AppFont.tiny).foregroundStyle(style.text).lineLimit(1)
+                HStack(spacing: Spacing.s3) {
+                    if day.kind == .deducted { dot }
+                    Text(tag).font(AppFont.tiny).foregroundStyle(style.text).lineLimit(1)
+                }
+                .padding(.top, isCrowded ? 0 : Spacing.s4)
             }
             if let amount = day.amountText {
                 Text(amount)
@@ -146,6 +153,7 @@ private struct DayCell: View {
                     .foregroundStyle(style.text)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
+                    .padding(.top, isCrowded ? Spacing.s2 : Spacing.s4)
             }
         }
         .frame(maxWidth: .infinity)
@@ -160,6 +168,10 @@ private struct DayCell: View {
         }
         .overlay(interaction.isPressed ? shape.fill(Palette.pressedOverlay) : nil)
         .contentShape(shape)
+    }
+
+    private var dot: some View {
+        Circle().fill(Palette.lossDot).frame(width: Self.dotSize, height: Self.dotSize)
     }
 }
 
