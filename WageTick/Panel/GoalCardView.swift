@@ -52,13 +52,16 @@ struct GoalCardView: View {
 /// 累计中目标的卡片：accentSoft 底、圆角 12，三行上下撑开。
 /// 名称行 (高 20)：旗子 14、名称 14/600 (放不下截断)，右边百分比等宽 13/600 accent。
 /// 金额行 (高 27，底对齐)：累计额等宽 20/600 + 「/ 目标额」等宽 12 muted，完整显示，实在放不下才缩小。
-/// 进度行 (高 16)：进度条 (整宽卡为整宽，大卡定宽 120)，预计完成日 11 muted 靠右，字底与进度条下沿对齐；整宽卡里预计完成日在金额行右侧。
+/// 进度行 (高 16)：进度条 (整宽卡为整宽，大卡最宽 120)，预计完成日 11 muted 靠右，字底与进度条下沿对齐；整宽卡里预计完成日在金额行右侧。
+/// 大卡里预计完成日较长 (带年份，如「2027年7月」) 时进度条让出宽度，卡片本身不能被撑宽，否则整个首页会被撑出 320。
 private struct ActiveGoalCardView: View {
     let goal: ActiveGoalCard
     /// 只有这一个目标、占满整块 320 宽。
     let isWide: Bool
 
     private static let barWidth: CGFloat = 120
+    /// 预计完成日较长时进度条最窄缩到多少。
+    private static let minBarWidth: CGFloat = 60
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -91,7 +94,7 @@ private struct ActiveGoalCardView: View {
                 // 预计完成日的字底落在进度条下沿：按文字基线对齐，汉字的字底比基线低约 1，进度条的下沿再往下 1。
                 HStack(alignment: .lastTextBaseline, spacing: Spacing.s8) {
                     GoalProgressBar(progress: goal.progress)
-                        .frame(width: Self.barWidth)
+                        .frame(minWidth: Self.minBarWidth, maxWidth: Self.barWidth)
                         .alignmentGuide(.lastTextBaseline) { $0[.bottom] - 1 }
                     Spacer(minLength: 0)
                     finish

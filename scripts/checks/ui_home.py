@@ -98,6 +98,8 @@ def check_state(name, path, cfg, report):
         bottom = image.band(goals[1], 40, 320, [colors['line']], 0.8, reach_pt=12)
         card = (top[0], bottom[1]) if top and bottom else None
     expect('goals', card, '攒钱队列')
+    if 'stats' in found:
+        check_width(name, image, found['stats'], colors, cfg, report)
     if 'goals' in found:
         check_goal_date(name, image, found['goals'], colors, cfg, report)
     if name not in cfg['noProgress']:
@@ -109,6 +111,18 @@ def check_state(name, path, cfg, report):
         else:
             expect('progressBar', image.band(sum(bar) / 2, 24, 336, [colors['line'], colors['money'], colors['surface']], 0.9, reach_pt=6), '进度条')
     return found
+
+
+def check_width(name, image, stats, colors, cfg, report):
+    """首页内容的左右沿：在统计卡中间那一行上量它的左沿与右沿。某一块里的内容太宽 (比如带年份的预计日期) 会把整页撑宽、
+    左右边距变窄；纵向的 HOME-BAND 查不出来。"""
+    tol = cfg['colorTol']
+    y = round((sum(stats) / 2 + image.margin) * image.scale)
+    xs = [x for x in range(image.width) if close(image.pixel(x, y), colors['surface'], tol)]
+    left, right = xs[0] / image.scale - image.margin, (xs[-1] + 1) / image.scale - image.margin
+    want = cfg['contentXPt']
+    if abs(left - want[0]) > cfg['tolPt'] or abs(right - want[1]) > cfg['tolPt']:
+        report.fail('HOME-WIDTH', name, f'统计卡横向在 {left:g}–{right:g}pt，应在 {want[0]}–{want[1]}pt：有内容把首页撑宽了，左右边距不再是 20')
 
 
 def check_goal_date(name, image, goals, colors, cfg, report):

@@ -168,10 +168,10 @@ SURFACE, LINE_COLOR, MONEY, SOFT, ACCENT = (245, 240, 230), (231, 223, 209), (43
 INK_COLOR = (31, 27, 22)
 
 
-def draw_home(path, kind='working', height=574, scale=2, date_shift=0, **moved):
+def draw_home(path, kind='working', height=574, scale=2, date_shift=0, widen=0, **moved):
     """画一张首页预览图 (整窗 360×height，四周 24pt 白边)，只有色块。kind：working 画进度条，offwork 画白干计时按钮，rest 两样都不画，
     empty 把累计中目标卡换成描边的空状态卡。大目标卡最下面一行画进度条和预计日期，date_shift 是日期字底比进度条下沿低多少。
-    moved 里给某个区域新的 (上沿, 下沿) 就是把它挪了位置。"""
+    widen 是整页内容被撑宽多少 (左右各多出一半)。moved 里给某个区域新的 (上沿, 下沿) 就是把它挪了位置。"""
     bands = {**HOME, **moved}
     px = lambda pt: round((pt + 24) * scale)
     box = lambda x0, band, x1, color: (px(x0), px(band[0]), px(x1), px(band[1]), color)
@@ -180,7 +180,7 @@ def draw_home(path, kind='working', height=574, scale=2, date_shift=0, **moved):
         rects += [box(20, bands['bar'], 340, LINE_COLOR), box(20, bands['bar'], 150, MONEY)]
     elif kind == 'offwork':
         rects.append(box(20, bands['button'], 340, INK_COLOR))
-    rects.append(box(20, bands['stats'], 340, SURFACE))
+    rects.append(box(20 - widen / 2, bands['stats'], 340 + widen / 2, SURFACE))
     top, bottom = bands['goals']
     if kind == 'empty':
         rects += [box(20, (top, bottom), 340, LINE_COLOR), box(21, (top + 1, bottom - 1), 339, PAPER)]
@@ -205,6 +205,7 @@ HOME_CASES = [
     ('进度条挪了位置', {'P2-working': {'bar': (244, 254)}}, 1, ['HOME-BAND']),
     ('白干计时按钮撑满进度区', {'P2-off-work': {'kind': 'offwork', 'button': (212, 268)}}, 1, ['HOME-BAND']),
     ('窗口高度改回 760', {'P2-working': {'height': 760}}, 1, ['HOME-SIZE']),
+    ('带年份的预计日期把首页撑宽 5pt', {'P2-working': {'widen': 5}}, 1, ['HOME-WIDTH']),
     ('大目标卡里日期比进度条下沿低 3pt', {'P2-working': {'date_shift': 3}}, 1, ['HOME-GOALDATE']),
     ('缺图', {'P2-working': None}, 2, ['BLOCKED']),
 ]
