@@ -3,6 +3,7 @@
   "marginPt": 24,
   "tolPt": 1,
   "colorTol": 12,
+  "goalDateTolPt": 0.5,
   "colors": {
     "bg": [255, 253, 248],
     "surface": [245, 240, 230],

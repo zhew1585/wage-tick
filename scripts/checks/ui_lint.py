@@ -133,6 +133,33 @@ def page_header(lint):
                  '窗口是 360×574 (首页七个区域叠起来正好)；要改尺寸得同步改 HomeLayout 与 scripts/checks/ui-home.json')
     lint.forbid('HOME-LAYOUT', r'\b(ViewThatFits|GoalDensity|titlebarInset)\b', ['WageTick/Panel'],
                 '首页不再随内容伸缩：放不下就收紧、让出标题栏高度这些做法都已去掉')
+    # 首页上哪些字要留、哪些已经去掉 (Allen 2026-11-26 逐项定的)。留的是信息，去掉的是解释性的前缀与小标题。
+    sections = 'WageTick/Panel/PanelSections.swift'
+    for pattern, what in ((r'Text\(label\)', '主数字上方的小标题 (今日已赚 / 今日结算 / 今日已倒贴)'),
+                          (r'Text\(caption\)', '主数字下方的说明行 (日薪时薪、白干起止、扣款)'),
+                          (r'Text\(progress\.label\)', '进度条上方的「已工作 x / y 小时」'),
+                          (r'Text\(item\.title\)', '统计卡每格的小标题 (三格内容随状态变，只有图标看不懂)')):
+        lint.require('HOME-COPY', sections, pattern, f'首页要保留{what}，Allen 明确要求留着')
+    lint.require('HOME-COPY', panel, r'"今日结算" : "今日已赚"', '首页主数字上方的小标题要保留 (已下班「今日结算」，其余「今日已赚」)')
+    home_files = (panel, sections, 'WageTick/Panel/GoalCardView.swift')
+    removed = {r'\.startText\b|\.endText\b': '进度条两端只放时刻 (startClock / endClock)，不带「上班」「下班」',
+               r'\.shortEstimate\b|\.estimate\b': '目标卡只放预计日期 (finishText)，不带「还需 N 天」「预计」',
+               r'\.tagline\b|nextAttendanceText': '休息日只放下一个上班日的日期 (nextAttendanceDate)，不带说明句和前缀',
+               r'goalCountText|"攒钱队列"': '攒钱队列没有小标题和「N 个目标」计数',
+               r'\.currentText\b|Text\("修改"\)': '请假后的信息放在「请假」按钮的位置 (shortText 加 deductionRateText)，没有单独的一行和「修改」按钮',
+               r'ScrollView|ScrollBody': '首页不滚动：攒钱队列最多显示 3 个目标，各区域位置固定'}
+    for rel in home_files:
+        for number, line in enumerate(lint.read(rel).splitlines(), 1):
+            # 注释不算；悬停提示 (.help) 里放完整的一句不算，它不占画面。
+            if line.strip().startswith('//') or '.help(' in line:
+                continue
+            for pattern, why in removed.items():
+                if re.search(pattern, line):
+                    lint.fail('HOME-COPY', f'{rel}:{number}', f'{why}：{line.strip()[:70]}')
+    lint.require('HOME-COPY', 'WageTick/Panel/GoalCardView.swift', r'\.prefix\(2\)', '攒钱队列最多显示 3 个目标 (累计中 1 个加排队中前 2 个)，超过 3 个不加任何标记')
+    if sum(lint.read(rel).count('Image(.cowMascot)') for rel in home_files) != 1:
+        lint.fail('HOME-COPY', sections, '首页只有休息日那一块放小牛头像 (原版就有)，上班类状态不放小牛')
+    lint.require('HOME-COPY', panel, r'panel\.notices \+ \[notice\]', '「扣款超过日薪」的提示放进顶部提示条，不在说明行下面另起一行')
     lint.require('HDR-FORM', 'WageTick/Panel/FormSheet.swift', r'PageHeader\(title, back: back, isRoot: true\)',
                  '扣钱、请假表单在窗口里的页头要用和目标页一样的 PageHeader (与红绿灯同一行，箭头 85、标题 100)')
     lint.require('HDR-FORM', panel, r'\.environment\(\\\.formSheetPlacement, \.window\)', '首页窗口里原地打开的表单要标成 .window，页头才会排到红绿灯那一行')

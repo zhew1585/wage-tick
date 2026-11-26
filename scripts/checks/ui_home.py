@@ -96,6 +96,8 @@ def check_state(name, path, cfg, report):
         bottom = image.band(goals[1], 40, 320, [colors['line']], 0.8, reach_pt=12)
         card = (top[0], bottom[1]) if top and bottom else None
     expect('goals', card, '攒钱队列')
+    if 'goals' in found:
+        check_goal_date(name, image, found['goals'], colors, cfg, report)
     if name not in cfg['noProgress']:
         bar = cfg['bands']['progressBar']
         button = cfg['bands']['progressButton']
@@ -105,6 +107,28 @@ def check_state(name, path, cfg, report):
         else:
             expect('progressBar', image.band(sum(bar) / 2, 24, 336, [colors['line'], colors['money'], colors['surface']], 0.9, reach_pt=6), '进度条')
     return found
+
+
+def check_goal_date(name, image, goals, colors, cfg, report):
+    """左侧大目标卡最下面一行：预计日期的字底要和进度条的下沿在同一条线上 (Allen 2026-11-26 专门提过)。
+    只在「左大卡 + 右边小卡」的排法下查 (2 个及以上目标)；整宽卡的日期在金额那一行，不查。"""
+    tol = cfg['colorTol']
+    to_px = lambda pt: round((pt + image.margin) * image.scale)
+    middle = to_px(sum(goals) / 2)
+    if not close(image.pixel(to_px(24), middle), colors['accentSoft'], tol) or close(image.pixel(to_px(232), middle), colors['accentSoft'], tol):
+        return
+    bar = image.band(goals[1] - 16, 40, 140, [colors['accent'], colors['line']], 0.9, reach_pt=14)
+    if bar is None:
+        report.fail('HOME-GOALDATE', name, '大目标卡里没找到进度条')
+        return
+    ink_rows = [y for y in range(to_px(bar[0] - 12), to_px(bar[1] + 8))
+                if any(sum(image.pixel(x, y)) / 3 < 190 for x in range(to_px(160), to_px(218)))]
+    if not ink_rows:
+        return
+    date_bottom = (ink_rows[-1] + 1) / image.scale - image.margin
+    limit = cfg['goalDateTolPt'] + (0.5 if image.scale == 1 else 0)
+    if abs(date_bottom - bar[1]) > limit:
+        report.fail('HOME-GOALDATE', name, f'大目标卡里预计日期的字底在 {date_bottom:g}pt，进度条下沿在 {bar[1]:g}pt，相差超过 {limit:g}pt：两者要对齐在一条线上')
 
 
 def main():

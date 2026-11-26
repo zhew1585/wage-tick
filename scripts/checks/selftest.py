@@ -40,6 +40,14 @@ LINT_VIOLATIONS = [
      'tappable { QueuedGoalTile(goal: goal, showsFinish: false) }', 'QueuedGoalTile(goal: goal, showsFinish: false)', 'NAV-GOALCARD'),
     ('窗口高度改回 760', 'WageTick/Theme/Metrics.swift', 'CGSize(width: 360, height: 574)', 'CGSize(width: 360, height: 760)', 'HOME-LAYOUT'),
     ('首页又用上放不下就收紧的写法', 'WageTick/Panel/PanelSections.swift', None, '\nprivate struct Fallback: View { var body: some View { ViewThatFits { EmptyView() } } }\n', 'HOME-LAYOUT'),
+    ('首页主数字上的小标题被去掉', 'WageTick/Panel/PanelSections.swift', '            Text(label).font(AppFont.body).foregroundStyle(Palette.muted)\n', '', 'HOME-COPY'),
+    ('首页说明行被去掉', 'WageTick/Panel/PanelSections.swift', 'Text(caption)', 'Text("")', 'HOME-COPY'),
+    ('首页「已工作」被去掉', 'WageTick/Panel/PanelSections.swift', 'Text(progress.label)', 'Text("")', 'HOME-COPY'),
+    ('统计卡的小标题换成别的', 'WageTick/Panel/PanelSections.swift', 'Text(item.title)', 'Text("")', 'HOME-COPY'),
+    ('进度条两端又带上「上班」「下班」', 'WageTick/Panel/PanelSections.swift', 'Text(progress.startClock)', 'Text(progress.startText)', 'HOME-COPY'),
+    ('攒钱队列又能滚动', 'WageTick/Panel/GoalCardView.swift', None, '\nprivate struct Scroller: View { var body: some View { ScrollView { EmptyView() } } }\n', 'HOME-COPY'),
+    ('攒钱队列显示超过 3 个', 'WageTick/Panel/GoalCardView.swift', '.prefix(2)', '.prefix(4)', 'HOME-COPY'),
+    ('上班类状态又放了小牛', 'WageTick/Panel/TodayPanelView.swift', None, '\nprivate let extraCow = Image(.cowMascot)\n', 'HOME-COPY'),
     ('表单页头不再排到红绿灯那一行', 'WageTick/Panel/TodayPanelView.swift', '.environment(\\.formSheetPlacement, .window)', '', 'HDR-FORM'),
     ('历史页退场清空内容', 'WageTick/History/HistoryPage.swift',
      '        isActive = false\n        timer?.invalidate()\n        timer = nil\n    }\n\n    /// 退一级',
@@ -152,9 +160,10 @@ SURFACE, LINE_COLOR, MONEY, SOFT, ACCENT = (245, 240, 230), (231, 223, 209), (43
 INK_COLOR = (31, 27, 22)
 
 
-def draw_home(path, kind='working', height=574, scale=2, **moved):
+def draw_home(path, kind='working', height=574, scale=2, date_shift=0, **moved):
     """画一张首页预览图 (整窗 360×height，四周 24pt 白边)，只有色块。kind：working 画进度条，offwork 画白干计时按钮，rest 两样都不画，
-    empty 把累计中目标卡换成描边的空状态卡。moved 里给某个区域新的 (上沿, 下沿) 就是把它挪了位置。"""
+    empty 把累计中目标卡换成描边的空状态卡。大目标卡最下面一行画进度条和预计日期，date_shift 是日期字底比进度条下沿低多少。
+    moved 里给某个区域新的 (上沿, 下沿) 就是把它挪了位置。"""
     bands = {**HOME, **moved}
     px = lambda pt: round((pt + 24) * scale)
     box = lambda x0, band, x1, color: (px(x0), px(band[0]), px(x1), px(band[1]), color)
@@ -169,6 +178,7 @@ def draw_home(path, kind='working', height=574, scale=2, **moved):
         rects += [box(20, (top, bottom), 340, LINE_COLOR), box(21, (top + 1, bottom - 1), 339, PAPER)]
     else:
         rects += [box(20, (top, bottom), 228, SOFT), box(34, (bottom - 20, bottom - 14), 154, ACCENT),
+                  box(180, (bottom - 24 + date_shift, bottom - 14 + date_shift), 214, (138, 128, 115)),
                   box(236, (top, top + 48), 340, LINE_COLOR), box(237, (top + 1, top + 47), 339, PAPER)]
     rects += [box(20, bands['actions'], 175, SURFACE), box(185, bands['actions'], 340, SURFACE), box(0, bands['footer'], 360, SURFACE)]
     write_png(path, (360 + 48) * scale, (height + 48) * scale, rects, background=(255, 255, 255))
@@ -187,6 +197,7 @@ HOME_CASES = [
     ('进度条挪了位置', {'P2-working': {'bar': (244, 254)}}, 1, ['HOME-BAND']),
     ('白干计时按钮撑满进度区', {'P2-off-work': {'kind': 'offwork', 'button': (212, 268)}}, 1, ['HOME-BAND']),
     ('窗口高度改回 760', {'P2-working': {'height': 760}}, 1, ['HOME-SIZE']),
+    ('大目标卡里日期比进度条下沿低 3pt', {'P2-working': {'date_shift': 3}}, 1, ['HOME-GOALDATE']),
     ('缺图', {'P2-working': None}, 2, ['BLOCKED']),
 ]
 
