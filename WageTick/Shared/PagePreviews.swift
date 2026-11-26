@@ -3,7 +3,7 @@ import AppKit
 import SwiftUI
 import WageCore
 
-/// 离屏渲染目标、历史 (月列表、月日历、单日详情)、设置 (含休息模式表单) 几页，存成 PNG，和设计稿 (P3 至 P6 · 760) 对照用。只在 Debug 构建里。
+/// 离屏渲染目标、历史 (月列表、月日历、单日详情)、设置 (含休息模式表单) 几页，存成 PNG，和设计稿 (P3 至 P6 · 574) 对照用。只在 Debug 构建里。
 /// 目标与历史的状态在内存里用核心命令造出来 (2026 年 11 月 5 日 15:00，月薪 20000、10:00 至 18:00、饭点 12:00 至 13:00，
 /// 30 日改成不上班后应出勤 20 天、日薪 1000)；设置页要一个 `AppModel`，用临时目录里的状态文件 (此刻真实时间)。
 /// 不起菜单栏、不读写正在用的 state.json，可以和正在跑的 App 同时用。
@@ -54,6 +54,7 @@ private enum PagePreviews {
             ("P4-history", history(snap)),
             ("P5-calendar", history(snap, month: today.yearMonth)),
             ("P5-calendar-october", history(snap, month: YearMonth(year: 2026, month: 10))),
+            ("P5-calendar-crowded", history(snapshot(of: try crowded(state), at: now), month: today.yearMonth)),
             ("P5-day-detail", history(snap, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 4))),
             ("P5-day-detail-today", history(snap, month: today.yearMonth, day: today)),
             ("P5-day-detail-leave", history(snap, month: today.yearMonth, day: LocalDate(year: 2026, month: 11, day: 11))),
@@ -104,6 +105,21 @@ private enum PagePreviews {
                 start: TimeOfDay(hour: 14, minute: 0), end: TimeOfDay(hour: 16, minute: 0), deductionPercent: Decimal(string: "28.57")!
             ))))
             try $0.send(.editDay(LocalDate(year: 2026, month: 11, day: 30), .setOverride(.dayOff)))
+        }
+    }
+
+    /// 在 11 月的基础上让格子里的东西最多：1 日 (周日) 改成上班、请假一段又扣钱 (日号、小圆点、「2h」、金额四样都有)，
+    /// 3 日请假一段又扣钱。只给月日历看格子放不放得下用。
+    private static func crowded(_ state: AppState) throws -> AppState {
+        let leave = Leave(start: TimeOfDay(hour: 14, minute: 0), end: TimeOfDay(hour: 16, minute: 0), deductionPercent: Decimal(string: "28.57")!)
+        let fine = DeductionInput(amount: .fixed(50), reason: .late, note: "")
+        return try at(state, day: 5, 11, 0) {
+            for day in [1, 3] {
+                let date = LocalDate(year: 2026, month: 11, day: day)
+                if day == 1 { try $0.send(.editDay(date, .setOverride(.attendanceDay))) }
+                try $0.send(.editDay(date, .setLeave(leave)))
+                try $0.send(.editDay(date, .addDeduction(fine)))
+            }
         }
     }
 

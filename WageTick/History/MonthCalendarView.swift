@@ -1,7 +1,8 @@
 import SwiftUI
 import WageCore
 
-/// 月日历 (PRD F11，设计稿 P5 月日历 · 760)：页头月份与上下月切换，月薪条 (可改该月月薪)，日历格子与图例，底部月小结。
+/// 月日历 (PRD F11，设计稿 P5 月日历 · 574)：页头月份与上下月切换，月薪条 (可改该月月薪)，日历格子与图例，底部月小结。
+/// 窗口高 574 时六行的月份也不用滚动：格子 44×50、行距 4，日历上下只留 4、8，月小结贴底完整可见。
 /// 颜色类型、格子金额与小字、月薪条、月小结的文字都取自快照的 `HistoryMonth`；点某天进单日详情。
 struct MonthCalendarView: View {
     let month: HistoryMonth
@@ -16,7 +17,7 @@ struct MonthCalendarView: View {
     @State private var editingSalary = false
 
     private static let columnSpacing: CGFloat = Spacing.s4
-    private static let rowSpacing = Spacing.s5
+    private static let rowSpacing = Spacing.s4
     private static let columns = Array(repeating: GridItem(.flexible(), spacing: columnSpacing), count: 7)
 
     var body: some View {
@@ -27,11 +28,11 @@ struct MonthCalendarView: View {
                     salaryRow
                     calendarGrid
                         .padding(.horizontal, Spacing.s14)
-                        .padding(.top, Spacing.s16)
-                        .padding(.bottom, Spacing.s10)
+                        .padding(.top, Spacing.s4)
+                        .padding(.bottom, Spacing.s8)
                     CalendarLegend()
                         .padding(.horizontal, Spacing.screen)
-                        .padding(.top, Spacing.s8)
+                        .padding(.top, Spacing.s6)
                         .padding(.bottom, Spacing.s18)
                 }
             }
@@ -115,7 +116,7 @@ struct MonthCalendarView: View {
     }
 }
 
-/// 日历里的一天 (44×70、圆角 9)：日号 14 号等宽；被扣钱下面一个小圆点，请假、单日覆盖下面一行小字 (`HistoryDay.tag`)，
+/// 日历里的一天 (44×50、圆角 9)：日号 15 号等宽；被扣钱下面一个小圆点，请假、单日覆盖下面一行小字 (`HistoryDay.tag`)，
 /// 已过的应出勤日和今天最下面是当天金额 (`HistoryDay.amountText`)。
 /// 今天整格 ink 底，盖过当天的颜色类型 (设计稿)；小圆点、小字与金额照常显示。
 /// 悬停时描一圈 1.5 的边 (颜色见 `DayCellStyle.hoverStroke`)，按下再叠一层底；手型光标。
@@ -123,7 +124,7 @@ private struct DayCell: View {
     let day: HistoryDay
     @Environment(\.dayCellInteraction) private var interaction
 
-    static let height: CGFloat = 70
+    static let height: CGFloat = 50
     private static let dotSize: CGFloat = 5
 
     var body: some View {
@@ -131,7 +132,7 @@ private struct DayCell: View {
         let shape = RoundedRectangle(cornerRadius: Radius.r9)
         VStack(spacing: Spacing.s4) {
             Text(day.dayText)
-                .font(AppFont.num(14, style.isEmphasized ? .semibold : .regular))
+                .font(AppFont.num(15, style.isEmphasized ? .semibold : .regular))
                 .foregroundStyle(style.text)
             if day.kind == .deducted {
                 Circle().fill(Palette.lossDot).frame(width: Self.dotSize, height: Self.dotSize)
@@ -167,7 +168,7 @@ private extension EnvironmentValues {
     @Entry var dayCellInteraction = InteractionState()
 }
 
-/// 日历格子按颜色类型的样子 (设计稿 P5 月日历 · 760)：
+/// 日历格子按颜色类型的样子 (设计稿 P5 月日历)：
 /// - 满勤 money-soft 底 money 字，被扣钱 loss-soft 底 loss 字，请假 accent-soft 底 accent 字
 /// - 未到 (未来的应出勤日) 白底 line 描边 ink 字
 /// - 休息日无底无框、muted 细字；改成不上班无底、muted 描边、muted 细字

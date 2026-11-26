@@ -1,10 +1,11 @@
 import SwiftUI
 import WageCore
 
-/// 请假表单 (PRD F6，设计稿 F6 · 时间条 · 760)，从今日概览面板 (今天) 或历史单日详情 (那一天，#15) 打开：
+/// 请假表单 (PRD F6，设计稿 F6 · 时间条 · 574)，从今日概览面板 (今天) 或历史单日详情 (那一天，#15) 打开：
 /// 「请哪段」时间条 (拖两个把手选时段，下面快捷的全天、前半天、后半天)、扣日薪的百分比 (右侧「= ¥500」)，
 /// 下方汇总当日计划、请假扣薪、收入项 (今天为今日上限，历史为结算或预计结算)。
 /// 汇总与校验提示都来自核心：每次改动都把待保存的命令交给 `PanelActions.dryRun` 试算；时间条的吸附与时段文字问 `LeaveBar`。
+/// 窗口高 574 时内容区不用滚动 (新请、修改都是)：比例框高 72，汇总框内边距 12、行距 6 (分隔线上下 8)，时间条里的间距也收紧了些。
 struct LeaveFormView: View {
     /// 新请一条还是修改已有的那条；一天只有一条，两者都发 `setLeave` (整条替换)，只影响标题和按钮。
     enum Mode: Equatable {
@@ -56,7 +57,7 @@ struct LeaveFormView: View {
                 .onChange(of: range) { _, newValue in
                     percentText = Self.text(form.bar.defaultPercent(for: newValue))
                 }
-            VStack(alignment: .leading, spacing: Spacing.s8) {
+            VStack(alignment: .leading, spacing: Spacing.s6) {
                 FormLabel("扣日薪的")
                 percentInput
             }
@@ -69,10 +70,10 @@ struct LeaveFormView: View {
         .onChange(of: range) { errorMessage = nil }
     }
 
-    /// 比例输入 (白底、圆角 12、内边距 16)：数字 36/700，紧跟着「%」18，右侧试算出的「= ¥500」16/600 loss；获得焦点时描边换成墨色。
+    /// 比例输入 (白底、圆角 12、高 72、左右内边距 16)：数字 38/700，紧跟着「%」18，右侧试算出的「= ¥500」16/600 loss；获得焦点时描边换成墨色。
     private var percentInput: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.r12)
-        let font = AppFont.num(36, .bold)
+        let font = AppFont.num(38, .bold)
         return HStack(spacing: Spacing.s6) {
             // 用一段隐藏的同字号文字撑出输入框宽度，让「%」贴在数字后面。
             Text(percentText.isEmpty ? "0" : percentText)
@@ -93,7 +94,8 @@ struct LeaveFormView: View {
                 Text(deduction).font(AppFont.num(16, .semibold)).foregroundStyle(Palette.loss)
             }
         }
-        .padding(Spacing.s16)
+        .padding(.horizontal, Spacing.s16)
+        .frame(height: Self.percentHeight)
         .background(Palette.card, in: shape)
         .overlay(shape.strokeBorder(percentFocused ? Palette.ink : Palette.line, lineWidth: 1.5))
         .contentShape(shape)
@@ -102,26 +104,12 @@ struct LeaveFormView: View {
         .cursor(.iBeam)
     }
 
-    /// 汇总框 (surface 底、圆角 12、内边距 16、行距 12)：每行标题 13 + 数值 (等宽 13/600，扣薪 loss 色)，
-    /// 下方一条分隔线与说明 12；比例填错时这里换成核心的校验提示。
+    /// 汇总框 (surface 底、圆角 12、内边距 12、行距 6)：每行标题 13 + 数值 (等宽 13/600，扣薪 loss 色)，
+    /// 下方一条分隔线 (上下各空 8) 与说明 12；比例填错时这里换成核心的校验提示。
     private var summary: some View {
-        VStack(alignment: .leading, spacing: Spacing.s12) {
-            switch previewResult {
-            case .success(let form):
-                ForEach(form?.summary ?? [], id: \.title) { item in
-                    HStack {
-                        Text(item.title).font(AppFont.body).foregroundStyle(Palette.muted)
-                        Spacer()
-                        Text(item.value)
-                            .font(AppFont.num(13, .semibold))
-                            .foregroundStyle(item.value.hasPrefix("−") ? Palette.loss : Palette.ink)
-                    }
-                }
-            case .failure(let error):
-                Text(error.message).font(AppFont.caption).foregroundStyle(Palette.loss)
-            }
-            if let errorMessage {
-                Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
+        VStack(alignment: .leading, spacing: Spacing.s8) {
+            VStack(alignment: .leading, spacing: Spacing.s6) {
+                summaryRows
             }
             Rectangle().fill(Palette.line).frame(height: 1)
             Text(Self.hint)
@@ -129,10 +117,35 @@ struct LeaveFormView: View {
                 .foregroundStyle(Palette.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(Spacing.s16)
+        .padding(Spacing.s12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r12))
     }
+
+    /// 汇总的几行，或核心的校验提示、保存失败的提示。
+    @ViewBuilder
+    private var summaryRows: some View {
+        switch previewResult {
+        case .success(let form):
+            ForEach(form?.summary ?? [], id: \.title) { item in
+                HStack {
+                    Text(item.title).font(AppFont.body).foregroundStyle(Palette.muted)
+                    Spacer()
+                    Text(item.value)
+                        .font(AppFont.num(13, .semibold))
+                        .foregroundStyle(item.value.hasPrefix("−") ? Palette.loss : Palette.ink)
+                }
+            }
+        case .failure(let error):
+            Text(error.message).font(AppFont.caption).foregroundStyle(Palette.loss)
+        }
+        if let errorMessage {
+            Text(errorMessage).font(AppFont.caption).foregroundStyle(Palette.loss)
+        }
+    }
+
+    /// 比例框高度 (设计稿 574)。
+    private static let percentHeight: CGFloat = 72
 
     @ViewBuilder
     private var buttons: some View {
