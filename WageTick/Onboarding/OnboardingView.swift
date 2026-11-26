@@ -15,6 +15,8 @@ struct OnboardingView: View {
     @State private var restMode: RestModeChoice
     @State private var scheduleDraft = ScheduleDraft(.default)
     @State private var errorMessage: String?
+    /// 校验不过的次数：同一条提示再出现一次也要滚到它。
+    @State private var errorCount = 0
 
     /// `step`、`salaryText`、`payBasis`、`restMode` 只在离屏截图时指定，App 里从第 1 步、空工资、按月、双休开始。
     init(
@@ -32,8 +34,15 @@ struct OnboardingView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             OnboardingStepper(step: step)
-            // 设计稿两屏都放得下；万一放不下 (如校验提示较长)，中间滚动，步骤条与底部按钮不动。
-            ScrollBody { content }
+            // 设计稿两屏都放得下；放不下时 (第 1 步出现校验提示时多一行) 中间滚动，步骤条与底部按钮不动。
+            // 每次校验不过都滚到提示那一行，不让它藏在底部按钮栏上沿下面。
+            ScrollBody {
+                ScrollViewReader { proxy in
+                    content.onChange(of: errorCount) {
+                        withAnimation { proxy.scrollTo(OnboardingLayout.errorID, anchor: .bottom) }
+                    }
+                }
+            }
             footer
         }
         .frame(width: WindowMetrics.size.width, height: WindowMetrics.size.height)
@@ -86,6 +95,7 @@ struct OnboardingView: View {
         }
         if let error {
             errorMessage = error.message
+            errorCount += 1
         } else if let next = step.next {
             move(to: next)
         } else {
@@ -99,6 +109,7 @@ struct OnboardingView: View {
             try model.send(.completeOnboarding(input))
         } catch {
             errorMessage = error.message
+            errorCount += 1
             return
         }
         LaunchAtLogin.set(enabled: input.launchAtLogin)
@@ -158,6 +169,8 @@ struct OnboardingStepper: View {
 /// 引导页的排版尺寸 (设计稿 P1 引导 · 574)，`Spacing` 里没有的值集中在这里。
 /// 窗口高 574：步骤条下沿在 y 56，两步的内容都从 y 70 排起，底部按钮在 506 至 550；内容区 (y 56 至 506) 放不下才滚动。
 enum OnboardingLayout {
+    /// 校验提示的滚动标识 (`OnboardingBody` 整块带着它，提示在最后一行；校验不过时滚到它的下沿)。
+    static let errorID = "onboarding-error"
     /// 左右内边距。
     static let side = Spacing.s24
     /// 底部按钮区下边距。

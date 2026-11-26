@@ -23,10 +23,12 @@ struct PanelDivider: View {
 }
 
 /// 日期与状态行 (24 高)：左边日期与时间 (12/500，muted)，右边醒目的日状态 (圆点 8 + 17/700，按状态着色，无底色)。
+/// 两段文字都上提 1：打包的 Noto Sans SC 行框上高下低，汉字墨迹中心比行框中心低约 0.05 em，上提后墨迹在 24 高里居中、与圆点中心齐。
 struct PanelTopBar: View {
     let panel: TodayPanel
 
     private static let dotSize: CGFloat = 8
+    private static let textLift: CGFloat = 1
 
     var body: some View {
         HStack {
@@ -35,10 +37,12 @@ struct PanelTopBar: View {
                 .font(AppFont.label)
                 .foregroundStyle(Palette.muted)
                 .monospacedDigit()
+                .offset(y: -Self.textLift)
             Spacer()
             HStack(spacing: Spacing.s6) {
                 Circle().fill(tone).frame(width: Self.dotSize, height: Self.dotSize)
                 Text(panel.statusLabel).font(AppFont.ui(17, .bold)).foregroundStyle(tone)
+                    .offset(y: -Self.textLift)
             }
         }
     }
@@ -222,10 +226,13 @@ struct PanelHero: View {
 
 /// 休息日 (不在白干计时) 主数字区与进度区合成的一整块：横排、垂直居中、在整宽里水平居中。
 /// 左边小牛 128，空 20，右边一列左对齐：「今天休息」30/700 ink，下面公文包 12 + 下一个上班日 (12 muted)，没有下一个上班日时不显示这一行。
+/// 右边一列按墨迹居中：打包的 Noto Sans SC 行框上高下低，30 号字的墨迹比行框中心低约 1.5，加上第二行再低 2，
+/// 所以整列上提 (两行 3.5、一行 1.5)，文字墨迹的中心与小牛的中心 (整块中线) 齐。
 struct PanelRestHero: View {
     let rest: RestPanel
 
     private static let mascotSize: CGFloat = 128
+    private var textLift: CGFloat { rest.nextAttendanceDate == nil ? 1.5 : 3.5 }
 
     var body: some View {
         HStack(spacing: Spacing.s20) {
@@ -244,6 +251,7 @@ struct PanelRestHero: View {
                     .foregroundStyle(Palette.muted)
                 }
             }
+            .offset(y: -textLift)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -251,6 +259,7 @@ struct PanelRestHero: View {
 
 /// 工作进度区 (56 高)：0–18 是「已工作 4 / 7 小时」(13/500 ink) 与百分比 (等宽 13/600 money)，
 /// 26–36 是分段进度条，42–56 是计划上班与下班时刻 (等宽 11 muted)。
+/// 第一行上提 1：打包的 Noto Sans SC 13 号的行高 19 比这一行的 18 高，墨迹又偏行框下方，不提的话字底贴着 18 的下沿。
 struct PanelProgress: View {
     let progress: WorkProgress
 
@@ -262,6 +271,7 @@ struct PanelProgress: View {
                 Text(progress.percent).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.money)
             }
             .frame(height: 18)
+            .offset(y: -1)
             SegmentedProgressBar(segments: progress.segments)
                 .padding(.top, Spacing.s8)
             HStack {

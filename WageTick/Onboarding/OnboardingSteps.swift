@@ -5,7 +5,7 @@ import WageCore
 /// 第 1 步 · 工资 (设计稿 P1 引导 · 1 月薪 · 双休 / 大小周 · 574，按天见「按天算工资」方案 A)：大小牛、标题、
 /// 「月薪 | 日薪」小切换 + 工资大号输入框 (单位跟着变「元/月」「元/日」)，下面「怎么休」选休息模式 (默认双休)。
 /// 窗口高 574 时整步不用滚动 (按打包的 Noto Sans SC 量，行高约 1.45 倍)：小牛画出来高 68，顶在窗口 y 70；
-/// 正文上边距 20、块间隔 12，四个选项下沿在 y 486 左右，离底部按钮 20。出现校验提示时多出一行，要滚动。
+/// 正文上边距 20、块间隔 12，四个选项下沿在 y 486 左右，离底部按钮 20。出现校验提示时多出一行，要滚动 (自动滚到提示，见 `OnboardingView`)。
 struct OnboardingSalaryStep: View {
     /// 小牛图四周带透明边：框 78 时画出来的小牛高 68，上下各空约 5。
     private static let mascotSize: CGFloat = 78
@@ -168,6 +168,7 @@ struct OnboardingIntro: View {
 }
 
 /// 设计稿 Body：下 12、左右 24，上边距与块间隔按步不同；最后是校验失败的提示。
+/// 整块带 `OnboardingLayout.errorID`：校验不过时滚到整块的下沿 (含下边距 12)，提示露出来且离底部按钮留着空。
 struct OnboardingBody<Content: View>: View {
     let top: CGFloat
     let spacing: CGFloat
@@ -184,5 +185,6 @@ struct OnboardingBody<Content: View>: View {
         .padding(.top, top)
         .padding(.bottom, OnboardingLayout.bodyBottom)
         .padding(.horizontal, OnboardingLayout.side)
+        .id(OnboardingLayout.errorID)
     }
 }
