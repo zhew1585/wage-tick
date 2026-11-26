@@ -213,6 +213,7 @@ class Run:
             state = self.state()
             if state.get('exists') and state.get('visible'):
                 self.window_number = state['number']
+                self.screen_scale = 1 if state.get('scale', 2) < 1.5 else 2
                 return state
             if self.app.poll() is not None:
                 raise Blocked(f'App 启动后退出了 (退出码 {self.app.returncode})，见 {self.out}/app.log')
@@ -244,8 +245,9 @@ class Run:
             'commit': commit,
             'kind': 'realwindow',
             'capturedAt': datetime.datetime.now().astimezone().isoformat(timespec='seconds'),
-            'method': 'cacheDisplay：注入 Debug 版 App，对窗框视图 (NSThemeFrame，含系统红绿灯) 调 cacheDisplay(in:to:)，按 2 倍出图；假数据在临时目录',
+            'method': 'cacheDisplay：注入 Debug 版 App，对窗框视图 (NSThemeFrame，含系统红绿灯) 调 cacheDisplay(in:to:)，存成 2 倍图 (1 倍屏上是放大的，见 screenScale)；假数据在临时目录',
             'decorations': {'windowFrame': True, 'trafficLights': True, 'active': active},
+            'screenScale': self.screen_scale,
             'files': files,
         }
         with open(os.path.join(self.out, 'realwindow', 'manifest.json'), 'w', encoding='utf-8') as out:
@@ -434,7 +436,7 @@ class Run:
     def main(self):
         os.makedirs(os.path.join(self.out, 'realwindow'), exist_ok=True)
         state = self.launch()
-        print(f'App 已启动 (pid {self.app.pid})，窗口 {state["width"]:.0f}×{state["height"]:.0f}，前台：{state["active"]}', flush=True)
+        print(f'App 已启动 (pid {self.app.pid})，窗口 {state["width"]:.0f}×{state["height"]:.0f}，{self.screen_scale} 倍屏，前台：{state["active"]}', flush=True)
         # 启动时应在概览：辅助功能里有底栏三个入口。辅助功能树是打开后才建的，等一会儿。
         deadline = time.time() + 15
         while not self.find('AXButton', '^设置$', below=600) and time.time() < deadline:

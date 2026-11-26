@@ -69,7 +69,7 @@ static NSString *json(id object) {
     return [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
 }
 
-/// 窗口状态：可见、挂着的 sheet、是不是 key、App 是否在前台，以及窗口的身份 (同一个窗口编号不变)。
+/// 窗口状态：可见、挂着的 sheet、是不是 key、App 是否在前台、所在屏幕的倍数，以及窗口的身份 (同一个窗口编号不变)。
 static NSDictionary *windowState(void) {
     NSWindow *window = panelWindow();
     NSMutableArray *visible = [NSMutableArray array];
@@ -86,11 +86,12 @@ static NSDictionary *windowState(void) {
         @"active": @(NSApp.isActive),
         @"width": @(window.frame.size.width),
         @"height": @(window.frame.size.height),
+        @"scale": @(window.backingScaleFactor),
         @"visibleTitled": visible,
     };
 }
 
-/// 把窗框视图 (含系统红绿灯) 画进一张 2 倍的位图，不论屏幕是几倍；圆角外透明的地方铺上窗口底色。调用方负责释放。
+/// 把窗框视图 (含系统红绿灯) 画进一张 2 倍的位图，不论屏幕是几倍 (1 倍屏上是放大的，倍数另由 state 的 scale 报出)；圆角外透明的地方铺上窗口底色。调用方负责释放。
 static CGContextRef renderWindow(NSWindow *window) {
     NSView *frameView = window.contentView.superview;
     NSRect bounds = frameView.bounds;

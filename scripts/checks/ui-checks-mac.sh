@@ -142,7 +142,7 @@ manifest = {
     'commit': commit,
     'kind': 'offscreen',
     'capturedAt': datetime.datetime.now().astimezone().isoformat(timespec='seconds'),
-    'method': '离屏渲染：注入 Debug 版 App，调用 wagetick_render_page_previews (WageTick/Shared/PagePreviews.swift)，2 倍，四周留 24pt',
+    'method': '离屏渲染：注入 Debug 版 App，调用 wagetick_render_page_previews (WageTick/Shared/PagePreviews.swift)，按屏幕倍数出图，四周留 24pt',
     'decorations': {'windowFrame': False, 'trafficLights': False},
     'files': files,
 }

@@ -172,16 +172,29 @@ def measure_lights(pixel, origin_x, origin_y, cfg):
     }
 
 
-def check_page(name, path, kind, cfg, report):
-    """检查一张页面图；返回量到的页头 (供一致性比较)。"""
+def check_page(name, path, kind, cfg, report, screen_scale=2):
+    """检查一张页面图；返回量到的页头 (供一致性比较)。
+
+    screen_scale 是出图那块屏幕的倍数。真窗口图不论屏幕几倍都存成 2 倍 (1 倍屏的是放大的)，倍数由调用方给；
+    离屏预览按屏幕倍数出图，倍数从图宽认，不看 screen_scale。1 倍屏上字按整像素对齐，容差按 ui-geometry.json 的 oneX 放宽。
+    """
+    margin = cfg['offscreenMarginPt'] if kind == 'offscreen' else 0
+    width, height, rows, pixel = load_png(path, max_rows=(margin + 140) * cfg['scale'])
+    full_width_pt = cfg['windowWidthPt'] + 2 * margin
+    if kind == 'offscreen' and width == full_width_pt:
+        screen_scale = 1
+        cfg = {**cfg, 'scale': 1}
+    elif kind == 'offscreen':
+        screen_scale = 2
     scale = cfg['scale']
-    origin = cfg['offscreenMarginPt'] * scale if kind == 'offscreen' else 0
-    width, height, rows, pixel = load_png(path, max_rows=origin + 140 * scale)
-    expected_width = (cfg['windowWidthPt'] + 2 * (cfg['offscreenMarginPt'] if kind == 'offscreen' else 0)) * scale
+    origin = margin * scale
+    expected_width = full_width_pt * scale
+    one_x = cfg['oneX'] if screen_scale == 1 else {'verticalTolPt': cfg['verticalTolPt'], 'extraTolPt': 0}
     role = 'root' if name in cfg['root']['pages'] else 'sub' if name in cfg['sub']['pages'] else None
     # 离屏预览里的弹出表单 (sheet) 本来就比窗口窄，图宽只对页面图与真窗口图查。
     if width != expected_width and (role or kind == 'realwindow'):
-        report.fail('IMG-KIND', name, f'图宽 {width}px，{kind} 应是 {expected_width}px：不是这种截法出的图，或缩放不对')
+        wanted = f'{expected_width}px (2 倍屏) 或 {full_width_pt}px (1 倍屏)' if kind == 'offscreen' else f'{expected_width}px'
+        report.fail('IMG-KIND', name, f'图宽 {width}px，{kind} 应是 {wanted}：不是这种截法出的图，或缩放不对')
         return None
     if is_blank(pixel, width, rows, cfg):
         report.fail('IMG-BLANK', name, '图是空白的 (几乎只有一种颜色)')
@@ -212,24 +225,26 @@ def check_page(name, path, kind, cfg, report):
         report.fail('HDR-BACK', name, '页头里没找到返回箭头 (推进来的页面都要能返回)')
         return header
     offset = header['inkCenterY'] - header['frameCenterY']
-    if abs(offset) > cfg['verticalTolPt']:
-        report.fail('HDR-VCENTER', name, f"返回与标题的墨迹中心偏离页头框中心 {offset:+.2f}pt，超过 ±{cfg['verticalTolPt']}pt")
+    if abs(offset) > one_x['verticalTolPt']:
+        report.fail('HDR-VCENTER', name, f"返回与标题的墨迹中心偏离页头框中心 {offset:+.2f}pt，超过 ±{one_x['verticalTolPt']}pt")
     rule = cfg[role]
     left, right = header['arrow']
     gap_lights = left - cfg['lightsRightEdgePt']
     if gap_lights <= cfg['lightsGapRejectedPt']:
         report.fail('HDR-LIGHTS-GAP', name, f"返回箭头离红绿灯只有 {gap_lights:.1f}pt；{cfg['lightsGapRejectedPt']}pt 已被 Allen 明确否掉 (太近)")
-    if abs(left - rule['arrowLeftPt']) > rule['tolPt']:
-        report.fail('HDR-X', name, f"返回箭头墨迹左沿在 {left:.1f}pt，设计值 {rule['arrowLeftPt']}pt ±{rule['tolPt']}")
+    tol = rule['tolPt'] + one_x['extraTolPt']
+    if abs(left - rule['arrowLeftPt']) > tol:
+        report.fail('HDR-X', name, f"返回箭头墨迹左沿在 {left:.1f}pt，设计值 {rule['arrowLeftPt']}pt ±{tol}")
     gap_title = header['titleLeft'] - right
     low, high = rule['arrowTitleGapPt']
     if not low <= gap_title <= high:
         report.fail('HDR-X', name, f'返回箭头到标题的间隙 {gap_title:.1f}pt，应在 {low}–{high}pt')
     if header['titleLeft'] > rule['maxTitleLeftPt']:
         report.fail('HDR-X', name, f"标题墨迹左沿在 {header['titleLeft']:.1f}pt，超过 {rule['maxTitleLeftPt']}pt (过度右移)")
-    if kind == 'realwindow' and lights and abs(lights['centerY'] - header['inkCenterY']) > 1:
+    if kind == 'realwindow' and lights and abs(lights['centerY'] - header['inkCenterY']) > one_x['verticalTolPt']:
         report.fail('HDR-VCENTER', name, f"红绿灯中心 y={lights['centerY']:.2f} 与标题墨迹中心 y={header['inkCenterY']:.2f} 不在一条线上")
     header['role'] = role
+    header['screenScale'] = screen_scale
     return header
 
 
@@ -254,7 +269,11 @@ def check_manifest(path, directory, kind, report):
     for name in manifest.get('files', []):
         if not os.path.isfile(os.path.join(directory, name)):
             raise Blocked(f'清单里的 {name} 不在 {directory}')
-    return manifest
+    scale = manifest.get('screenScale', 2)
+    if scale not in (1, 2):
+        report.fail('IMG-MANIFEST', path, f'清单里的 screenScale 是 {scale!r}，只认 1 或 2')
+        scale = 2
+    return scale
 
 
 def main():
@@ -264,12 +283,14 @@ def main():
     parser.add_argument('--manifest')
     parser.add_argument('--config', default=os.path.join(HERE, 'ui-geometry.json'))
     parser.add_argument('--only', nargs='*', help='只查这些图 (自测用)，不要求整套齐全')
+    parser.add_argument('--screen-scale', type=int, choices=[1, 2], help='真窗口图出图那块屏幕的倍数 (自测用)；平时从清单的 screenScale 读，没写按 2')
     args = parser.parse_args()
     cfg = json.load(open(args.config, encoding='utf-8'))
     report = Report()
     try:
+        screen_scale = args.screen_scale or 2
         if args.manifest:
-            check_manifest(args.manifest, args.dir, args.kind, report)
+            screen_scale = args.screen_scale or check_manifest(args.manifest, args.dir, args.kind, report)
         elif not args.only:
             raise Blocked('没给产物清单 (--manifest)，没法确认这些图是哪一版、怎么截的')
         wanted = args.only or (cfg['root']['pages'] + cfg['sub']['pages'] + cfg['otherPages'][args.kind])
@@ -283,7 +304,7 @@ def main():
                     continue
                 raise Blocked(f'缺图 {path}')
             checked += 1
-            header = check_page(name, path, args.kind, cfg, report)
+            header = check_page(name, path, args.kind, cfg, report, screen_scale)
             if header and header.get('arrow'):
                 headers[name] = header
         for role in ('root', 'sub'):
@@ -300,6 +321,8 @@ def main():
         return 2
     for line in report.failures + report.notes:
         print(line)
+    if any(h['screenScale'] == 1 for h in headers.values()):
+        print(f"NOTE: 这些图出自 1 倍屏：字按整像素对齐，标题比 2 倍屏上低约 1pt；垂直容差按 ±{cfg['oneX']['verticalTolPt']}pt、箭头左沿容差多放 {cfg['oneX']['extraTolPt']}pt。")
     print(f"MANUAL: 留白是否美观要 Allen 看真窗口图确认；这里只保证不退回被否掉的 {cfg['lightsGapRejectedPt']}pt、并与当前设计值一致。")
     if report.failures:
         print(f'ui_geometry: {len(report.failures)} 条不过')

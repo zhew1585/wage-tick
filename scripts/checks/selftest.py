@@ -59,8 +59,8 @@ def write_png(path, width, height, rects, background=PAPER):
                   + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b''))
 
 
-def draw_page(path, shot, arrow=(85, 91.5), title=100.5, divider=51, ink_y=26.25, lights=(20, 26), header=True, width=WINDOW, blank=False):
-    """画一张页面图的顶部 120pt，位置单位是相对窗口左上角的 pt，画成 2 倍图。
+def draw_page(path, shot, arrow=(85, 91.5), title=100.5, divider=51, ink_y=26.25, lights=(20, 26), header=True, width=WINDOW, blank=False, scale=2):
+    """画一张页面图的顶部 120pt，位置单位是相对窗口左上角的 pt，画成 scale 倍图 (离屏预览在 1 倍屏上出的是 1 倍图)。
 
     shot：offscreen 四周留 24pt 白边、不画红绿灯；realwindow 贴边、在 lights=(最左一个圆的左沿, 中心 y) 画三个 12pt 的圆 (画成方块)。
     页头：返回箭头 arrow=(左, 右) 与标题 (左沿 title、宽 30pt) 的墨迹块以 ink_y 为中心，下面是 divider 处的分隔线；
@@ -68,24 +68,26 @@ def draw_page(path, shot, arrow=(85, 91.5), title=100.5, divider=51, ink_y=26.25
     默认值是 d107b63 真实渲染图上量到的：箭头 85–91.5、标题 100.5、分隔线 51、墨迹中心 26.25、红绿灯 20–72 中心 26。
     """
     margin = MARGIN if shot == 'offscreen' else 0
-    px = lambda pt: round((pt + margin) * 2)
+    px = lambda pt: round((pt + margin) * scale)
     rects = []
     if not blank:
         rects.append((px(0), px(0), px(width), px(120), PAPER))
         rects.append((px(20), px(64), px(width - 20), px(110), (120, 160, 220)))
         if header:
-            rects.append((px(0), px(divider), px(width), px(divider) + 2, (232, 228, 220)))
+            rects.append((px(0), px(divider), px(width), px(divider) + scale, (232, 228, 220)))
             rects.append((px(title), px(ink_y - 8), px(title + 30), px(ink_y + 8), INK))
             if arrow:
                 rects.append((px(arrow[0]), px(ink_y - 7), px(arrow[1]), px(ink_y + 7), INK))
         if lights:
             rects += [(px(lights[0] + 20 * i), px(lights[1] - 6), px(lights[0] + 20 * i + 12), px(lights[1] + 6), (205, 205, 205)) for i in range(3)]
-    write_png(path, (width + 2 * margin) * 2, (120 + 2 * margin) * 2, rects, background=PAPER if shot == 'realwindow' else (255, 255, 255))
+    write_png(path, (width + 2 * margin) * scale, (120 + 2 * margin) * scale, rects, background=PAPER if shot == 'realwindow' else (255, 255, 255))
 
 
 OFF, REAL = {'shot': 'offscreen', 'lights': None}, {'shot': 'realwindow'}
 SUB = {'arrow': (90, 96.5), 'title': 112, 'ink_y': 26}       # 原版 9c69fd3 月日历页头的实测值
 TIGHT = {'arrow': (78, 84.5), 'title': 92.5}                 # 84b2b71：箭头离红绿灯 6pt
+# 1 倍屏 (PR #34 的 CI 实测)：字按整像素对齐，箭头 86–92，标题低约 1pt
+ONE_X = {'arrow': (86, 92), 'title': 102, 'ink_y': 27.25}
 # 弹出表单的离屏图：比窗口窄，没有页头，表单标题的三个字正好落在红绿灯的位置上
 SHEET = {'shot': 'offscreen', 'header': False, 'width': 320}
 
@@ -103,6 +105,11 @@ GEOMETRY_CASES = [
     ('同上，真窗口图 (d107b63)', 'realwindow', {'today': {**REAL, 'header': False}, 'P3-goals': {**REAL, 'title': 103}, 'P4-history': {**REAL}}, 0, []),
     ('真窗口图里箭头离红绿灯 6pt (84b2b71)', 'realwindow', {'P3-goals': {**REAL, **TIGHT}}, 1, ['HDR-LIGHTS-GAP']),
     ('标题栏改回 28 高：红绿灯在 8–60、中心 14', 'realwindow', {'today': {**REAL, 'header': False, 'lights': (8, 14)}}, 1, ['HDR-LIGHTS']),
+    ('1 倍屏上的离屏预览：箭头 86、标题低约 1pt，放行', 'offscreen', {'P3-goals': {**OFF, **ONE_X, 'scale': 1}, 'P4-history': {**OFF, **ONE_X, 'title': 101, 'scale': 1}}, 0, []),
+    ('1 倍屏上的离屏预览，箭头离红绿灯 6pt', 'offscreen', {'P3-goals': {**OFF, **TIGHT, 'scale': 1}}, 1, ['HDR-LIGHTS-GAP', 'HDR-X']),
+    ('1 倍屏上的离屏预览，返回与标题偏下 4pt', 'offscreen', {'P3-goals': {**OFF, **ONE_X, 'ink_y': 30.25, 'scale': 1}}, 1, ['HDR-VCENTER']),
+    ('1 倍屏上的真窗口图 (存成 2 倍)，清单标了 1 倍屏，放行', 'realwindow', {'P3-goals': {**REAL, **ONE_X}, 'screen-scale': 1}, 0, []),
+    ('同一张图当成 2 倍屏：标题低 1pt 多，不放行', 'realwindow', {'P3-goals': {**REAL, **ONE_X}}, 1, ['HDR-VCENTER']),
     ('裁成空白的近景 (3d73c4c 里的 goals-titlebar.png)', 'realwindow', {'P3-goals': {**REAL, 'blank': True}}, 1, ['IMG-BLANK']),
     ('把真窗口图标成离屏预览', 'offscreen', {'P3-goals': {**REAL}}, 1, ['IMG-KIND']),
     ('把离屏预览标成真窗口图', 'realwindow', {'P5-calendar': {**OFF, **SUB}}, 1, ['IMG-KIND']),
@@ -115,9 +122,9 @@ GEOMETRY_CASES = [
 
 
 def run_geometry_case(kind, pages):
-    """把一组图画到临时目录里，跑 ui_geometry.py。pages 里图名对 None 表示故意不画；manifest、whole-set 是这一组的选项。"""
+    """把一组图画到临时目录里，跑 ui_geometry.py。pages 里图名对 None 表示故意不画；manifest、whole-set、screen-scale 是这一组的选项。"""
     pages = dict(pages)
-    manifest, whole_set = pages.pop('manifest', None), pages.pop('whole-set', False)
+    manifest, whole_set, screen_scale = pages.pop('manifest', None), pages.pop('whole-set', False), pages.pop('screen-scale', None)
     with tempfile.TemporaryDirectory() as directory:
         for name, spec in pages.items():
             if spec is not None:
@@ -129,6 +136,8 @@ def run_geometry_case(kind, pages):
             args += ['--manifest', path]
         if not whole_set:
             args += ['--only', *pages]
+        if screen_scale:
+            args += ['--screen-scale', str(screen_scale)]
         return run('ui_geometry.py', *args)
 
 
