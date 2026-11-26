@@ -6,11 +6,12 @@ import SwiftUI
 /// 字体 token：界面文字用 Noto Sans SC (设计稿 font-ui)，数字用 JetBrains Mono (font-num，等宽，滚动不抖)。
 /// 两者都随 App 打包 (`Resources/Fonts`，SIL OFL 1.1，许可文件同目录)，启动时由 `register()` 注册到本进程。
 /// 注册之后字体一律从打包的字体文件建，不按字族名让系统挑：机器上另装了同名字体 (如完整版 Noto Sans SC) 时，按字族名取到的是装的那份，
-/// 行高差很多，开发机上量的排版就不是用户看到的 (界面检查 FONT-BUNDLED 守着)。
+/// 行高差很多，开发机上量的排版就不是牛马看到的 (界面检查 FONT-BUNDLED 守着)。
 /// Noto Sans SC 只保留 GB2312 汉字与常用符号 (约 4 MB)；子集外的字由系统自动回退到苹方。
 /// 子集做法：`pyftsubset NotoSansSC[wght].ttf --text-file=<GB2312 + ASCII + 常用标点> --layout-features='*' --name-IDs='*'`。
 /// 没注册 (小组件扩展本来就不打包字体，小组件预览跟它一致) 或打包的字体文件缺失时用系统字体：界面文字用苹方/SF，数字用 SF Mono。
 ///
+/// 预设 (`AppFont.body` 这类) 是计算属性，每次读都从字体缓存取，不在第一次读到时定死：`register()` 之前读过也不会一直停在系统字体上。
 /// 用法：常用字号用预设 `AppFont.body`、`AppFont.numStat`；其他字号用 `AppFont.ui(15, .bold)`、`AppFont.num(40, .bold)`。
 /// AppKit 里 (菜单栏、`NSDatePicker`) 用 `AppFont.nsFont(.num, size: 13, weight: .medium)`。
 enum AppFont {
@@ -52,56 +53,56 @@ enum AppFont {
     // MARK: 界面文字预设 (font-ui)
 
     /// 空状态的大标题 22/700。
-    static let title = ui(22, .bold)
+    static var title: Font { ui(22, .bold) }
     /// 引导页大标题 28/700 (设计稿 P1 引导 · 760)。
-    static let display = ui(28, .bold)
+    static var display: Font { ui(28, .bold) }
     /// 引导页副标题、大号输入框的单位 14/400。
-    static let lead = ui(14)
+    static var lead: Font { ui(14) }
     /// 弹窗、子页面标题 15/700。
-    static let sheetTitle = ui(15, .bold)
+    static var sheetTitle: Font { ui(15, .bold) }
     /// 分组标题 14/600。
-    static let section = ui(14, .semibold)
+    static var section: Font { ui(14, .semibold) }
     /// 正文 13/400。
-    static let body = ui(13)
+    static var body: Font { ui(13) }
     /// 次要按钮文字 13/500。
-    static let bodyMedium = ui(13, .medium)
+    static var bodyMedium: Font { ui(13, .medium) }
     /// 主按钮文字、强调正文 13/600。
-    static let bodySemibold = ui(13, .semibold)
+    static var bodySemibold: Font { ui(13, .semibold) }
     /// 输入框里的文字 14/400。
-    static let fieldText = ui(14)
+    static var fieldText: Font { ui(14) }
     /// 输入框上方标签 12/500。
-    static let label = ui(12, .medium)
+    static var label: Font { ui(12, .medium) }
     /// 说明文字 12/400。
-    static let caption = ui(12)
+    static var caption: Font { ui(12) }
     /// 强调说明 12/600。
-    static let captionSemibold = ui(12, .semibold)
+    static var captionSemibold: Font { ui(12, .semibold) }
     /// 小字 11/400。
-    static let small = ui(11)
+    static var small: Font { ui(11) }
     /// Chip 文字 11/600。
-    static let chip = ui(11, .semibold)
+    static var chip: Font { ui(11, .semibold) }
     /// 最小字 10/400，图例、角注。
-    static let tiny = ui(10)
+    static var tiny: Font { ui(10) }
     /// 子页面 (目标、历史、设置) 页头标题 17/700 (760 设计稿)。
-    static let pageTitle = ui(17, .bold)
+    static var pageTitle: Font { ui(17, .bold) }
 
     // MARK: 数字预设 (font-num)
 
     /// 输入框里的数字 14/400。
-    static let numField = num(14)
+    static var numField: Font { num(14) }
     /// 大号输入框里的数字 24/600 (引导页月薪)。
-    static let numFieldLarge = num(24, .semibold)
+    static var numFieldLarge: Font { num(24, .semibold) }
     /// 中号输入框里的数字 17/600 (引导页时间)。
-    static let numFieldMedium = num(17, .semibold)
+    static var numFieldMedium: Font { num(17, .semibold) }
     /// 汇总项数值 17/600。
-    static let numStat = num(17, .semibold)
+    static var numStat: Font { num(17, .semibold) }
     /// 菜单栏数字 13/500。
-    static let numMenuBar = num(13, .medium)
+    static var numMenuBar: Font { num(13, .medium) }
     /// 行内金额 12/600。
-    static let numBody = num(12, .semibold)
+    static var numBody: Font { num(12, .semibold) }
     /// 说明里的数字 12/400。
-    static let numCaption = num(12)
+    static var numCaption: Font { num(12) }
     /// 小号数字 11/400。
-    static let numSmall = num(11)
+    static var numSmall: Font { num(11) }
 
     // MARK: 构造
 

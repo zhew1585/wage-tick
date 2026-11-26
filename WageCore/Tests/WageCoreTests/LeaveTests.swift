@@ -216,7 +216,7 @@ struct FullDayLeaveTests {
         #expect(panel.body == .rest(RestPanel(
             headline: "今天请假",
             tagline: nil,
-            nextAttendanceText: "下一个上班日 2月12日 周四",
+            nextAttendanceDate: "2月12日 周四",
             stats: [
                 StatItem(title: "本月已上班", value: "7/20 天"),
                 // 默认扣 100%，今日结算 0。

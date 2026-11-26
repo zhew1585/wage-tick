@@ -137,6 +137,17 @@ struct HomeActiveGoalFinishTests {
 
         #expect(queue.map(\.asFirst.finishText) == ["2月24日", "今天"])
     }
+
+    @Test("已经攒够：排队中的 B 拖到第一个时累计额已超过目标额，预计完成是「今天」")
+    func alreadyReached() throws {
+        // 13:06 已累计 300，B 只要 200：排到第一个就达成。
+        var state = try creatingGoal("A", 10000, in: try onboarded(), at: standardDay(9, 0))
+        state = try creatingGoal("B", 200, in: state, at: standardDay(9, 0))
+        let preview = try #require(snapshot(of: state, at: standardDay(13, 6)).goals?.queue.last?.asFirst)
+
+        #expect(preview.estimate == "已经攒够，排到第一个就达成")
+        #expect(preview.finishText == "今天")
+    }
 }
 
 @Suite("首页改版：排队中目标的预计完成只有日期")

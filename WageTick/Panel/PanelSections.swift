@@ -62,22 +62,19 @@ struct PanelTopBar: View {
 /// 放得下就静止；放不下时跑马灯：停 1.5 秒，以每秒 30 pt 向左滚到结尾，停 1.5 秒回到开头，循环。
 /// 有多条时一条播完 (放得下的停 4 秒) 换下一条。悬停时暂停，`.help` 给出这一条的全文。
 /// 系统开了「减弱动态效果」时不滚动，放不下的截断。
+/// 省电：只在真的滚动时按帧推进，停留用一次长睡眠，只有一条又放得下时播一遍开头就不再醒；
+/// 看不见 (`isActive` 为 false：窗口被挡住、最小化、关掉，或首页被推进来的页面盖住) 时整个停掉，再看得见时从头播。
 struct PanelNoticeBanner: View {
     let texts: [String]
+    /// 提示条现在看不看得见；看不见时不播。预览里不给，停在开头。
+    var isActive = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var index = 0
     @State private var offset: CGFloat = 0
-    @State private var phase = Phase.holdStart(elapsed: 0)
     @State private var isHovered = false
     @State private var textWidth: CGFloat = 0
     @State private var viewportWidth: CGFloat = 0
-
-    private enum Phase: Equatable {
-        case holdStart(elapsed: Double)
-        case scrolling
-        case holdEnd(elapsed: Double)
-    }
 
     /// 开头、结尾各停多久 (秒)。
     private static let hold = 1.5
@@ -85,11 +82,18 @@ struct PanelNoticeBanner: View {
     private static let holdFitting = 4.0
     /// 滚动速度 (pt/秒)。
     private static let speed: CGFloat = 30
-    /// 每一步的间隔 (秒)。
+    /// 滚动时每一帧的间隔 (秒)；悬停暂停时也按这个间隔看鼠标走了没有。
     private static let tick = 1.0 / 30
 
-    private var text: String { texts[min(index, texts.count - 1)] }
+    private var text: String { texts.isEmpty ? "" : texts[index % texts.count] }
     private var overflow: CGFloat { max(0, textWidth - viewportWidth) }
+
+    /// 播放从头来过的条件：换了文字、看得见与否变了、开关了「减弱动态效果」。
+    private struct Playback: Equatable {
+        let texts: [String]
+        let isActive: Bool
+        let reduceMotion: Bool
+    }
 
     var body: some View {
         HStack(spacing: Spacing.s6) {
@@ -119,49 +123,59 @@ struct PanelNoticeBanner: View {
         .background(Palette.accentSoft, in: RoundedRectangle(cornerRadius: Radius.control))
         .onHover { isHovered = $0 }
         .help(text)
-        .task(id: texts) {
-            index = 0
-            restart()
-            while !Task.isCancelled {
-                // 只有一条且不用滚时没什么可推进的，放慢检查 (文字宽度量出来之前也先按这个等)。
-                let idle = texts.count < 2 && (reduceMotion || overflow <= 0)
-                try? await Task.sleep(for: .seconds(idle ? 0.5 : Self.tick))
-                if !isHovered && !idle { step() }
-            }
+        .task(id: Playback(texts: texts, isActive: isActive, reduceMotion: reduceMotion)) {
+            rewind()
+            guard isActive, !texts.isEmpty else { return }
+            // 被取消 (看不见了、换了文字) 时睡眠抛出，立刻退出。
+            try? await play()
         }
     }
 
-    private func restart() {
-        offset = 0
-        phase = .holdStart(elapsed: 0)
-    }
-
-    /// 往前走一步。放得下 (或减弱动态效果) 时只计时，到点换下一条；放不下时按停、滚、停推进。
-    private func step() {
-        let scrolls = !reduceMotion && overflow > 0
-        switch phase {
-        case .holdStart(let elapsed):
-            let next = elapsed + Self.tick
-            if scrolls {
-                phase = next >= Self.hold ? .scrolling : .holdStart(elapsed: next)
-            } else if next >= Self.holdFitting {
-                advance()
+    /// 一条接一条地播：开头停 (文字宽度也在这段时间量好)，放不下的滚到结尾再停，放得下的多停一会儿，然后换下一条。
+    /// 只有一条又放得下 (或开了「减弱动态效果」) 时播完开头 (减弱动态效果时连开头也不等) 就结束，不再醒。
+    private func play() async throws {
+        if reduceMotion && texts.count < 2 { return }
+        while true {
+            try await hold(Self.hold)
+            let distance = reduceMotion ? 0 : overflow
+            if distance > 0 {
+                try await scroll(to: distance)
+                try await hold(Self.hold)
+            } else if texts.count < 2 {
+                return
             } else {
-                phase = .holdStart(elapsed: next)
+                try await hold(Self.holdFitting - Self.hold)
             }
-        case .scrolling:
-            offset = min(overflow, offset + Self.speed * Self.tick)
-            if offset >= overflow { phase = .holdEnd(elapsed: 0) }
-        case .holdEnd(let elapsed):
-            let next = elapsed + Self.tick
-            if next >= Self.hold { advance() } else { phase = .holdEnd(elapsed: next) }
+            if offset != 0 { offset = 0 }
+            index = (index + 1) % texts.count
         }
     }
 
-    /// 回到开头；有多条时换下一条。
-    private func advance() {
-        if texts.count > 1 { index = (index + 1) % texts.count }
-        restart()
+    /// 停 `seconds` 秒 (一次睡眠)；到点时鼠标还悬停着就等它移开。
+    private func hold(_ seconds: Double) async throws {
+        try await nap(seconds)
+        while isHovered { try await nap(Self.tick) }
+    }
+
+    /// 按帧向左滚到 `distance`，每帧按实际过去的时间走 (睡眠总会多睡一点，按固定步长走会比每秒 30 pt 慢)；悬停时停在原处。
+    private func scroll(to distance: CGFloat) async throws {
+        var last = ContinuousClock.now
+        while offset < distance {
+            try await nap(Self.tick)
+            let now = ContinuousClock.now
+            if !isHovered { offset = min(distance, offset + Self.speed * CGFloat((now - last) / .seconds(1))) }
+            last = now
+        }
+    }
+
+    private func nap(_ seconds: Double) async throws {
+        try await Task.sleep(for: .seconds(seconds))
+    }
+
+    /// 回到第一条的开头；已经在开头时不写，免得白白重算。
+    private func rewind() {
+        if index != 0 { index = 0 }
+        if offset != 0 { offset = 0 }
     }
 }
 

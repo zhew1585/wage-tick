@@ -71,14 +71,6 @@ public struct RestPanel: Sendable, Equatable {
         self.stats = stats
     }
 
-    /// 按带前缀的整句构造，供预览与旧调用处使用；整句须以「下一个上班日 」开头，否则日期为 nil。
-    public init(headline: String, tagline: String?, nextAttendanceText: String?, stats: [StatItem]) {
-        let date = nextAttendanceText.flatMap { text in
-            text.hasPrefix(Self.nextAttendancePrefix) ? String(text.dropFirst(Self.nextAttendancePrefix.count)) : nil
-        }
-        self.init(headline: headline, tagline: tagline, nextAttendanceDate: date, stats: stats)
-    }
-
     /// `nextAttendanceText` 的前缀。
     private static let nextAttendancePrefix = "下一个上班日 "
 }

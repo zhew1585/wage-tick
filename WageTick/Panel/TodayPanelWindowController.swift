@@ -22,6 +22,8 @@ final class TodayPanelContent {
     var isPinned = false
     /// 从右边推进来的页面 (历史、目标、设置)；nil 时显示概览 (或原地的表单)。
     var page: PanelPage?
+    /// 窗口看不看得见，与停表同一个判断 (`occlusionState` 含 `.visible`)；关窗时为 false。首页提示条据此停、开跑马灯。
+    var isWindowVisible = false
 }
 
 /// 在今日概览窗口里推进来的页面。
@@ -113,6 +115,8 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
     /// 点红绿灯或 ⌘W 关窗后停止刷新，推进来的页面也退掉。
     func windowWillClose(_ notification: Notification) {
         stop()
+        // 关窗只是收起 (不释放)，这时遮挡状态还没变，先记成看不见，提示条马上停。
+        content.isWindowVisible = false
         if let page = content.page {
             lifecycle(page).disappear()
             content.page = nil
@@ -182,8 +186,9 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    /// 露出来时立即刷新并接着定时刷；看不见时 `scheduleNextRefresh` 不再排下一次，定时器自然停下。
+    /// 露出来时立即刷新并接着定时刷；看不见时 `scheduleNextRefresh` 不再排下一次，定时器自然停下。首页提示条跟着停、开 (`isWindowVisible`)。
     func windowDidChangeOcclusionState(_ notification: Notification) {
+        updateVisibility()
         if panel.occlusionState.contains(.visible) && timer == nil {
             refresh()
         }
@@ -197,7 +202,14 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
         content.celebration = nil
     }
 
+    /// 把窗口看不看得见交给面板；没变时不写，免得白白重算。
+    private func updateVisibility() {
+        let visible = panel.occlusionState.contains(.visible)
+        if content.isWindowVisible != visible { content.isWindowVisible = visible }
+    }
+
     private func refresh() {
+        updateVisibility()
         let snap = model.currentSnapshot()
         content.panel = snap.panel
         content.status = snap.today?.status

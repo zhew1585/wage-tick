@@ -158,7 +158,8 @@ struct TodayPanelView: View {
         let notices = Self.notices(panel)
         if !notices.isEmpty {
             let frame = HomeNoticeLayout.frame
-            PanelNoticeBanner(texts: notices)
+            // 窗口看不见或首页被页面盖住时提示条停播，不在后台按帧醒。
+            PanelNoticeBanner(texts: notices, isActive: content.isWindowVisible && content.page == nil)
                 .frame(width: frame.width, height: frame.height)
                 .offset(x: frame.minX, y: frame.minY)
         }

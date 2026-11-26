@@ -108,18 +108,18 @@ private enum PagePreviews {
         }
     }
 
-    /// 在 11 月的基础上让格子里的东西最多：1 日 (周日) 改成上班、请假一段又扣钱 (日号、小圆点、「2h」、金额四样都有)，
-    /// 3 日请假一段又扣钱。只给月日历看格子放不放得下用。
+    /// 在 11 月的基础上让格子里的东西最多：1 日 (周日) 改成上班又扣钱、不请假 (日号、小圆点、金额三样都有；请了假的日子按请假画，不画小圆点)，
+    /// 3 日请假 2 小时又扣钱 (日号、「2h」、金额三行)。只给月日历看格子放不放得下用。
     private static func crowded(_ state: AppState) throws -> AppState {
         let leave = Leave(start: TimeOfDay(hour: 14, minute: 0), end: TimeOfDay(hour: 16, minute: 0), deductionPercent: Decimal(string: "28.57")!)
-        let fine = DeductionInput(amount: .fixed(50), reason: .late, note: "")
+        let deduction = DeductionInput(amount: .fixed(50), reason: .late, note: "")
+        let first = LocalDate(year: 2026, month: 11, day: 1)
+        let third = LocalDate(year: 2026, month: 11, day: 3)
         return try at(state, day: 5, 11, 0) {
-            for day in [1, 3] {
-                let date = LocalDate(year: 2026, month: 11, day: day)
-                if day == 1 { try $0.send(.editDay(date, .setOverride(.attendanceDay))) }
-                try $0.send(.editDay(date, .setLeave(leave)))
-                try $0.send(.editDay(date, .addDeduction(fine)))
-            }
+            try $0.send(.editDay(first, .setOverride(.attendanceDay)))
+            try $0.send(.editDay(first, .addDeduction(deduction)))
+            try $0.send(.editDay(third, .setLeave(leave)))
+            try $0.send(.editDay(third, .addDeduction(deduction)))
         }
     }
 
