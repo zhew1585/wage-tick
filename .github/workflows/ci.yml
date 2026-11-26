@@ -25,6 +25,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: 选 Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: 界面规则检查
+        # 把踩过的坑落成的硬性规则 (scripts/checks/README.md)：先自测 (故意违规必须被抓到)，再查当前源码。只读源码，不需要编译。
+        run: scripts/checks/run.sh static
       - name: 核心测试
         run: swift test --package-path WageCore
 
@@ -60,3 +63,15 @@ jobs:
 
       - name: 启动检查
         run: scripts/ci/smoke-test.sh "build/ci/Build/Products/Release/牛马鼓励器.app"
+
+      - name: 界面几何与交互回归
+        # 编 Debug、离屏渲染量页头、用临时假数据拉起 App 截真窗口图并在进程内驱动交互回归 (scripts/checks/README.md)；
+        # 拉不起窗口时报 blocked (退出码 2)，不算通过。
+        run: scripts/checks/run.sh ui
+
+      - name: 上传界面检查产物
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-checks
+          path: build/ui-checks/

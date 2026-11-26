@@ -9,9 +9,13 @@ build/floating-cow-previews/
 build/dd/
 build/release/
 build/ci/
+build/ui-checks/
 
 # /lead 写的 SPEC 只留在本机
 docs/spec/
 
 # 团队角色文件含机器与环境信息，只留本机主目录
 roles/
+
+# 检查脚本的 Python 缓存
+__pycache__/

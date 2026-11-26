@@ -1,0 +1,40 @@
+{
+  "scale": 2,
+  "windowWidthPt": 360,
+  "offscreenMarginPt": 24,
+  "titlebarHeightPt": 52,
+  "lightsRightEdgePt": 72,
+  "lightsGapRejectedPt": 6,
+  "verticalTolPt": 1,
+  "oneX": {"verticalTolPt": 2.5, "extraTolPt": 0.5},
+  "inkLum": 110,
+  "blankMinDiffRatio": 0.003,
+  "root": {
+    "pages": ["P3-goals", "P3-goals-empty", "P4-history", "P6-settings"],
+    "arrowLeftPt": 85,
+    "tolPt": 1,
+    "arrowTitleGapPt": [7.5, 12],
+    "maxTitleLeftPt": 105
+  },
+  "sub": {
+    "pages": ["P5-calendar", "P5-calendar-october", "P5-day-detail", "P5-day-detail-today", "P5-day-detail-leave", "P5-day-detail-overnight", "P5-day-detail-auto-stopped"],
+    "arrowLeftPt": 90,
+    "tolPt": 1,
+    "arrowTitleGapPt": [13, 18],
+    "maxTitleLeftPt": 114
+  },
+  "otherPages": {
+    "offscreen": ["P5-unpaid-work-form-overnight", "P6-settings-payday-sheet", "P6-settings-rest-mode-sheet", "U1-update-found", "U2-update-downloading", "U3-update-ready", "U4-update-up-to-date"],
+    "realwindow": ["today"]
+  },
+  "realwindowOptional": ["P3-goals-empty", "P5-calendar", "P5-calendar-october", "P5-day-detail", "P5-day-detail-today", "P5-day-detail-leave", "P5-day-detail-overnight", "P5-day-detail-auto-stopped"],
+  "provenance": {
+    "titlebarHeightPt": "Allen 2026-11-26 00:38 接受 52 高标题栏与概览红绿灯比原版低 12",
+    "lightsRightEdgePt": "84b2b71 真窗口图实测：三个圆在 20–32、40–52、60–72",
+    "lightsGapRejectedPt": "Allen 2026-11-26 00:38 看 84b2b71 真窗口图 (箭头离红绿灯约 6) 后明确说太近",
+    "root.arrowLeftPt": "d107b63 的设计值：箭头落在原版内容起点 85，离红绿灯 13。是否美观待 Allen 看真窗口图确认，确认后若调整要同步改这里",
+    "sub": "原版 9c69fd3 月日历页头实测：箭头 90–96.5，标题 111.5",
+    "verticalTolPt": "原版月日历页头的墨迹中心偏移是 +0.5",
+    "oneX": "PR #34 的 CI (托管 macos-15，1 倍屏) 实测：箭头左沿 86 与 91 (2 倍屏 85 与 90)，墨迹中心偏移 +1.5 至 +2.0 (2 倍屏 +0.75)。字按整像素对齐造成，不是排版变了"
+  }
+}

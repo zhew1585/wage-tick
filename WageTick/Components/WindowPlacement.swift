@@ -5,7 +5,7 @@ import AppKit
 /// - 拖过：回到上次拖到的位置 (存在 UserDefaults，跨启动)；那个位置已不在任何屏幕上 (拔了外接屏) 时退回居中。
 /// - 接替另一个窗口 (引导完成后的今日概览)：`place(replacing:)` 对齐它的左边和顶边，不记。
 ///
-/// 用法：窗口控制器持有 `WindowPlacement(window: window, name: "Goals")`，窗口没开着时、显示前调 `place()`。
+/// 用法：窗口控制器持有 `WindowPlacement(window: window, name: "TodayPanel")`，窗口没开着时、显示前调 `place()`。
 @MainActor
 final class WindowPlacement: NSObject {
     private let window: NSWindow
@@ -48,7 +48,7 @@ final class WindowPlacement: NSObject {
 
     /// 标题栏那一条落在某块屏幕的可用区域里，牛马才拖得回来。
     private func isOnScreen(_ frame: NSRect) -> Bool {
-        let titlebar = NSRect(x: frame.minX, y: frame.maxY - WindowChrome.Titlebar.hero.height, width: frame.width, height: WindowChrome.Titlebar.hero.height)
+        let titlebar = NSRect(x: frame.minX, y: frame.maxY - WindowChrome.Titlebar.standard.height, width: frame.width, height: WindowChrome.Titlebar.standard.height)
         return NSScreen.screens.contains { $0.visibleFrame.intersects(titlebar) }
     }
 

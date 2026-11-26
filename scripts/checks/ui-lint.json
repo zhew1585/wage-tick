@@ -1,0 +1,15 @@
+{
+  "minCoreTests": 618,
+  "coreSymbols": [
+    "HourBlocks", "heroKicker", "heroCaption", "heroQuip", "boldStats", "cowScene", "cowBubble",
+    "completedYears", "completedSummary", "workDaysText", "receivedText", "queueFinishText",
+    "HistoryOverview", "figuresLine", "monthDeduction", "salaryAmount", "standardHoursNumber", "daysUntilWork"
+  ],
+  "pageHeaderCallers": {
+    "WageTick/Goals/GoalsView.swift": "root",
+    "WageTick/History/HistoryView.swift": "root",
+    "WageTick/Settings/SettingsView.swift": "root",
+    "WageTick/History/MonthCalendarView.swift": "sub",
+    "WageTick/History/DayDetailView.swift": "sub"
+  }
+}
