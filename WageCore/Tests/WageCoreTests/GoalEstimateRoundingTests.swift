@@ -37,6 +37,21 @@ struct GoalEstimateRoundingTests {
         #expect(snap.panel?.goalQueue?.upcoming.map(\.finishText) == ["2月13日"])
     }
 
+    @Test("前一个目标落在周五时，极小的排队中目标数到下周一的应出勤日，不落在周末")
+    func tinyQueuedGoalSkipsWeekend() throws {
+        // 2月12日 (周四) 下班后、日薪 1000000000：A 要 1 个应出勤日 (2月13日 周五)，
+        // B、C 都只要 0.01，依次落在下周一 2月16日、下周二 2月17日。
+        let evening = moment(2026, 2, 12, 18, 0)
+        var state = try onboardedDaily(1_000_000_000, at: moment(2026, 2, 12, 9, 0))
+        state = try creatingGoal("A", 100, in: state, at: evening)
+        state = try creatingGoal("B", Decimal(string: "0.01")!, in: state, at: evening)
+        state = try creatingGoal("C", Decimal(string: "0.01")!, in: state, at: evening)
+
+        let snap = snapshot(of: state, at: evening)
+        #expect(try #require(snap.goals).queue.map(\.estimate)
+            == ["还需搬砖 1 天 · 2月13日", "排队中 · 预计 2月16日", "排队中 · 预计 2月17日"])
+    }
+
     @Test("累计中目标相对日薪极小时，下班后同样是今天就能达成")
     func tinyActiveGoalAfterWork() throws {
         let state = try creatingGoal("A", Decimal(string: "0.01")!, in: try onboardedDaily(1_000_000_000), at: standardDay(18, 0))
