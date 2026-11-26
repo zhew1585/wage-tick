@@ -144,10 +144,12 @@ extension GoalList {
         return workDays(total, dailyWage: dailyWage).map { "\(money) · 搬砖 \($0) 天" } ?? money
     }
 
-    /// `amount` 相当于搬砖几天，保留 1 位小数，如「1.9」「1.0」；日薪为 0 时为 nil。
+    /// `amount` 相当于搬砖几天，保留 1 位小数，如「1.9」「1.0」；日薪为 0 或金额大到十进制算不出时为 nil。
     private static func workDays(_ amount: Decimal, dailyWage: Decimal) -> String? {
         guard dailyWage > 0 else { return nil }
-        let text = NSDecimalNumber(decimal: Format.round(amount / dailyWage, scale: 1)).stringValue
+        let days = Format.round(amount / dailyWage, scale: 1)
+        guard !days.isNaN else { return nil }
+        let text = NSDecimalNumber(decimal: days).stringValue
         return text.contains(".") ? text : "\(text).0"
     }
 }

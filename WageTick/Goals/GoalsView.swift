@@ -106,7 +106,7 @@ struct GoalsView: View {
     }
 }
 
-/// 已完成的一行 (surface 底，整行 muted)：对勾、名称、达成日期，右边金额。不可拖动 (AC-GOAL-10)。
+/// 已完成的一行 (surface 底，整行 muted)：对勾、名称、达成日期，右边金额 (先于名称排版，超长时单行截断，名称至少留 `nameMinWidth`)。不可拖动 (AC-GOAL-10)。
 /// 名称放不下时悬停在整行上横向滚动 (`HoverMarqueeText`)。
 private struct CompletedGoalRowView: View {
     let row: CompletedGoalRow
@@ -114,19 +114,25 @@ private struct CompletedGoalRowView: View {
 
     @State private var hovering = false
 
+    /// 名称一栏至少留多宽：上限出现之前存下的超大金额先截断金额，名称仍露出开头几个字。
+    private static let nameMinWidth: CGFloat = 56
+
     var body: some View {
         HStack(spacing: Spacing.s10) {
             PhosphorIcon(.checkCircle, size: 16)
                 .foregroundStyle(Palette.money)
             VStack(alignment: .leading, spacing: Spacing.s2) {
                 HoverMarqueeText(row.name, isActive: hovering).font(AppFont.bodySemibold)
-                Text(row.completedText).font(AppFont.small)
+                Text(row.completedText).font(AppFont.small).lineLimit(1)
             }
+            .frame(minWidth: Self.nameMinWidth, alignment: .leading)
             Spacer(minLength: Spacing.s8)
             if hovering {
                 IconButton(systemName: "trash", help: "删除", action: delete)
             }
             Text(row.amountText).font(AppFont.num(13))
+                .lineLimit(1)
+                .layoutPriority(1)
         }
         .foregroundStyle(Palette.muted)
         .padding(.horizontal, Spacing.s14)

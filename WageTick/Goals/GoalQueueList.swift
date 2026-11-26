@@ -123,6 +123,8 @@ private struct QueueGoalRowView: View {
     static let height: CGFloat = 76
 
     private static let trackHeight: CGFloat = 6
+    /// 名称一栏至少留多宽：上限出现之前存下的超大金额先截断金额，名称仍露出开头几个字 (悬停时滚动露出全文)。
+    private static let nameMinWidth: CGFloat = 56
     private static let dragRadius = Radius.r10
 
     @State private var hovering = false
@@ -167,6 +169,7 @@ private struct QueueGoalRowView: View {
         return VStack(alignment: .leading, spacing: Spacing.s6) {
             HStack(spacing: Spacing.s6) {
                 HoverMarqueeText(card.name, isActive: showsButtons).font(AppFont.ui(14, .bold)).foregroundStyle(Palette.ink)
+                    .frame(minWidth: Self.nameMinWidth, alignment: .leading)
                 Spacer(minLength: Spacing.s4)
                 buttons
                 amount(card)
@@ -176,27 +179,31 @@ private struct QueueGoalRowView: View {
         }
     }
 
-    /// 排队中：名称与「排队中」，右边目标金额。
+    /// 排队中：名称与「排队中」，右边目标金额 (先于名称排版，超长时单行截断，名称至少留 `nameMinWidth`)。
     private var queued: some View {
         HStack(spacing: Spacing.s10) {
             VStack(alignment: .leading, spacing: Spacing.s2) {
                 HoverMarqueeText(row.name, isActive: showsButtons).font(AppFont.bodySemibold).foregroundStyle(Palette.ink)
-                Text("排队中").font(AppFont.small).foregroundStyle(Palette.muted)
+                Text("排队中").font(AppFont.small).foregroundStyle(Palette.muted).lineLimit(1)
             }
+            .frame(minWidth: Self.nameMinWidth, alignment: .leading)
             Spacer(minLength: Spacing.s8)
             buttons
             Text(row.amountText).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.ink)
+                .lineLimit(1)
+                .layoutPriority(1)
         }
     }
 
-    /// accent 大号累计额，后跟小号「/ 目标金额」。
+    /// accent 大号累计额，后跟小号「/ 目标金额」。先于名称排版、正常金额完整显示；
+    /// 上限出现之前存下的超大金额比整行还宽时单行截断，不溢出卡片，名称至少留 `nameMinWidth`。
     private func amount(_ card: ActiveGoalCard) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.s4) {
             Text(card.accumulatedText).font(AppFont.num(15, .bold)).foregroundStyle(Palette.accent)
             Text("/ \(card.targetText)").font(AppFont.numSmall).foregroundStyle(Palette.muted)
         }
         .lineLimit(1)
-        .fixedSize()
+        .layoutPriority(1)
     }
 
     private func track(_ progress: Double) -> some View {

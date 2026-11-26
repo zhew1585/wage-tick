@@ -52,6 +52,7 @@ private enum PagePreviews {
             ("P3-goals", goals(snap)),
             ("P3-goals-empty", goals(snapshot(of: try onboarded(), at: now))),
             ("P3-goals-long-name", goals(snapshot(of: try longGoalName(), at: moment(day: 26, 18, 0)))),
+            ("P3-goals-huge-amount", goals(snapshot(of: try hugeGoalAmount(), at: moment(day: 26, 18, 0)))),
             ("P4-history", history(snap)),
             ("P5-calendar", history(snap, month: today.yearMonth)),
             ("P5-calendar-october", history(snap, month: YearMonth(year: 2026, month: 10))),
@@ -89,6 +90,21 @@ private enum PagePreviews {
             try $0.send(.createGoal(name: "给自己换一台顶配的十六寸笔记本电脑", amount: 200000))
             try $0.send(.createGoal(name: "去趟大理", amount: 8000))
         }
+    }
+
+    /// 金额上限出现之前存下的超大金额：10 月 1 日早上引导 (月薪 20000) 并新建「买房」，后面排一个「去趟大理」8000；
+    /// 新建、编辑都不让超过 999999，所以存成 JSON 后把「买房」的金额改成 1e15 再读回。
+    private static func hugeGoalAmount() throws -> AppState {
+        let input = OnboardingInput(salary: 20000, schedule: schedule, launchAtLogin: false)
+        let state = try at(try apply(.completeOnboarding(input), to: AppState(), at: moment(month: 10, day: 1, 9, 0)).state, month: 10, day: 1, 9, 0) {
+            try $0.send(.createGoal(name: "买房", amount: 100000))
+            try $0.send(.createGoal(name: "去趟大理", amount: 8000))
+        }
+        guard var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(state)) as? [String: Any],
+              var goals = json["goals"] as? [[String: Any]], !goals.isEmpty else { return state }
+        goals[0]["amount"] = "1e15"
+        json["goals"] = goals
+        return try JSONDecoder().decode(AppState.self, from: JSONSerialization.data(withJSONObject: json))
     }
 
     /// 设计稿 P5 的 11 月：4 日迟到扣 50、18:00 至 19:42 白干，今天 (5 日) 扣 50，11 日请假 14:00 至 16:00 (28.57%)，30 日改成不上班；

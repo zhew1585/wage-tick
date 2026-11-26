@@ -97,6 +97,8 @@ extension ActiveGoalCard {
         }
         guard rest > 0 else { return (reachedToday, reachedToday, finishToday, .date(today.date)) }
         let days = workDays(for: rest, dailyWage: today.dailyWage)
+        // 剩下的只是十进制除法的末位误差 (如日薪 20000 ÷ 21 被截断后攒满一个月)，算出 0 天：已攒够。
+        guard days != 0 else { return (reachedToday, reachedToday, finishToday, .date(today.date)) }
         switch EstimatedFinish(days.flatMap { rule.finishDay($0, after: today.date, from: today.date) }, dailyWage: today.dailyWage) {
         case .unknown:
             // 本月全部覆盖为不上班时日薪为 0 (PRD 4.3.5 #19)，没法按当月日薪估算。
@@ -158,21 +160,21 @@ extension ActiveGoalCard {
 
 extension AttendanceRule {
     /// `day` 之后 (不含当天) 的第 `days` 个应出勤日；晚于 `today` 之后 `ActiveGoalCard.estimateDayLimit` 个日历日时太远，为 nil。
-    /// `days` 本身超过上限时一定太远，不用数。
+    /// `days` 本身超过上限时一定太远，不用数；小于 1 (金额相对日薪极小时算出 0) 时按 1 个数，不会原样返回 `day`。
     func finishDay(_ days: Decimal, after day: LocalDate, from today: LocalDate) -> LocalDate? {
         guard days <= Decimal(ActiveGoalCard.estimateDayLimit) else { return nil }
         return attendanceDay(NSDecimalNumber(decimal: days).intValue, after: day, through: today.adding(days: ActiveGoalCard.estimateDayLimit))
     }
 
-    /// `day` 之后 (不含当天) 的第 `count` 个应出勤日，`count` 至少为 1；数过 `last` 还没数到时为 nil。
+    /// `day` 之后 (不含当天) 的第 `count` 个应出勤日，`count` 至少为 1，小于 1 时按 1 数；数过 `last` 还没数到时为 nil。
     func attendanceDay(_ count: Int, after day: LocalDate, through last: LocalDate) -> LocalDate? {
         var found = 0
         var date = day
-        while found < count {
+        repeat {
             date = date.adding(days: 1)
             guard date <= last else { return nil }
             if isAttendanceDay(date) { found += 1 }
-        }
+        } while found < count
         return date
     }
 }
