@@ -67,9 +67,12 @@ LINT_VIOLATIONS = [
     ('已完成名称改回普通文字', 'WageTick/Goals/GoalsView.swift', 'HoverMarqueeText(row.name, isActive: hovering)', 'Text(row.name).lineLimit(1)', 'GOALS-ROW'),
     ('目标金额上限被放开', 'WageCore/Sources/WageCore/Goals/GoalValidation.swift', 'goalAmountLimit: Decimal = 999999', 'goalAmountLimit: Decimal = 99999999', 'GOALS-LIMIT'),
     ('预计完成日又直接逐天数', 'WageCore/Sources/WageCore/Goals/GoalQueueSection.swift',
-     '.flatMap { finishDay($0, after: day) }', '.map { attendanceDay(NSDecimalNumber(decimal: $0).intValue, after: day) }', 'GOALS-LIMIT'),
+     '.flatMap { finishDay($0, after: day, from: today) }',
+     '.flatMap { attendanceDay(NSDecimalNumber(decimal: $0).intValue, after: day, through: today.adding(days: 100_000)) }', 'GOALS-LIMIT'),
     ('finishDay 不再看天数上限', 'WageCore/Sources/WageCore/Goals/GoalCard.swift',
-     '        guard days <= Decimal(ActiveGoalCard.estimateDayLimit) else { return nil }\n', '', 'GOALS-LIMIT'),
+     '        guard days <= Decimal(ActiveGoalCard.estimateDayLimit) else { return nil }\n'
+     '        return attendanceDay(NSDecimalNumber(decimal: days).intValue, after: day, through: today.adding(days: ActiveGoalCard.estimateDayLimit))\n',
+     '        return attendanceDay(NSDecimalNumber(decimal: days).intValue, after: day, through: today.adding(days: 100_000))\n', 'GOALS-LIMIT'),
 ]
 
 WINDOW, MARGIN, INK, PAPER = 360, 24, (60, 40, 30), (255, 253, 248)

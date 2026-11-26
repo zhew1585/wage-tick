@@ -525,13 +525,16 @@ struct GoalBoldPageTests {
         #expect(list.queueFinishText == "全部攒完 预计 3月4日")
     }
 
-    @Test("全部攒完跨年时写年月；队列为空时没有")
+    @Test("全部攒完跨年时写年月；在今天一年以后或队列为空时没有")
     func finishInLaterYear() throws {
-        let state = try creatingGoals([("A", 10000), ("B", 300_000)], in: try onboarded(), at: standardDay(9, 0))
+        let state = try creatingGoals([("A", 10000), ("B", 250_000)], in: try onboarded(), at: standardDay(9, 0))
+        let far = try creatingGoals([("A", 10000), ("B", 300_000)], in: try onboarded(), at: standardDay(9, 0))
 
-        // A 到 2026 年 2 月 24 日；B 300 天，双休下正好 60 周，再过 420 天到 2027 年 4 月 20 日。
+        // A 到 2026 年 2 月 24 日；B 250 天，双休下正好 50 周，再过 350 天到 2027 年 2 月 9 日，在今天之后 365 天以内。
         let finish = try goalList(state, at: standardDay(11, 0)).queueFinishText
-        #expect(finish == "全部攒完 预计 2027年4月")
+        #expect(finish == "全部攒完 预计 2027年2月")
+        // B 300 天要到 2027 年 4 月 20 日，晚于今天之后 365 天。
+        #expect(try goalList(far, at: standardDay(11, 0)).queueFinishText == nil)
         #expect(try goalList(try onboarded(), at: standardDay(11, 0)).queueFinishText == nil)
     }
 
