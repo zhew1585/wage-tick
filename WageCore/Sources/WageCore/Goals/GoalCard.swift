@@ -166,15 +166,16 @@ extension AttendanceRule {
         return attendanceDay(NSDecimalNumber(decimal: days).intValue, after: day, through: today.adding(days: ActiveGoalCard.estimateDayLimit))
     }
 
-    /// `day` 之后 (不含当天) 的第 `count` 个应出勤日，`count` 至少为 1，小于 1 时按 1 数；数过 `last` 还没数到时为 nil。
+    /// `day` 之后 (不含当天) 的第 `count` 个应出勤日；`count` 小于 1 时按 1 数，返回的一定是应出勤日，不会是 `day` 或其后的休息日；数过 `last` 还没数到时为 nil。
     func attendanceDay(_ count: Int, after day: LocalDate, through last: LocalDate) -> LocalDate? {
+        let target = max(count, 1)
         var found = 0
         var date = day
-        repeat {
+        while found < target {
             date = date.adding(days: 1)
             guard date <= last else { return nil }
             if isAttendanceDay(date) { found += 1 }
-        } while found < count
+        }
         return date
     }
 }
