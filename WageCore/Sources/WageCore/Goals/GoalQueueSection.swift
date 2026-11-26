@@ -22,6 +22,8 @@ public struct QueuedGoalCard: Sendable, Equatable, Identifiable {
     public let estimate: String
     /// 面板攒钱队列里的短版预计，如「预计 2月27日」「预计 2027年1月」「暂时没法预计」。
     public let shortEstimate: String
+    /// 首页用的预计完成，只有日期，如「2月27日」「2027年1月」；没法预计时为 nil。
+    public let finishText: String?
 }
 
 extension GoalQueueSection {
@@ -52,12 +54,8 @@ extension QueuedGoalCard {
         id = goal.id
         name = goal.name
         amountText = Format.money(goal.amount)
-        guard let finish else {
-            shortEstimate = ActiveGoalCard.noEstimateShort
-            estimate = "排队中 · \(shortEstimate)"
-            return
-        }
-        shortEstimate = "预计 \(Format.estimateDate(finish, today: today))"
+        finishText = finish.map { Format.estimateDate($0, today: today) }
+        shortEstimate = finishText.map { "预计 \($0)" } ?? ActiveGoalCard.noEstimateShort
         estimate = "排队中 · \(shortEstimate)"
     }
 }

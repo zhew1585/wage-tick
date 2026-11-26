@@ -54,17 +54,33 @@ public struct RestPanel: Sendable, Equatable {
     public let headline: String
     /// 标题下方的一句说明，如「不搬砖，不计钱。」；全天请假时为 nil (请假可能扣薪)。
     public let tagline: String?
-    /// 标题下方的下一个应出勤日，如「下一个上班日 11月10日 周一」；一年内都没有时为 nil。
-    public let nextAttendanceText: String?
+    /// 下一个应出勤日，只有日期，如「11月10日 周一」，不在今年时带年份，如「2027年1月4日 周一」；一年内都没有时为 nil。
+    public let nextAttendanceDate: String?
     /// 统计行：本月已上班 (如「5/20 天」)、本月累计、距离周末。
     public let stats: [StatItem]
 
-    public init(headline: String, tagline: String?, nextAttendanceText: String?, stats: [StatItem]) {
+    /// 标题下方的下一个应出勤日，如「下一个上班日 11月10日 周一」；一年内都没有时为 nil。
+    public var nextAttendanceText: String? {
+        nextAttendanceDate.map { Self.nextAttendancePrefix + $0 }
+    }
+
+    public init(headline: String, tagline: String?, nextAttendanceDate: String?, stats: [StatItem]) {
         self.headline = headline
         self.tagline = tagline
-        self.nextAttendanceText = nextAttendanceText
+        self.nextAttendanceDate = nextAttendanceDate
         self.stats = stats
     }
+
+    /// 按带前缀的整句构造，供预览与旧调用处使用；整句须以「下一个上班日 」开头，否则日期为 nil。
+    public init(headline: String, tagline: String?, nextAttendanceText: String?, stats: [StatItem]) {
+        let date = nextAttendanceText.flatMap { text in
+            text.hasPrefix(Self.nextAttendancePrefix) ? String(text.dropFirst(Self.nextAttendancePrefix.count)) : nil
+        }
+        self.init(headline: headline, tagline: tagline, nextAttendanceDate: date, stats: stats)
+    }
+
+    /// `nextAttendanceText` 的前缀。
+    private static let nextAttendancePrefix = "下一个上班日 "
 }
 
 /// 统计行里的一项，如「本月累计 ¥9571.43」。
@@ -117,10 +133,14 @@ public struct WorkProgress: Sendable, Equatable {
     public let percent: String
     /// 进度条各段，饭点与落在中间的请假显示为段与段之间的间隔。
     public let segments: [ProgressSegment]
+    /// 当日计划上班的时刻，不带前缀，如「10:00」(请了前半天为「13:00」)。
+    public let startClock: String
+    /// 当日计划下班的时刻，不带前缀，如「18:00」(请了后半天为「12:00」)。
+    public let endClock: String
     /// 进度条下方左端，当日计划上班，如「上班 10:00」。
-    public let startText: String
+    public var startText: String { "上班 \(startClock)" }
     /// 进度条下方右端，当日计划下班，如「下班 18:00」(请了后半天为「下班 12:00」)。
-    public let endText: String
+    public var endText: String { "下班 \(endClock)" }
 }
 
 /// 进度条的一段 (只用于绘制)。
@@ -263,7 +283,7 @@ extension RestPanel {
         self.init(
             headline: isLeave ? "今天请假" : "今天休息",
             tagline: isLeave ? nil : "不搬砖，不计钱。",
-            nextAttendanceText: today.nextAttendanceDay.map { "下一个上班日 \(Format.date($0, relativeTo: today.date))" },
+            nextAttendanceDate: today.nextAttendanceDay.map { Format.date($0, relativeTo: today.date) },
             stats: [
                 StatItem(title: "本月已上班", value: "\(today.attendedDays)/\(monthDays) 天"),
                 StatItem(title: "本月累计", value: Format.money(today.monthToDate)),
@@ -289,8 +309,8 @@ extension WorkProgress {
             let walked = min(max(now.timeIntervalSince(period.start), 0), period.length)
             return ProgressSegment(share: period.length / barLength, filled: walked / period.length)
         }
-        startText = "上班 \(Format.time(Moment(date: plan.start, timeZone: moment.timeZone)))"
-        endText = "下班 \(Format.time(Moment(date: plan.end, timeZone: moment.timeZone)))"
+        startClock = Format.time(Moment(date: plan.start, timeZone: moment.timeZone))
+        endClock = Format.time(Moment(date: plan.end, timeZone: moment.timeZone))
     }
 }
 

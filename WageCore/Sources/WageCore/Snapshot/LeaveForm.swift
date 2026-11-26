@@ -9,6 +9,8 @@ public struct LeaveForm: Sendable, Equatable {
     public let current: Leave?
     /// 已有请假的一句话描述，如「已请假 14:00–16:00 · 扣薪 28.57%」「已请全天假 · 扣薪 100.00%」；没请假时为 nil。
     public let currentText: String?
+    /// 已有请假的扣薪比例，即 `currentText` 里「 · 」后面那段，如「扣薪 28.57%」「扣薪 100.00%」；没请假时为 nil。
+    public let deductionRateText: String?
     /// 今天请假的短描述，放在面板底部入口栏右侧：「全天请假」或「请假 14:00–16:00」；没请假时为 nil。
     public let shortText: String?
     /// 汇总：当日计划 (今天为「今天上班 10:00–14:00、16:00–18:00」，全天请假为「全天请假」)、
@@ -43,9 +45,12 @@ extension LeaveForm {
         current = leave
         canRequest = leave == nil
         shortText = leave.map { $0.isFullDay(schedule) ? "全天请假" : "请假 \(Format.span($0.range.span))" }
-        currentText = leave.map { leave in
-            let percent = "扣薪 \(Format.percent(leave.deductionPercent / 100))"
-            return leave.isFullDay(schedule) ? "已请全天假 · \(percent)" : "已请假 \(Format.span(leave.range.span)) · \(percent)"
+        let rate = leave.map { "扣薪 \(Format.percent($0.deductionPercent / 100))" }
+        deductionRateText = rate
+        currentText = if let leave, let rate {
+            leave.isFullDay(schedule) ? "已请全天假 · \(rate)" : "已请假 \(Format.span(leave.range.span)) · \(rate)"
+        } else {
+            nil
         }
         summary = [
             StatItem(title: planTitle, value: Self.planText(leave: leave, schedule: schedule)),
