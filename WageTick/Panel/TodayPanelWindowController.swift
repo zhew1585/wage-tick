@@ -256,13 +256,12 @@ final class TodayPanelWindowController: NSObject, NSWindowDelegate {
             openGoals: { [weak self] in self?.push(.goals) },
             openSettings: { [weak self] in self?.push(.settings) }
         )
-        // 标题栏 52 高 (`.tall`)，红绿灯在里面垂直居中：推进来的页面顶到窗口上沿，页头 (`PageHeader`，同高) 和红绿灯排成一行；
-        // 概览与原地的表单照旧从上面 28 处排起 (`titlebarInset`)。
+        // 标题栏 52 高 (`.tall`)，红绿灯在里面垂直居中：概览、原地的表单、推进来的页面都顶到窗口上沿，
+        // 表单与页面的页头 (`PageHeader`，同高) 和红绿灯排成一行，概览在这一行放提示条 (`HomeLayout` 从窗口顶边算)。
         // 钉住按钮在标题栏右侧，和红绿灯同一行，画在概览那一层 (`togglePin`)：页面推进来时盖住它，退出去时再露出来。
         let view = TodayPanelView(
             content: content, actions: actions, navigation: navigation,
             page: { [weak self] page in self?.pageView(page) ?? AnyView(EmptyView()) },
-            titlebarInset: WindowChrome.Titlebar.standard.height,
             togglePin: { [weak self] in self?.togglePin() }
         )
         let panel = WindowChrome.makeWindow(PanelWindow.self, title: "今日概览", titlebar: .tall, rootView: view)

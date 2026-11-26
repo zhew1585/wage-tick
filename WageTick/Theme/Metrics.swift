@@ -81,6 +81,12 @@ enum HomeLayout {
     }
 }
 
+/// 首页提示条的位置 (相对窗口左上角)：和红绿灯、图钉同一行，左边让出红绿灯 (原版标题的起点 85)，右边离图钉 7。
+/// 只占一行，放不下时横向滚动 (`PanelNoticeBanner`)。
+enum HomeNoticeLayout {
+    static let frame = CGRect(x: 85, y: 14, width: 236, height: 24)
+}
+
 /// 控件高度 token (设计稿里直接写的高度)。
 enum ControlHeight {
     /// 子页面底部整宽主按钮 (目标页「新目标」)，760 设计稿 44。
