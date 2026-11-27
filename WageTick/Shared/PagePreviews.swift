@@ -81,15 +81,19 @@ private enum PagePreviews {
         return try apply(.completeOnboarding(input), to: AppState(), at: moment(month: 10, day: 15, 9, 0)).state
     }
 
-    /// 累计中目标名称放不下的样子：10 月 1 日早上引导 (月薪 20000) 并新建「给自己换一台顶配的十六寸笔记本电脑」200000，
-    /// 后面排一个「去趟大理」。11 月 26 日下班时累计 10 月整月 20000 + 11 月 21 个应出勤日里的 19 个，即「¥38095.24 / ¥200000」。
+    /// 三种行名称都放不下的样子：10 月 1 日早上引导 (月薪 20000)，依次新建「请全家去吃一顿特别贵的海鲜自助大餐」2000、
+    /// 「给自己换一台顶配的十六寸笔记本电脑」200000、「去趟大理」8000、「周末带爸妈去海边吃海鲜住几天的家庭旅行」30000。
+    /// 第一个 10 月里就达成 (10 月 30 日推进后记为已完成)，笔记本电脑接着累计中，后两个排队中。
     private static func longGoalName() throws -> AppState {
         let input = OnboardingInput(salary: 20000, schedule: schedule, launchAtLogin: false)
         let state = try apply(.completeOnboarding(input), to: AppState(), at: moment(month: 10, day: 1, 9, 0)).state
-        return try at(state, month: 10, day: 1, 9, 0) {
+        let created = try at(state, month: 10, day: 1, 9, 0) {
+            try $0.send(.createGoal(name: "请全家去吃一顿特别贵的海鲜自助大餐", amount: 2000))
             try $0.send(.createGoal(name: "给自己换一台顶配的十六寸笔记本电脑", amount: 200000))
             try $0.send(.createGoal(name: "去趟大理", amount: 8000))
+            try $0.send(.createGoal(name: "周末带爸妈去海边吃海鲜住几天的家庭旅行", amount: 30000))
         }
+        return try at(created, month: 10, day: 30, 9, 0) { try $0.send(.advance) }
     }
 
     /// 金额上限出现之前存下的超大金额：10 月 1 日早上引导 (月薪 20000) 并新建「买房」，后面排一个「去趟大理」8000；

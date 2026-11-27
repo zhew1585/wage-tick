@@ -3,7 +3,8 @@ import SwiftUI
 /// 单行文字，放不下时尾部省略；`isActive` (如鼠标悬停在所在的行上) 且此刻放不下时在原位横向滚动露出全文。
 /// 滚动节奏：开头停 0.8 秒，以每秒 30 pt 向左滚到末尾露全，停 0.8 秒，回到开头，循环；滚动时两端裁掉，不出省略号。
 /// `isActive` 变为 false 立刻回到静止的省略样子；系统开了「减弱动态效果」时不滚动。放不下时 `.help` 给出全文。
-/// 占的宽度与 `Text(text).lineLimit(1)` 完全一样 (静止的那份文字始终参与排版，滚动的那份只是叠在上面)；
+/// 占满给它的宽度 (文字靠左)，滚动的可见区域就是这一整栏，滚到末尾时文字右端贴着这一栏的右沿；
+/// 静止的那份文字始终参与排版，滚动的那份只是叠在上面，滚不滚占的宽度都一样。
 /// 字体、颜色从外面设，如 `HoverMarqueeText(name, isActive: hovering).font(…).foregroundStyle(…)`。
 /// 不滚动时没有任何定时任务：滚动用 `KeyframeAnimator`，只在滚动时挂在视图上，停下即移除。
 struct HoverMarqueeText: View {
@@ -18,7 +19,7 @@ struct HoverMarqueeText: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// 文字不受限时的自然宽度。
     @State private var fullWidth: CGFloat = 0
-    /// 静止那份文字实际排到的宽度，放不下时就是可用宽度。
+    /// 这一栏的宽度。
     @State private var shownWidth: CGFloat = 0
 
     /// 开头、结尾各停多久 (秒)。
@@ -39,6 +40,7 @@ struct HoverMarqueeText: View {
             .lineLimit(1)
             .truncationMode(.tail)
             .opacity(scrolls ? 0 : 1)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background { widthReader { shownWidth = $0 } }
             .background(alignment: .leading) {
                 Text(text).lineLimit(1).fixedSize().hidden()
@@ -50,7 +52,7 @@ struct HoverMarqueeText: View {
             .help(overflow > 0 ? text : "")
     }
 
-    /// 滚动的那份文字：按自然宽度排开，裁在静止文字的位置里。
+    /// 滚动的那份文字：按自然宽度排开，裁在这一栏里。
     private var marquee: some View {
         let distance = overflow
         return Text(text)
@@ -63,7 +65,7 @@ struct HoverMarqueeText: View {
                 LinearKeyframe(distance, duration: distance / Self.speed)
                 LinearKeyframe(distance, duration: Self.hold)
             }
-            // minWidth 0：外框取静止文字的宽度，不被更宽的滚动文字撑开，裁切才落在原位。
+            // minWidth 0：外框取这一栏的宽度，不被更宽的滚动文字撑开，裁切才落在原位。
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             .clipped()
     }
