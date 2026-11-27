@@ -117,17 +117,23 @@ public struct AttendancePanel: Sendable, Equatable {
     public let notice: String?
 }
 
-/// 工作进度区。
+/// 进度区：上班中是当日计划上班到下班的工作进度，白干中是这段白干从开始走到自动停止时刻的进度。
 public struct WorkProgress: Sendable, Equatable {
-    /// 如「已工作 4 / 7 小时」「已工作 5.1 / 7 小时」：小时数保留 1 位小数，已工作向下取。
+    /// 上班中如「已工作 4 / 7 小时」「已工作 5.1 / 7 小时」：小时数保留 1 位小数，已工作向下取；
+    /// 白干中如「最多白干 15 小时」：开始到自动停止时刻的小时数，保留 1 位小数。
     public let label: String
-    /// 如「57.14%」。
+    /// 如「57.14%」，不超过 100%。
     public let percent: String
-    /// 进度条各段，饭点与落在中间的请假显示为段与段之间的间隔。
+    /// 进度条各段，饭点与落在中间的请假显示为段与段之间的间隔；白干中只有一段。
     public let segments: [ProgressSegment]
-    /// 当日计划上班的时刻，不带前缀，如「10:00」(请了前半天为「13:00」)。
+    /// 左端时刻前的日子，白干开始那天不是今天时如「昨天」「11月6日」；上班中与开始在今天时为 nil。
+    public let startDay: String?
+    /// 左端时刻，不带前缀：上班中为当日计划上班，如「10:00」(请了前半天为「13:00」)；白干中为开始时刻。
     public let startClock: String
-    /// 当日计划下班的时刻，不带前缀，如「18:00」(请了后半天为「12:00」)。
+    /// 右端时刻前的日子，白干中自动停止不在今天时为「明天」、2 到 6 天后为星期几 (如「周一」)、更远为月日 (如「12月4日」)；
+    /// 上班中与停在今天时为 nil。
+    public let endDay: String?
+    /// 右端时刻，不带前缀：上班中为当日计划下班，如「18:00」(请了后半天为「12:00」)；白干中为自动停止时刻。
     public let endClock: String
     /// 进度条下方左端，当日计划上班，如「上班 10:00」。
     public var startText: String { "上班 \(startClock)" }
@@ -301,8 +307,35 @@ extension WorkProgress {
             let walked = min(max(now.timeIntervalSince(period.start), 0), period.length)
             return ProgressSegment(share: period.length / barLength, filled: walked / period.length)
         }
+        startDay = nil
         startClock = Format.time(Moment(date: plan.start, timeZone: moment.timeZone))
+        endDay = nil
         endClock = Format.time(Moment(date: plan.end, timeZone: moment.timeZone))
+    }
+
+    /// 白干中的进度：这一段从开始时刻走到自动停止时刻，走过的比例不超过 1。两端的日子相对今天 (`today`) 写。
+    init(running: RunningUnpaidWork, today: LocalDate, now: Moment) {
+        let total = max(0, Int((running.autoStop.timeIntervalSince(running.since) * 1000).rounded(.down)))
+        let elapsed = min(max(0, Int((now.date.timeIntervalSince(running.since) * 1000).rounded(.down))), total)
+        let ratio = total > 0 ? Decimal(elapsed) / Decimal(total) : 1
+        label = "最多白干 \(Format.workHours(milliseconds: total)) 小时"
+        percent = Format.percent(ratio)
+        segments = [ProgressSegment(share: 1, filled: total > 0 ? Double(elapsed) / Double(total) : 1)]
+        startDay = running.date == today ? nil : Format.shortDay(running.date, relativeTo: today)
+        startClock = Format.time(Moment(date: running.since, timeZone: now.timeZone))
+        let stop = Moment(date: running.autoStop, timeZone: now.timeZone)
+        endDay = Self.dayPrefix(stop.localDate, relativeTo: today)
+        endClock = Format.time(stop)
+    }
+
+    /// 白干自动停止那天相对今天的写法：今天为 nil，明天「明天」，2 到 6 天后星期几，更远月日。
+    private static func dayPrefix(_ date: LocalDate, relativeTo today: LocalDate) -> String? {
+        switch date.days(since: today) {
+        case ...0: nil
+        case 1: "明天"
+        case 2...6: Format.weekday(date)
+        default: Format.monthDay(date)
+        }
     }
 }
 

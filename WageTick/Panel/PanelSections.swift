@@ -11,7 +11,7 @@ enum PanelMetrics {
     static let actionButtonHeight: CGFloat = 44
     /// 表单内容区各组之间的间距 (设计稿 F5、F6 Body)。
     static let formSectionGap: CGFloat = 26
-    /// 进度区位置上的白干计时按钮 (我还没走、终于下班了) 高度。
+    /// 进度区位置上的白干计时按钮 (已下班的我还没走) 高度。
     static let unpaidWorkButtonHeight: CGFloat = 48
 }
 
@@ -58,7 +58,7 @@ struct PanelTopBar: View {
 }
 
 /// 首页提示条 (节假日数据缺失、本月没有要上班的日子、扣款超过日薪)，在红绿灯那一行 (`HomeNoticeLayout`)，只占一行。
-/// accentSoft 底、圆角 8、左右 8，warning 图标 13 + 12 号文字，都是 accent 色；文案原样取自快照。
+/// accentSoft 底、圆角 8、左右 8，只有 12 号 accent 色文字，没有图标；文案原样取自快照。
 /// 放得下就静止；放不下时跑马灯：停 1.5 秒，以每秒 30 pt 向左滚到结尾，停 1.5 秒回到开头，循环。
 /// 有多条时一条播完 (放得下的停 4 秒) 换下一条。悬停时暂停，`.help` 给出这一条的全文；看不见时悬停复位，不会卡在暂停。
 /// 系统开了「减弱动态效果」时不滚动，放不下的截断。
@@ -96,26 +96,23 @@ struct PanelNoticeBanner: View {
     }
 
     var body: some View {
-        HStack(spacing: Spacing.s6) {
-            PhosphorIcon(.warning, size: 13)
-            GeometryReader { geometry in
-                Group {
-                    if reduceMotion {
-                        Text(text).lineLimit(1).truncationMode(.tail)
-                            .frame(width: geometry.size.width, alignment: .leading)
-                    } else {
-                        Text(text).lineLimit(1).fixedSize()
-                            .background(GeometryReader { Color.clear.preference(key: TextWidthKey.self, value: $0.size.width) })
-                            .offset(x: -offset)
-                    }
+        GeometryReader { geometry in
+            Group {
+                if reduceMotion {
+                    Text(text).lineLimit(1).truncationMode(.tail)
+                        .frame(width: geometry.size.width, alignment: .leading)
+                } else {
+                    Text(text).lineLimit(1).fixedSize()
+                        .background(GeometryReader { Color.clear.preference(key: TextWidthKey.self, value: $0.size.width) })
+                        .offset(x: -offset)
                 }
-                .frame(height: geometry.size.height)
-                .onAppear { viewportWidth = geometry.size.width }
-                .onChange(of: geometry.size.width) { _, width in viewportWidth = width }
             }
-            .clipped()
-            .onPreferenceChange(TextWidthKey.self) { textWidth = $0 }
+            .frame(height: geometry.size.height)
+            .onAppear { viewportWidth = geometry.size.width }
+            .onChange(of: geometry.size.width) { _, width in viewportWidth = width }
         }
+        .clipped()
+        .onPreferenceChange(TextWidthKey.self) { textWidth = $0 }
         .font(AppFont.caption)
         .foregroundStyle(Palette.accent)
         .padding(.horizontal, Spacing.s8)
@@ -273,27 +270,35 @@ struct PanelRestHero: View {
     }
 }
 
-/// 工作进度区 (56 高)：0–18 是「已工作 4 / 7 小时」(13/500 ink) 与百分比 (等宽 13/600 money)，
-/// 26–36 是分段进度条，42–56 是计划上班与下班时刻 (等宽 11 muted)。
+/// 进度区 (56 高)：0–18 是说明 (13/500 ink，如「已工作 4 / 7 小时」「最多白干 15 小时」) 与百分比 (等宽 13/600，`tone` 色)，
+/// 26–36 是分段进度条 (填充 `tone` 色)，42–56 是两端时刻 (等宽 11 muted)；时刻前有日子 (如「昨天」「明天」) 时，
+/// 日子用界面字体 11 muted，与时刻间距 3。上班中 `tone` 为 money，白干中为 loss。
 /// 第一行上提 1：打包的 Noto Sans SC 13 号的行高 19 比这一行的 18 高，墨迹又偏行框下方，不提的话字底贴着 18 的下沿。
 struct PanelProgress: View {
     let progress: WorkProgress
+    var tone: Color = Palette.money
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .lastTextBaseline) {
                 Text(progress.label).font(AppFont.bodyMedium).foregroundStyle(Palette.ink)
                 Spacer()
-                Text(progress.percent).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.money)
+                Text(progress.percent).font(AppFont.num(13, .semibold)).foregroundStyle(tone)
             }
             .frame(height: 18)
             .offset(y: -1)
-            SegmentedProgressBar(segments: progress.segments)
+            SegmentedProgressBar(segments: progress.segments, tone: tone)
                 .padding(.top, Spacing.s8)
             HStack {
-                Text(progress.startClock)
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.s3) {
+                    if let day = progress.startDay { Text(day).font(AppFont.small) }
+                    Text(progress.startClock)
+                }
                 Spacer()
-                Text(progress.endClock)
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.s3) {
+                    if let day = progress.endDay { Text(day).font(AppFont.small) }
+                    Text(progress.endClock)
+                }
             }
             .font(AppFont.numSmall)
             .foregroundStyle(Palette.muted)
@@ -304,9 +309,10 @@ struct PanelProgress: View {
     }
 }
 
-/// 分段进度条 (高 10、圆角 3)：每段宽度按 `share` 分配，段与段之间是一小块 surface 色的饭点。
+/// 分段进度条 (高 10、圆角 3)：每段宽度按 `share` 分配，已走过的部分填 `tone` 色，段与段之间是一小块 surface 色的饭点。
 private struct SegmentedProgressBar: View {
     let segments: [ProgressSegment]
+    let tone: Color
 
     private static let gap: CGFloat = 3
     private static let lunchWidth: CGFloat = 16
@@ -326,7 +332,7 @@ private struct SegmentedProgressBar: View {
                     RoundedRectangle(cornerRadius: Self.radius)
                         .fill(Palette.line)
                         .overlay(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: Self.radius).fill(Palette.money).frame(width: width * segment.filled)
+                            RoundedRectangle(cornerRadius: Self.radius).fill(tone).frame(width: width * segment.filled)
                         }
                         .frame(width: width)
                 }

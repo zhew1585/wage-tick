@@ -152,18 +152,20 @@ struct UnpaidWorkPanelTests {
         let panel = try #require(snapshot(of: state, at: standardDay(19, 5, 12)).panel)
 
         #expect(panel.statusLabel == "白干中")
-        // 扣款一项随扣钱 (#7) 加入，与已下班的统计行共用同一份。
-        #expect(panel.body == .unpaidWork(UnpaidWorkPanel(
+        // 扣款一项随扣钱 (#7) 加入，与已下班的统计行共用同一份。进度区见 UnpaidWorkProgressTests。
+        let body = try #require(panel.unpaidWorkBody)
+        #expect(body.progress.label == "最多白干 16 小时")
+        #expect(body == UnpaidWorkPanel(
             label: "今日已倒贴",
             headline: "¥155.2381",
             caption: "18:00 起 · 已白干 1:05:12",
+            progress: body.progress,
             stats: [
                 StatItem(title: "今日结算", value: "¥1000"),
                 StatItem(title: "距离周末", value: "3 天", tone: .accent),
                 StatItem(title: "本月累计", value: "¥8000"),
-            ],
-            isRestDay: false
-        )))
+            ]
+        ))
         #expect(snapshot(of: state, at: standardDay(19, 5, 12)).today?.isRolling == true)
     }
 
@@ -187,17 +189,19 @@ struct UnpaidWorkPanelTests {
         let panel = try #require(snapshot(of: state, at: saturday(10, 30)).panel)
 
         #expect(panel.statusLabel == "白干中")
-        #expect(panel.body == .unpaidWork(UnpaidWorkPanel(
+        let body = try #require(panel.unpaidWorkBody)
+        #expect(body.progress.label == "最多白干 48 小时")
+        #expect(body == UnpaidWorkPanel(
             label: "今日已倒贴",
             headline: "¥71.4286",
             caption: "10:00 起 · 已白干 0:30:00",
+            progress: body.progress,
             stats: [
                 StatItem(title: "今日结算", value: "¥0"),
                 StatItem(title: "距离周末", value: "正在休息", tone: .accent),
                 StatItem(title: "本月累计", value: "¥10000"),
-            ],
-            isRestDay: true
-        )))
+            ]
+        ))
     }
 
     @Test("AC-BAR-09 白干计时中小牛边拉磨边冒汗，菜单栏数字仍是今日结算；停止后回到躺平")
@@ -286,17 +290,19 @@ struct UnpaidWorkWithDayRecordsTests {
         let running = try applied(.startUnpaidWork, to: state, at: standardDay(10, 0))
         let panel = try #require(snapshot(of: running, at: standardDay(10, 30)).panel)
         #expect(panel.statusLabel == "白干中")
-        #expect(panel.body == .unpaidWork(UnpaidWorkPanel(
+        let body = try #require(panel.unpaidWorkBody)
+        #expect(body.progress.label == "最多白干 24 小时")
+        #expect(body == UnpaidWorkPanel(
             label: "今日已倒贴",
             headline: "¥71.4286",
             caption: "10:00 起 · 已白干 0:30:00",
+            progress: body.progress,
             stats: [
                 StatItem(title: "今日结算", value: "¥0"),
                 StatItem(title: "距离周末", value: "3 天", tone: .accent),
                 StatItem(title: "本月累计", value: "¥7000"),
-            ],
-            isRestDay: true
-        )))
+            ]
+        ))
     }
 
     @Test("AC-HOME-10 有扣款时白干中统计行为今日结算、距离周末、本月累计；白干不改变扣款后的结算")

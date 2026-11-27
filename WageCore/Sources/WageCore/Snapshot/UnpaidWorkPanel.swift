@@ -9,18 +9,18 @@ public struct UnpaidWorkPanel: Sendable, Equatable {
     public let headline: String
     /// 如「18:00 起 · 已白干 1:05:12」，跨过零点后如「昨天 18:00 起 · 已白干 6:30:00」。时长是开始那天各段之和。
     public let caption: String
+    /// 进度区：这段白干从开始时刻走到自动停止时刻的进度，如「最多白干 15 小时」「13.33%」。
+    public let progress: WorkProgress
     /// 统计行：当天开始时为今日结算、今日扣款、本月累计，与已下班相同，休息日被迫营业没有今日扣款；
     /// 跨过零点后为今天平常的统计行 (如未上班的距离下班、今日扣款、本月累计，休息日的本月已上班、本月累计)。
     public let stats: [StatItem]
-    /// 今天是否休息日 (含全天请假)：外壳据此决定情绪按钮行 (应出勤日仍有扣钱、请假)。
-    public let isRestDay: Bool
 
-    public init(label: String, headline: String, caption: String, stats: [StatItem], isRestDay: Bool) {
+    public init(label: String, headline: String, caption: String, progress: WorkProgress, stats: [StatItem]) {
         self.label = label
         self.headline = headline
         self.caption = caption
+        self.progress = progress
         self.stats = stats
-        self.isRestDay = isRestDay
     }
 }
 
@@ -40,8 +40,8 @@ extension UnpaidWorkPanel {
     init(today: Today, running: RunningUnpaidWork, now: Moment, todayStats: [StatItem]) {
         let start = Format.time(Moment(date: running.since, timeZone: now.timeZone))
         let elapsed = "已白干 \(Format.elapsed(milliseconds: running.milliseconds))"
-        isRestDay = today.status == .restDay
         headline = Format.rollingMoney(running.owed)
+        progress = WorkProgress(running: running, today: today.date, now: now)
         guard running.date == today.date else {
             let day = Format.shortDay(running.date, relativeTo: today.date)
             label = "\(day)已倒贴"

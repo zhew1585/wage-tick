@@ -17,7 +17,7 @@ enum PanelRoute: Equatable {
 }
 
 /// 今日概览面板 (PRD F4，首页改版定稿)。所有文字和数字原样取自快照的 `TodayPanel`，这里只管排版。
-/// 从窗口顶边起按 `HomeLayout` 的七个区域摆放：日期与状态、主数字、进度区 (已下班、白干中换成白干计时按钮)、统计卡、攒钱队列、情绪按钮、入口栏。
+/// 从窗口顶边起按 `HomeLayout` 的七个区域摆放：日期与状态、主数字、进度区 (已下班换成「我还没走」，白干中是白干进度)、统计卡、攒钱队列、情绪按钮、入口栏。
 /// 各区域在所有状态下位置、高度都一样，换状态只换区域里的内容；提示条在红绿灯那一行 (`HomeNoticeLayout`)，不推开下面的内容。
 /// 白干计时按钮 (我还没走、被迫营业、终于下班了) 原样发出快照给的命令。
 struct TodayPanelView: View {
@@ -112,7 +112,7 @@ struct TodayPanelView: View {
                 case .unpaidWork(let unpaidWork):
                     PanelHero(label: unpaidWork.label, headline: unpaidWork.headline, caption: unpaidWork.caption, tone: Palette.loss)
                         .homeBand(HomeLayout.hero)
-                    unpaidWorkButton(panel.unpaidWorkButton).homeBand(HomeLayout.progress)
+                    PanelProgress(progress: unpaidWork.progress, tone: Palette.loss).homeBand(HomeLayout.progress)
                 }
                 // 扣款只在统计卡里显示合计，明细在历史的单日详情里看和改。
                 PanelStatsCard(stats: Self.stats(panel)).homeBand(HomeLayout.stats)
@@ -170,19 +170,22 @@ struct TodayPanelView: View {
         return panel.notices + [notice]
     }
 
-    /// 进度区位置上的白干计时按钮 (我还没走、终于下班了)：主按钮 320×48、文字 14、图标 16，在进度区里上下各留 4。
+    /// 已下班进度区位置上的「我还没走」：主按钮 320×48，在进度区里上下各留 4。
     /// 文案和命令都取自快照，原样发出；不可用时留空 (正常用不到：已下班且没在计时时总能开始)。
     @ViewBuilder
     private func unpaidWorkButton(_ button: UnpaidWorkButton?) -> some View {
         if let button {
-            Button { send(button.command) } label: {
-                HStack(spacing: Spacing.s6) {
-                    PhosphorIcon(Self.icon(for: button), size: 16)
-                    Text(button.title).font(AppFont.ui(14, .semibold))
-                }
-            }
-            .buttonStyle(.primary(fullWidth: true, height: PanelMetrics.unpaidWorkButtonHeight))
-            .frame(height: PanelMetrics.unpaidWorkButtonHeight)
+            Button { send(button.command) } label: { Self.primaryLabel(button) }
+                .buttonStyle(.primary(fullWidth: true, height: PanelMetrics.unpaidWorkButtonHeight))
+                .frame(height: PanelMetrics.unpaidWorkButtonHeight)
+        }
+    }
+
+    /// 墨色主按钮 (我还没走、终于下班了) 里的内容：图标 16 加 14/600 字。
+    private static func primaryLabel(_ button: UnpaidWorkButton) -> some View {
+        HStack(spacing: Spacing.s6) {
+            PhosphorIcon(icon(for: button), size: 16)
+            Text(button.title).font(AppFont.ui(14, .semibold))
         }
     }
 
@@ -193,17 +196,17 @@ struct TodayPanelView: View {
 
     // MARK: 情绪按钮
 
-    /// 情绪按钮区：两颗时各占一半 (间距 10)，一颗时整宽，高 44。都没有时 (如休息日被迫营业中) 空着。
+    /// 情绪按钮区：两颗时各占一半 (间距 10)，一颗时整宽，高 44。都没有时空着。
     private func actionsSection(_ panel: TodayPanel) -> some View {
         HStack(spacing: Spacing.s10) {
             ForEach(moodButtons(panel), content: moodButton)
         }
     }
 
-    /// 情绪按钮：应出勤日为扣钱、请假，休息日为被迫营业 (F4)。
-    /// 「今天扣钱了」只在快照给出入口时出现 (AC-FINE-07)；请假入口与能否新请由核心决定 (PRD 4.3.5 #8)；
+    /// 情绪按钮：应出勤日为扣钱、请假，休息日为被迫营业 (F4)，白干计时中 (不管是不是休息日) 为「终于下班了」。
+    /// 「今天扣钱了」只在快照给出入口时出现 (AC-FINE-07)，白干计时中不放；请假入口与能否新请由核心决定 (PRD 4.3.5 #8)；
     /// 今天已经请了假时请假那一颗换成「请假状态」，点了修改请假；
-    /// 被迫营业 (F7) 的文案与可用与否取自快照；白干计时中「终于下班了」在进度区，这一行不再放它。
+    /// 被迫营业、终于下班了 (F7) 的文案、命令与可用与否取自快照。
     private func moodButtons(_ panel: TodayPanel) -> [MoodButton] {
         var buttons: [MoodButton] = []
         switch panel.body {
@@ -211,9 +214,11 @@ struct TodayPanelView: View {
             if let button = panel.unpaidWorkButton {
                 buttons.append(.unpaidWork(button))
             }
-        case .unpaidWork(let unpaidWork) where unpaidWork.isRestDay:
-            break
-        case .attendance, .unpaidWork:
+        case .unpaidWork:
+            if let button = panel.unpaidWorkButton {
+                buttons.append(.stopUnpaidWork(button))
+            }
+        case .attendance:
             if panel.deductionEntry != nil {
                 buttons.append(.deduction)
             }
@@ -249,6 +254,9 @@ struct TodayPanelView: View {
                 Label { Text(unpaidWork.title) } icon: { PhosphorIcon(Self.icon(for: unpaidWork)) }
             }
             .buttonStyle(.secondary(fullWidth: true, height: PanelMetrics.actionButtonHeight))
+        case .stopUnpaidWork(let unpaidWork):
+            Button { send(unpaidWork.command) } label: { Self.primaryLabel(unpaidWork) }
+                .buttonStyle(.primary(fullWidth: true, height: PanelMetrics.actionButtonHeight))
         }
     }
 
@@ -290,12 +298,14 @@ private enum MoodButton: Identifiable {
     case leaveStatus(Leave, text: String, rate: String?)
     /// 休息日的被迫营业。
     case unpaidWork(UnpaidWorkButton)
+    /// 白干计时中的「终于下班了」，墨色主按钮。
+    case stopUnpaidWork(UnpaidWorkButton)
 
     var id: String {
         switch self {
         case .deduction: "deduction"
         case .leave, .leaveStatus: "leave"
-        case .unpaidWork: "unpaidWork"
+        case .unpaidWork, .stopUnpaidWork: "unpaidWork"
         }
     }
 }

@@ -46,17 +46,19 @@ struct UnpaidWorkPastMidnightPanelTests {
 
         #expect(panel.statusLabel == "白干中")
         #expect(panel.unpaidWorkButton == UnpaidWorkButton(title: "终于下班了", command: .stopUnpaidWork))
-        #expect(panel.body == .unpaidWork(UnpaidWorkPanel(
+        let body = try #require(panel.unpaidWorkBody)
+        #expect(body.progress.label == "最多白干 16 小时")
+        #expect(body == UnpaidWorkPanel(
             label: "昨天已倒贴",
             headline: "¥928.5714",
             caption: "昨天 18:00 起 · 已白干 6:30:00",
+            progress: body.progress,
             stats: [
                 StatItem(title: "距离下班", value: "-"),
                 StatItem(title: "距离周末", value: "2 天", tone: .accent),
                 StatItem(title: "本月累计", value: "¥8000"),
-            ],
-            isRestDay: false
-        )))
+            ]
+        ))
         #expect(snap.menuBar == MenuBarDisplay(pose: .sweating, text: "0.0000"))
         #expect(today.isRolling)
         #expect(today.unpaidWork.running?.date == feb(11))
@@ -80,16 +82,17 @@ struct UnpaidWorkPastMidnightPanelTests {
         let running = try applied(.startUnpaidWork, to: try onboarded(), at: moment(2026, 2, 13, 18, 0))
         let body = try unpaidWorkBody(running, at: moment(2026, 2, 15, 12, 0))
 
+        #expect(body.progress.label == "最多白干 64 小时")
         #expect(body == UnpaidWorkPanel(
             label: "2月13日已倒贴",
             headline: "¥6000.0000",
             caption: "2月13日 18:00 起 · 已白干 42:00:00",
+            progress: body.progress,
             stats: [
                 StatItem(title: "本月已上班", value: "10/20 天"),
                 StatItem(title: "本月累计", value: "¥10000"),
                 StatItem(title: "距离周末", value: "正在休息", tone: .accent),
-            ],
-            isRestDay: true
+            ]
         ))
     }
 
@@ -184,7 +187,6 @@ struct UnpaidWorkAutoStopTests {
         let running = try applied(.startUnpaidWork, to: leave, at: standardDay(18, 0))
         let body = try unpaidWorkBody(running, at: moment(2026, 2, 12, 15, 0))
         #expect(body.label == "昨天已倒贴")
-        #expect(body.isRestDay)
         #expect(body.stats.map(\.title) == ["本月已上班", "本月累计", "距离周末"])
 
         let now = moment(2026, 2, 13, 10, 0)
