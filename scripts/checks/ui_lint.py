@@ -161,15 +161,15 @@ def page_header(lint):
         lint.fail('HOME-COPY', sections, '首页只有休息日那一块放小牛头像 (原版就有)，上班类状态不放小牛')
     lint.require('HOME-COPY', panel, r'panel\.notices \+ \[notice\]', '「扣款超过日薪」的提示放进顶部提示条，不在说明行下面另起一行')
     # 提示条只有文字 (Allen 2026-11-27 实机验收：前面的警告图标去掉)。
-    banner = re.search(r'\nstruct PanelNoticeBanner\b.*?(?=\n(?:private |fileprivate )?(?:struct|enum|final class|class|extension) )', lint.read(sections), re.S)
+    banner = lint.body(sections, 'struct PanelNoticeBanner')
     if banner is None:
         lint.fail('HOME-COPY', sections, '没找到 PanelNoticeBanner：提示条换了名字就要同步改这条规则')
-    elif any('Icon(' in line or 'Image(' in line for line in banner.group(0).splitlines() if not line.strip().startswith('//')):
+    elif any('Icon(' in line or 'Image(' in line for line in banner.splitlines() if not line.strip().startswith('//')):
         lint.fail('HOME-COPY', sections, '首页提示条只有文字，不放图标 (Allen 2026-11-27 要求去掉前面的警告图标)')
     # 白干计时中 (Allen 2026-11-27 定)：进度区是白干进度条，「终于下班了」在情绪按钮区，这期间不放「今天扣钱了」。
-    lint.require('HOME-UNPAID', panel, r'PanelProgress\(progress: unpaidWork\.progress, tone: Palette\.loss\)\.homeBand\(HomeLayout\.progress\)',
+    lint.require('HOME-UNPAID', panel, r'PanelProgress\(progress: unpaidWork\.progress, tone: Palette\.loss\)\s*\.homeBand\(HomeLayout\.progress\)',
                  '白干计时中进度区要放白干进度条 (从开始走到自动停止时刻，loss 色)，不是黑按钮')
-    lint.require('HOME-UNPAID', panel, r'case \.unpaidWork:\s*\n\s*if let button = panel\.unpaidWorkButton \{\s*\n\s*buttons\.append\(\.stopUnpaidWork\(button\)\)\s*\n\s*\}\s*\n\s*case ',
+    lint.require('HOME-UNPAID', panel, r'case \.unpaidWork:\s*\n\s*if let button = panel\.unpaidWorkButton \{\s*\n\s*buttons\.append\(\.stopUnpaidWork\(button\)\)\s*\n\s*\}\s*\n\s*(?:case |default\b|\})',
                  '白干计时中情绪按钮区左边只放「终于下班了」(不管是不是休息日)，这期间不放「今天扣钱了」')
     lint.require('HOME-UNPAID', 'WageCore/Sources/WageCore/Snapshot/TodayPanel.swift', r'"最多白干 ',
                  '白干进度条上方写「最多白干 N 小时」(到自动停止时刻为止)，文案在核心里')
@@ -289,7 +289,8 @@ def goals(lint):
                  '目标行悬停时的编辑、删除按钮放在第三行最右 (小字的右边)')
     lint.require('GOALS-ROW', layout, r'static let height: CGFloat = 76\b', '目标页三种行的行高都是 76 (拖动排序按统一行高算落点)')
     for rel, count, what in ((queue, 2, '累计中、排队中'), ('WageTick/Goals/GoalsView.swift', 1, '已完成')):
-        if len(re.findall(r'\bGoalRowLayout\(', lint.read(rel))) != count:
+        code = '\n'.join(line for line in lint.read(rel).splitlines() if not line.strip().startswith('//'))
+        if len(re.findall(r'\bGoalRowLayout\(', code)) != count:
             lint.fail('GOALS-ROW', rel, f'{what}的行都要用 GoalRowLayout 这一个三行结构 (名称与金额、进度条、小字与按钮)，位置才对得齐；这里应有 {count} 处')
     lint.require('GOALS-ROW', 'WageTick/Components/HoverMarqueeText.swift',
                  r'\.frame\(maxWidth: \.infinity, alignment: \.leading\)\s*\n\s*\.background \{ widthReader \{ shownWidth = \$0 \} \}',

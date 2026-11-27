@@ -93,7 +93,8 @@ def check_state(name, path, cfg, report):
     if name not in cfg['noActions']:
         actions = cfg['bands']['actions']
         # 左边那一颗的底色：白干计时中是墨色主按钮「终于下班了」，其余状态是 surface 色的次要按钮。
-        left = {key: image.band(sum(actions) / 2, 27, 33, [colors[key]], 0.99, reach_pt=10) for key in ('ink', 'surface')}
+        # 量在 x 28–31：左边避开按钮 8pt 的圆角，右边不碰请假状态那颗从 32 起的伞图标。
+        left = {key: image.band(sum(actions) / 2, 28, 31, [colors[key]], 0.99, reach_pt=10) for key in ('ink', 'surface')}
         expect('actions', left['ink'] or left['surface'], '情绪按钮')
         if unpaid and left['ink'] is None and left['surface']:
             report.fail('HOME-UNPAID', name, '白干计时中情绪按钮区左边应是墨色主按钮「终于下班了」，现在是次要按钮：停止计时的按钮不在这一排，或这一排又放回了「今天扣钱了」')
@@ -122,7 +123,8 @@ def check_state(name, path, cfg, report):
         if got:
             expect('progressButton', got, '白干计时按钮')
         else:
-            fills = [colors[key] for key in ('line', 'money', 'loss', 'surface')]
+            # 填充色分开认：白干进度是 loss 色，上班中是 money 色，用错了颜色这一条就量不到。
+            fills = [colors[key] for key in ('line', 'loss' if unpaid else 'money', 'surface')]
             expect('progressBar', image.band(sum(bar) / 2, 24, 336, fills, 0.9, reach_pt=6), '进度条')
     return found
 
@@ -145,11 +147,14 @@ def check_width(name, image, stats, colors, cfg, report):
 
 def check_goal_date(name, image, goals, colors, cfg, report):
     """左侧大目标卡最下面一行：预计日期的字底要和进度条的下沿在同一条线上 (Allen 2026-11-26 专门提过)。
-    只在「左大卡 + 右边小卡」的排法下查 (2 个及以上目标)；整宽卡的日期在金额那一行，不查。"""
+    「左大卡 + 右边小卡」的排法 (2 个及以上目标) 查这一条；只有 1 个目标的整宽卡，日期在金额那一行，查它和金额的字底 (见 check_wide_date)。"""
     tol = cfg['colorTol']
     to_px = lambda pt: round((pt + image.margin) * image.scale)
     middle = to_px(sum(goals) / 2)
-    if not close(image.pixel(to_px(24), middle), colors['accentSoft'], tol) or close(image.pixel(to_px(232), middle), colors['accentSoft'], tol):
+    if not close(image.pixel(to_px(24), middle), colors['accentSoft'], tol):
+        return
+    if close(image.pixel(to_px(232), middle), colors['accentSoft'], tol):
+        check_wide_date(name, image, goals, cfg, report)
         return
     bar = image.band(goals[1] - 16, 40, 140, [colors['accent'], colors['line']], 0.9, reach_pt=14)
     if bar is None:
@@ -166,6 +171,28 @@ def check_goal_date(name, image, goals, colors, cfg, report):
     limit = cfg['goalDateTolPt'] + (0.5 if image.scale == 1 else 0)
     if abs(date_bottom - bar[1]) > limit:
         report.fail('HOME-GOALDATE', name, f'大目标卡里预计日期的字底在 {date_bottom:g}pt，进度条下沿在 {bar[1]:g}pt，相差超过 {limit:g}pt：两者要对齐在一条线上')
+
+
+def check_wide_date(name, image, goals, cfg, report):
+    """只有 1 个目标的整宽卡：金额那一行右边的预计日期，字底要和左边累计额的字底在同一条线上 (Allen 2026-11-27 实机验收提的)。
+    按文字基线对齐时汉字的字底比数字低约 1pt，所以日期要上提。累计额是 ink 色，后面的「/ 目标额」和日期是 muted 色：
+    左边只认 ink 色 (平均亮度低于 100)，右边认 muted 色 (低于 165)，都相当于盖住像素六成以上才算。"""
+    to_px = lambda pt: round((pt + image.margin) * image.scale)
+    rows = range(to_px(goals[0] + 36), to_px(goals[1] - 24))
+    dark = lambda x, y, limit: sum(image.pixel(x, y)) / 3 < limit
+    amount = [y for y in rows if any(dark(x, y, 100) for x in range(to_px(34), to_px(200)))]
+    date = [y for y in rows if any(dark(x, y, 165) for x in range(to_px(230), to_px(326)))]
+    if not amount:
+        report.fail('HOME-GOALDATE', name, '整宽目标卡的金额那一行没量到累计额')
+        return
+    if not date:
+        if name not in cfg['noGoalDate']:
+            report.fail('HOME-GOALDATE', name, '整宽目标卡的金额那一行右边没量到预计日期：日期被去掉、挪走或颜色变浅了；这个状态本来就没法预计的话登记到 ui-home.json 的 noGoalDate')
+        return
+    amount_bottom, date_bottom = ((ys[-1] + 1) / image.scale - image.margin for ys in (amount, date))
+    limit = cfg['goalDateTolPt'] + (0.5 if image.scale == 1 else 0)
+    if abs(date_bottom - amount_bottom) > limit:
+        report.fail('HOME-GOALDATE', name, f'整宽目标卡里预计日期的字底在 {date_bottom:g}pt，累计额的字底在 {amount_bottom:g}pt，相差超过 {limit:g}pt：两者要对齐在一条线上')
 
 
 def main():

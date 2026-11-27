@@ -62,7 +62,7 @@ enum HomeLayout {
     static let topBar = Band(top: 40, height: 24)
     /// 主数字区：小标题、主数字、说明行。休息日时与进度区合成一整块放小牛和「今天休息」。
     static let hero = Band(top: 88, height: 108)
-    /// 进度区：「已工作」行、分段条、两端时间；已下班、白干中换成白干计时按钮，上下留白居中。
+    /// 进度区：「已工作」或「最多白干」行、分段条、两端时间；已下班换成「我还没走」按钮，上下留白居中。
     static let progress = Band(top: 212, height: 56)
     /// 统计卡。
     static let stats = Band(top: 280, height: 64)
