@@ -47,11 +47,12 @@ blocked 表示缺图、缺清单、缺工具，没法判断，不算通过。
 | NAV-TIMER | 页面退出去后发命令，把停掉的定时器又拉起来 | `HistoryPage`、`GoalsPage` 的 `refresh()` 里要有 `guard isActive else { return }` | 同上 |
 | FONT-BUNDLED | 2026-11-26：开发机装了同名字体 (`~/Library/Fonts/NotoSansSC.ttf`)，App 按字族名取字取到的是装的那份，预览和检查量的不是用户看到的排版，引导页在用户机器上要滚动 | 外壳里不能按字族名或字体名建字体 (`.family:`、`kCTFontFamilyNameAttribute`、`NSFontFamilyAttribute`、`Font.custom(`、`.custom("…`、`CTFontCreateWithName(`、`NSFont(name:`、`withFamily:`)；`AppFont.swift` 里要有 `CTFontManagerCreateFontDescriptorsFromURL`，`makeFont` 里要用 `CTFontCreateWithFontDescriptor` | 只看写法；注释里写这些名字也会报。实际取到哪个文件由 `run.sh ui` 的同名规则量 |
 | GOALS-ROW | 2026-11-26：目标管理页累计中一行带「累计中」标签，名称被挤得只剩两三个字；Allen 定去掉标签，名称放不下时悬停滚动 | `WageTick/Goals/` 里不能有 `Text("累计中")`，目标名称不能写成 `Text(row.name)`、`Text(card.name)`；攒钱队列两种行与已完成行都要用 `HoverMarqueeText` | 只看写法；滚动的节奏、移开后复原靠人工验收 |
+| GOALS-ROW | 2026-11-27 实机验收：悬停时编辑、删除按钮把名称挤短一大截，滚动的名称右边还空着一段；Allen 定为三种行 (累计中、排队中、已完成) 同一个三行结构，按钮在第三行最右 | `GoalRowLayout` 的第一行只有名称和金额，按钮跟在第三行小字后面，行高 76；`GoalQueueList` 用它 2 处、`GoalsView` 用它 1 处；`HoverMarqueeText` 先占满一栏再量宽 | 只看写法；名称一栏悬停前后是否等宽、三种行是否对齐靠 Playtest 在渲染图上量 |
 | GOALS-LIMIT | 2026-11-26：目标金额不设上限，预计完成日一天一天往后数，金额极大时 App 卡死；后来定为超过 1 年只说「大于 1 年」 | `Validation.goalAmountLimit` 是 999999；`finishDay` 开头要有 `guard days <= Decimal(ActiveGoalCard.estimateDayLimit)`，逐天数的截止日也按它算；核心里只有 `finishDay` 的函数体里能调逐天数的 `attendanceDay` (按行号判断) | 上限是否生效、超大金额是否立即返回由 `GoalAmountLimitTests` 测 |
 | REPO-LOCAL | `roles/`、`docs/spec/` 只放本机 | `git ls-files roles docs/spec` 必须为空 | 不在 git 仓库里时不查 |
 
 成功路径：`python3 scripts/checks/ui_lint.py` 在当前源码上输出「ui_lint: 通过」，退出码 0。
-故意违规：`selftest.py` 里的 44 处改动，每处都必须让 `ui_lint.py` 以退出码 1 报出对应规则 (FONT-BUNDLED 两处：`AppFont.makeFont` 改回按字族名取字；视图里用 `Font.custom("Noto Sans SC", …)`)。
+故意违规：`selftest.py` 里的 53 处改动，每处都必须让 `ui_lint.py` 以退出码 1 报出对应规则 (FONT-BUNDLED 两处：`AppFont.makeFont` 改回按字族名取字；视图里用 `Font.custom("Noto Sans SC", …)`)。
 
 静态规则看的是源码的写法，能挡住「改回去」，挡不住「换一种写法写错」。
 导航那几条的真实行为，靠下面的交互回归与人工验收。

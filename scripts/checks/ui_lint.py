@@ -280,6 +280,20 @@ def goals(lint):
                      f'攒钱队列的行里没找到 HoverMarqueeText({name}, isActive: showsButtons)：名称换了写法，这条规则要跟着改，不能因为找不到就算过')
     lint.require('GOALS-ROW', 'WageTick/Goals/GoalsView.swift', r'HoverMarqueeText\(row\.name, isActive: hovering\)',
                  '已完成目标的行里没找到 HoverMarqueeText(row.name, isActive: hovering)：名称换了写法，这条规则要跟着改')
+    # 三种行同一个三行结构 (Allen 2026-11-27 实机验收)：悬停出现的按钮在第三行最右，不挤名称；名称一栏悬停前后一样宽，滚动裁在整栏上。
+    layout = 'WageTick/Goals/GoalRowLayout.swift'
+    lint.require('GOALS-ROW', layout, r'HStack\(spacing: Spacing\.s8\) \{\s*\n\s*name\.frame\(minWidth: nameMinWidth, maxWidth: \.infinity, alignment: \.leading\)'
+                                      r'\s*\n\s*amount\.lineLimit\(1\)\.layoutPriority\(1\)\s*\n\s*\}',
+                 '目标行的第一行只能有名称和金额 (名称占满金额左边，间距 8)：按钮放进这一行，悬停时名称会被挤短 (Allen 2026-11-27 反馈)')
+    lint.require('GOALS-ROW', layout, r'caption\.lineLimit\(1\)\.frame\(maxWidth: \.infinity, alignment: \.leading\)\s*\n\s*buttons\s*\n',
+                 '目标行悬停时的编辑、删除按钮放在第三行最右 (小字的右边)')
+    lint.require('GOALS-ROW', layout, r'static let height: CGFloat = 76\b', '目标页三种行的行高都是 76 (拖动排序按统一行高算落点)')
+    for rel, count, what in ((queue, 2, '累计中、排队中'), ('WageTick/Goals/GoalsView.swift', 1, '已完成')):
+        if len(re.findall(r'\bGoalRowLayout\(', lint.read(rel))) != count:
+            lint.fail('GOALS-ROW', rel, f'{what}的行都要用 GoalRowLayout 这一个三行结构 (名称与金额、进度条、小字与按钮)，位置才对得齐；这里应有 {count} 处')
+    lint.require('GOALS-ROW', 'WageTick/Components/HoverMarqueeText.swift',
+                 r'\.frame\(maxWidth: \.infinity, alignment: \.leading\)\s*\n\s*\.background \{ widthReader \{ shownWidth = \$0 \} \}',
+                 '名称滚动的可见区域要等于名称一栏的宽度 (先占满这一栏再量宽)：量在截断后的文字上，滚动时右边会空出一段 (Allen 2026-11-27 反馈)')
     lint.require('GOALS-LIMIT', 'WageCore/Sources/WageCore/Goals/GoalValidation.swift', r'goalAmountLimit: Decimal = 999999\b',
                  '目标金额最多 999999 (Allen 2026-11-26 定)，不设上限时金额输得极大 App 会卡死')
     card = 'WageCore/Sources/WageCore/Goals/GoalCard.swift'
