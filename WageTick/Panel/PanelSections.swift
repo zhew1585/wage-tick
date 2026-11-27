@@ -290,25 +290,22 @@ struct PanelProgress: View {
             SegmentedProgressBar(segments: progress.segments, tone: tone)
                 .padding(.top, Spacing.s8)
             HStack {
-                end(day: progress.startDay, clock: progress.startClock)
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.s3) {
+                    if let day = progress.startDay { Text(day).font(AppFont.small) }
+                    Text(progress.startClock)
+                }
                 Spacer()
-                end(day: progress.endDay, clock: progress.endClock)
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.s3) {
+                    if let day = progress.endDay { Text(day).font(AppFont.small) }
+                    Text(progress.endClock)
+                }
             }
+            .font(AppFont.numSmall)
             .foregroundStyle(Palette.muted)
             .frame(height: 14)
             .padding(.top, Spacing.s6)
         }
         .frame(maxHeight: .infinity, alignment: .top)
-    }
-
-    /// 进度条下的一端：可选的日子 (界面字体) 加时刻 (等宽)，按基线对齐。
-    private func end(day: String?, clock: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.s3) {
-            if let day {
-                Text(day).font(AppFont.small)
-            }
-            Text(clock).font(AppFont.numSmall)
-        }
     }
 }
 
