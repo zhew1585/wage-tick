@@ -57,8 +57,7 @@ struct UnpaidWorkPastMidnightPanelTests {
                 StatItem(title: "距离下班", value: "-"),
                 StatItem(title: "距离周末", value: "2 天", tone: .accent),
                 StatItem(title: "本月累计", value: "¥8000"),
-            ],
-            isRestDay: false
+            ]
         ))
         #expect(snap.menuBar == MenuBarDisplay(pose: .sweating, text: "0.0000"))
         #expect(today.isRolling)
@@ -93,8 +92,7 @@ struct UnpaidWorkPastMidnightPanelTests {
                 StatItem(title: "本月已上班", value: "10/20 天"),
                 StatItem(title: "本月累计", value: "¥10000"),
                 StatItem(title: "距离周末", value: "正在休息", tone: .accent),
-            ],
-            isRestDay: true
+            ]
         ))
     }
 
@@ -189,7 +187,6 @@ struct UnpaidWorkAutoStopTests {
         let running = try applied(.startUnpaidWork, to: leave, at: standardDay(18, 0))
         let body = try unpaidWorkBody(running, at: moment(2026, 2, 12, 15, 0))
         #expect(body.label == "昨天已倒贴")
-        #expect(body.isRestDay)
         #expect(body.stats.map(\.title) == ["本月已上班", "本月累计", "距离周末"])
 
         let now = moment(2026, 2, 13, 10, 0)

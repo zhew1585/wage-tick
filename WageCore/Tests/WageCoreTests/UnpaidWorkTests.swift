@@ -164,8 +164,7 @@ struct UnpaidWorkPanelTests {
                 StatItem(title: "今日结算", value: "¥1000"),
                 StatItem(title: "距离周末", value: "3 天", tone: .accent),
                 StatItem(title: "本月累计", value: "¥8000"),
-            ],
-            isRestDay: false
+            ]
         ))
         #expect(snapshot(of: state, at: standardDay(19, 5, 12)).today?.isRolling == true)
     }
@@ -201,8 +200,7 @@ struct UnpaidWorkPanelTests {
                 StatItem(title: "今日结算", value: "¥0"),
                 StatItem(title: "距离周末", value: "正在休息", tone: .accent),
                 StatItem(title: "本月累计", value: "¥10000"),
-            ],
-            isRestDay: true
+            ]
         ))
     }
 
@@ -303,8 +301,7 @@ struct UnpaidWorkWithDayRecordsTests {
                 StatItem(title: "今日结算", value: "¥0"),
                 StatItem(title: "距离周末", value: "3 天", tone: .accent),
                 StatItem(title: "本月累计", value: "¥7000"),
-            ],
-            isRestDay: true
+            ]
         ))
     }
 

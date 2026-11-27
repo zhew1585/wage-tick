@@ -11,7 +11,7 @@ enum PanelMetrics {
     static let actionButtonHeight: CGFloat = 44
     /// 表单内容区各组之间的间距 (设计稿 F5、F6 Body)。
     static let formSectionGap: CGFloat = 26
-    /// 进度区位置上的白干计时按钮 (我还没走、终于下班了) 高度。
+    /// 进度区位置上的白干计时按钮 (已下班的我还没走) 高度。
     static let unpaidWorkButtonHeight: CGFloat = 48
 }
 
@@ -270,40 +270,52 @@ struct PanelRestHero: View {
     }
 }
 
-/// 工作进度区 (56 高)：0–18 是「已工作 4 / 7 小时」(13/500 ink) 与百分比 (等宽 13/600 money)，
-/// 26–36 是分段进度条，42–56 是计划上班与下班时刻 (等宽 11 muted)。
+/// 进度区 (56 高)：0–18 是说明 (13/500 ink，如「已工作 4 / 7 小时」「最多白干 15 小时」) 与百分比 (等宽 13/600，`tone` 色)，
+/// 26–36 是分段进度条 (填充 `tone` 色)，42–56 是两端时刻 (等宽 11 muted)；时刻前有日子 (如「昨天」「明天」) 时，
+/// 日子用界面字体 11 muted，与时刻间距 3。上班中 `tone` 为 money，白干中为 loss。
 /// 第一行上提 1：打包的 Noto Sans SC 13 号的行高 19 比这一行的 18 高，墨迹又偏行框下方，不提的话字底贴着 18 的下沿。
 struct PanelProgress: View {
     let progress: WorkProgress
+    var tone: Color = Palette.money
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .lastTextBaseline) {
                 Text(progress.label).font(AppFont.bodyMedium).foregroundStyle(Palette.ink)
                 Spacer()
-                Text(progress.percent).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.money)
+                Text(progress.percent).font(AppFont.num(13, .semibold)).foregroundStyle(tone)
             }
             .frame(height: 18)
             .offset(y: -1)
-            SegmentedProgressBar(segments: progress.segments)
+            SegmentedProgressBar(segments: progress.segments, tone: tone)
                 .padding(.top, Spacing.s8)
             HStack {
-                Text(progress.startClock)
+                end(day: progress.startDay, clock: progress.startClock)
                 Spacer()
-                Text(progress.endClock)
+                end(day: progress.endDay, clock: progress.endClock)
             }
-            .font(AppFont.numSmall)
             .foregroundStyle(Palette.muted)
             .frame(height: 14)
             .padding(.top, Spacing.s6)
         }
         .frame(maxHeight: .infinity, alignment: .top)
     }
+
+    /// 进度条下的一端：可选的日子 (界面字体) 加时刻 (等宽)，按基线对齐。
+    private func end(day: String?, clock: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.s3) {
+            if let day {
+                Text(day).font(AppFont.small)
+            }
+            Text(clock).font(AppFont.numSmall)
+        }
+    }
 }
 
-/// 分段进度条 (高 10、圆角 3)：每段宽度按 `share` 分配，段与段之间是一小块 surface 色的饭点。
+/// 分段进度条 (高 10、圆角 3)：每段宽度按 `share` 分配，已走过的部分填 `tone` 色，段与段之间是一小块 surface 色的饭点。
 private struct SegmentedProgressBar: View {
     let segments: [ProgressSegment]
+    let tone: Color
 
     private static let gap: CGFloat = 3
     private static let lunchWidth: CGFloat = 16
@@ -323,7 +335,7 @@ private struct SegmentedProgressBar: View {
                     RoundedRectangle(cornerRadius: Self.radius)
                         .fill(Palette.line)
                         .overlay(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: Self.radius).fill(Palette.money).frame(width: width * segment.filled)
+                            RoundedRectangle(cornerRadius: Self.radius).fill(tone).frame(width: width * segment.filled)
                         }
                         .frame(width: width)
                 }

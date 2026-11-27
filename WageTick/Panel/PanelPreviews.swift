@@ -72,6 +72,11 @@ private enum PanelPreviews {
             }
         }
         let restUnpaid = try at(base, day: 7, 10, 0) { try $0.send(.startUnpaidWork) }
+        // 6 日 (周五) 请了全天假，17:54 又被迫营业：白干到下周一 10:00，下面是「终于下班了」加请假状态。
+        let fullDayLeave = Leave(start: TimeOfDay(hour: 10, minute: 0), end: TimeOfDay(hour: 18, minute: 0), deductionPercent: 100)
+        let leaveUnpaid = try at(try at(base, day: 6, 9, 0) { try $0.send(.setLeave(fullDayLeave)) }, day: 6, 17, 54) {
+            try $0.send(.startUnpaidWork)
+        }
         // 2 日建的目标 1500，到 5 日推进时已攒够，当场达成，快照里有庆祝。
         let celebration = try at(try withGoals(try onboarded(), [("新耳机", 1500)]), day: 5, 15, 0) { try $0.send(.advance) }
         // 今年的节假日数据没拿到：长提示，放不下要滚动。
@@ -82,6 +87,9 @@ private enum PanelPreviews {
             ("P2-unpaid-work", panel(unpaid, day: 5, 19, 5, 12)),
             // 5 日 18:00 开始没停，过了零点 6 日 00:30 仍在白干中 (6 日 10:00 计划上班时自动停止)。
             ("P2-unpaid-work-past-midnight", panel(unpaid, day: 6, 0, 30)),
+            // 同一段到 6 日 07:36，16 小时走了 85%。
+            ("P2-unpaid-work-past-midnight-85", panel(unpaid, day: 6, 7, 36)),
+            ("P2-full-day-leave-unpaid-work", panel(leaveUnpaid, day: 6, 17, 54, 10)),
             ("P2-off-work-fined", panel(fined, day: 5, 18, 30)),
             ("P2-rest-day", panel(base, day: 7, 10, 12, 40)),
             ("P2-first-half-leave-no-goal", panel(firstHalfLeave, day: 5, 15, 0)),
