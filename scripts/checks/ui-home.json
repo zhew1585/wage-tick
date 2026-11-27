@@ -11,6 +11,7 @@
     "line": [231, 223, 209],
     "ink": [31, 27, 22],
     "money": [43, 138, 62],
+    "loss": [217, 72, 15],
     "accent": [232, 89, 12],
     "accentSoft": [253, 235, 221]
   },
@@ -23,21 +24,29 @@
     "footer": [528, 574]
   },
   "states": [
-    "P2-working", "P2-off-work", "P2-unpaid-work", "P2-unpaid-work-past-midnight", "P2-off-work-fined", "P2-rest-day",
+    "P2-working", "P2-off-work", "P2-unpaid-work", "P2-unpaid-work-past-midnight", "P2-unpaid-work-past-midnight-85",
+    "P2-full-day-leave-unpaid-work", "P2-off-work-fined", "P2-rest-day",
     "P2-first-half-leave-no-goal", "P2-middle-leave", "P2-payday-countdown", "P2-payday-tomorrow", "P2-payday-today",
     "P2-not-started", "P2-working-no-goal", "P2-working-one-goal", "P2-working-two-goals", "P2-working-five-goals",
     "P2-notice", "P2-notice-long", "P2-over-deducted", "P2-rest-unpaid-work", "P2-working-far-finish"
   ],
   "noProgress": ["P2-rest-day", "P2-notice"],
-  "noActions": ["P2-rest-unpaid-work"],
+  "noActions": [],
+  "offWork": ["P2-off-work", "P2-off-work-fined"],
+  "unpaidWork": [
+    "P2-unpaid-work", "P2-unpaid-work-past-midnight", "P2-unpaid-work-past-midnight-85", "P2-full-day-leave-unpaid-work",
+    "P2-rest-unpaid-work"
+  ],
   "noGoalDate": ["P2-notice"],
   "provenance": {
     "bands": "Allen 2026-11-26 确认的首页定稿：窗口 360×574，块间距 24 / 16 / 12 / 12 / 12 / 12，各区域在所有状态下位置一致。与 WageTick/Theme/Metrics.swift 的 HomeLayout 是同一组数，改一处要改两处",
     "progressBar": "进度区 212–268 里的分段条：区内 26–36",
-    "progressButton": "已下班、白干中时进度区里的白干计时按钮：高 48，上下各留 4",
+    "progressButton": "已下班时进度区里的「我还没走」：高 48，上下各留 4",
     "colors": "WageTick/Theme/Palette.swift",
     "states": "WageTick/Panel/PanelPreviews.swift 里的首页状态；加了新状态要登记到这里。P2-celebration 不在内：庆祝遮罩把整窗压暗，底色认不出来",
     "noProgress": "休息日面板没有进度区；P2-notice 的提示「本月没有要上班的日子」只能在休息日出现",
-    "noActions": "休息日白干计时中没有任何情绪按钮，按钮区空着"
+    "noActions": "情绪按钮区整排空着的状态；现在没有 (休息日白干计时中也有一颗整宽的「终于下班了」)",
+    "offWork": "已下班的状态：进度区是墨色按钮「我还没走」。只有这些状态的进度区能是按钮",
+    "unpaidWork": "白干计时中的状态 (Allen 2026-11-27 定)：进度区是 loss 色的白干进度条，「终于下班了」是情绪按钮区左边的墨色主按钮；加了新的白干中预览要登记到这里"
   }
 }

@@ -7,7 +7,7 @@
 
 图是 scripts/render-panel-previews.sh 那种离屏渲染：整个窗口的内容 (含标题栏那一段)，四周各留 24pt 白边，按屏幕倍数出图。
 认区域靠底色：统计卡、情绪按钮、入口栏是 surface 色，累计中目标卡是 accentSoft 色，空状态卡与排队卡是 line 色描边，
-进度条是 line 与 money 色，白干计时按钮是 ink 色。
+进度条是 line 与 money 色 (白干进度是 loss 色)，已下班的「我还没走」与白干中的「终于下班了」是 ink 色。
 """
 import argparse, json, os, sys
 
@@ -89,9 +89,16 @@ def check_state(name, path, cfg, report):
     # 入口栏在左内边距里量 (三个入口从 x 20 起)。窗口左下角是圆角，预览图的窗框描边在这里会多吃掉半个到 1 个 pt，
     # 再加上描边本身占最下面 1pt，所以下沿多容 1pt (Mac 上 2 倍图量到 572.5)。
     expect('footer', image.band(sum(footer) / 2, 14, 18, [colors['surface']], 0.99), '入口栏', bottom_extra=1)
+    unpaid = name in cfg['unpaidWork']
     if name not in cfg['noActions']:
         actions = cfg['bands']['actions']
-        expect('actions', image.band(sum(actions) / 2, 27, 33, [colors['surface']], 0.99, reach_pt=10), '情绪按钮')
+        # 左边那一颗的底色：白干计时中是墨色主按钮「终于下班了」，其余状态是 surface 色的次要按钮。
+        left = {key: image.band(sum(actions) / 2, 27, 33, [colors[key]], 0.99, reach_pt=10) for key in ('ink', 'surface')}
+        expect('actions', left['ink'] or left['surface'], '情绪按钮')
+        if unpaid and left['ink'] is None and left['surface']:
+            report.fail('HOME-UNPAID', name, '白干计时中情绪按钮区左边应是墨色主按钮「终于下班了」，现在是次要按钮：停止计时的按钮不在这一排，或这一排又放回了「今天扣钱了」')
+        if not unpaid and left['ink']:
+            report.fail('HOME-UNPAID', name, '情绪按钮区左边是墨色主按钮：只有白干计时中 (登记在 ui-home.json 的 unpaidWork) 这一排才放「终于下班了」')
     goals = cfg['bands']['goals']
     # 累计中目标卡：在卡片左内边距里的一窄条上量 (x 28–31，圆角 12 在这里已经收平，旗子与文字从 32 起)，不受卡片里内容多少影响。
     card = image.band(sum(goals) / 2, 28, 31, [colors['accentSoft']], 0.99)
@@ -107,10 +114,16 @@ def check_state(name, path, cfg, report):
         bar = cfg['bands']['progressBar']
         button = cfg['bands']['progressButton']
         got = image.band(sum(button) / 2, 36, 324, [colors['ink']], 0.55, reach_pt=4)
+        if got and name not in cfg['offWork']:
+            report.fail('HOME-UNPAID', name, '进度区是墨色按钮：只有已下班 (登记在 ui-home.json 的 offWork) 的进度区放「我还没走」；'
+                                             '白干计时中是进度条，「终于下班了」在情绪按钮区')
+        if not got and name in cfg['offWork']:
+            report.fail('HOME-UNPAID', name, '已下班的进度区没找到墨色按钮「我还没走」')
         if got:
             expect('progressButton', got, '白干计时按钮')
         else:
-            expect('progressBar', image.band(sum(bar) / 2, 24, 336, [colors['line'], colors['money'], colors['surface']], 0.9, reach_pt=6), '进度条')
+            fills = [colors[key] for key in ('line', 'money', 'loss', 'surface')]
+            expect('progressBar', image.band(sum(bar) / 2, 24, 336, fills, 0.9, reach_pt=6), '进度条')
     return found
 
 

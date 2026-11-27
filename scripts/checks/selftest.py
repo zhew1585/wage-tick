@@ -48,6 +48,13 @@ LINT_VIOLATIONS = [
     ('攒钱队列又能滚动', 'WageTick/Panel/GoalCardView.swift', None, '\nprivate struct Scroller: View { var body: some View { ScrollView { EmptyView() } } }\n', 'HOME-COPY'),
     ('攒钱队列显示超过 3 个', 'WageTick/Panel/GoalCardView.swift', '.prefix(2)', '.prefix(4)', 'HOME-COPY'),
     ('上班类状态又放了小牛', 'WageTick/Panel/TodayPanelView.swift', None, '\nprivate let extraCow = Image(.cowMascot)\n', 'HOME-COPY'),
+    ('提示条又带上警告图标', 'WageTick/Panel/PanelSections.swift', '        GeometryReader { geometry in\n            Group {\n                if reduceMotion {',
+     '        PhosphorIcon(.warning, size: 13)\n        GeometryReader { geometry in\n            Group {\n                if reduceMotion {', 'HOME-COPY'),
+    ('白干中进度区又换回黑按钮', 'WageTick/Panel/TodayPanelView.swift', 'PanelProgress(progress: unpaidWork.progress, tone: Palette.loss).homeBand(HomeLayout.progress)',
+     'unpaidWorkButton(panel.unpaidWorkButton).homeBand(HomeLayout.progress)', 'HOME-UNPAID'),
+    ('白干中情绪按钮区又放回扣钱', 'WageTick/Panel/TodayPanelView.swift', 'buttons.append(.stopUnpaidWork(button))',
+     'buttons.append(.stopUnpaidWork(button))\n                buttons.append(.deduction)', 'HOME-UNPAID'),
+    ('白干进度条上方的「最多白干 N 小时」被换掉', 'WageCore/Sources/WageCore/Snapshot/TodayPanel.swift', 'label = "最多白干 ', 'label = "白干 ', 'HOME-UNPAID'),
     ('表单页头不再排到红绿灯那一行', 'WageTick/Panel/TodayPanelView.swift', '.environment(\\.formSheetPlacement, .window)', '', 'HDR-FORM'),
     ('历史页退场清空内容', 'WageTick/History/HistoryPage.swift',
      '        isActive = false\n        timer?.invalidate()\n        timer = nil\n    }\n\n    /// 退一级',
@@ -188,11 +195,12 @@ def run_geometry_case(kind, pages):
 HOME = {'bar': (238, 248), 'button': (216, 264), 'stats': (280, 344), 'goals': (356, 460), 'actions': (472, 516), 'footer': (528, 574)}
 SURFACE, LINE_COLOR, MONEY, SOFT, ACCENT = (245, 240, 230), (231, 223, 209), (43, 138, 62), (253, 235, 221), (232, 89, 12)
 INK_COLOR = (31, 27, 22)
+LOSS = (217, 72, 15)
 
 
-def draw_home(path, kind='working', height=574, scale=2, date_shift=0, widen=0, **moved):
-    """画一张首页预览图 (整窗 360×height，四周 24pt 白边)，只有色块。kind：working 画进度条，offwork 画白干计时按钮，rest 两样都不画，
-    empty 把累计中目标卡换成描边的空状态卡。大目标卡最下面一行画进度条和预计日期，date_shift 是日期字底比进度条下沿低多少，None 表示不画日期。
+def draw_home(path, kind='working', height=574, scale=2, date_shift=0, widen=0, stop=True, **moved):
+    """画一张首页预览图 (整窗 360×height，四周 24pt 白边)，只有色块。kind：working 画进度条，offwork 画进度区里的「我还没走」，rest 两样都不画，
+    empty 把累计中目标卡换成描边的空状态卡，unpaid 画 loss 色的白干进度条、情绪按钮区左边画墨色的「终于下班了」(stop=False 时仍画成次要按钮)。大目标卡最下面一行画进度条和预计日期，date_shift 是日期字底比进度条下沿低多少，None 表示不画日期。
     widen 是整页内容被撑宽多少 (左右各多出一半)。moved 里给某个区域新的 (上沿, 下沿) 就是把它挪了位置。"""
     bands = {**HOME, **moved}
     px = lambda pt: round((pt + 24) * scale)
@@ -202,6 +210,8 @@ def draw_home(path, kind='working', height=574, scale=2, date_shift=0, widen=0, 
         rects += [box(20, bands['bar'], 340, LINE_COLOR), box(20, bands['bar'], 150, MONEY)]
     elif kind == 'offwork':
         rects.append(box(20, bands['button'], 340, INK_COLOR))
+    elif kind == 'unpaid':
+        rects += [box(20, bands['bar'], 340, LINE_COLOR), box(20, bands['bar'], 150, LOSS)]
     rects.append(box(20 - widen / 2, bands['stats'], 340 + widen / 2, SURFACE))
     top, bottom = bands['goals']
     if kind == 'empty':
@@ -210,14 +220,15 @@ def draw_home(path, kind='working', height=574, scale=2, date_shift=0, widen=0, 
         rects += [box(20, (top, bottom), 228, SOFT), box(34, (bottom - 20, bottom - 14), 154, ACCENT),
                   *([] if date_shift is None else [box(180, (bottom - 24 + date_shift, bottom - 14 + date_shift), 214, (138, 128, 115))]),
                   box(236, (top, top + 48), 340, LINE_COLOR), box(237, (top + 1, top + 47), 339, PAPER)]
-    rects += [box(20, bands['actions'], 175, SURFACE), box(185, bands['actions'], 340, SURFACE), box(0, bands['footer'], 360, SURFACE)]
+    left = INK_COLOR if kind == 'unpaid' and stop else SURFACE
+    rects += [box(20, bands['actions'], 175, left), box(185, bands['actions'], 340, SURFACE), box(0, bands['footer'], 360, SURFACE)]
     write_png(path, (360 + 48) * scale, (height + 48) * scale, rects, background=(255, 255, 255))
 
 
 # (说明, {图名: draw_home 的参数}, 预期退出码, 必须报出的规则)
 HOME_CASES = [
     ('首页各状态区域位置一致', {'P2-working': {}, 'P2-off-work': {'kind': 'offwork'}, 'P2-rest-day': {'kind': 'rest'},
-                      'P2-first-half-leave-no-goal': {'kind': 'empty'}}, 0, []),
+                      'P2-first-half-leave-no-goal': {'kind': 'empty'}, 'P2-unpaid-work': {'kind': 'unpaid'}}, 0, []),
     ('1 倍屏上的首页图', {'P2-working': {'scale': 1}, 'P2-off-work': {'kind': 'offwork', 'scale': 1}}, 0, []),
     ('已下班时统计卡被按钮顶下去 4pt', {'P2-off-work': {'kind': 'offwork', 'stats': (284, 348)}}, 1, ['HOME-BAND']),
     ('只有 1 个目标时目标卡变高', {'P2-working': {'goals': (356, 480)}}, 1, ['HOME-BAND']),
@@ -226,6 +237,11 @@ HOME_CASES = [
     ('入口栏不贴底', {'P2-working': {'footer': (520, 566)}}, 1, ['HOME-BAND']),
     ('进度条挪了位置', {'P2-working': {'bar': (244, 254)}}, 1, ['HOME-BAND']),
     ('白干计时按钮撑满进度区', {'P2-off-work': {'kind': 'offwork', 'button': (212, 268)}}, 1, ['HOME-BAND']),
+    ('白干中进度区又放回黑按钮「终于下班了」', {'P2-unpaid-work': {'kind': 'offwork'}}, 1, ['HOME-UNPAID']),
+    ('白干中情绪按钮区没有「终于下班了」', {'P2-unpaid-work': {'kind': 'unpaid', 'stop': False}}, 1, ['HOME-UNPAID']),
+    ('白干进度条挪了位置', {'P2-unpaid-work': {'kind': 'unpaid', 'bar': (244, 254)}}, 1, ['HOME-BAND']),
+    ('已下班的「我还没走」不见了', {'P2-off-work': {}}, 1, ['HOME-UNPAID']),
+    ('上班中情绪按钮区出现墨色主按钮', {'P2-working': {'kind': 'unpaid'}}, 1, ['HOME-UNPAID']),
     ('窗口高度改回 760', {'P2-working': {'height': 760}}, 1, ['HOME-SIZE']),
     ('带年份的预计日期把首页撑宽 5pt', {'P2-working': {'widen': 5}}, 1, ['HOME-WIDTH']),
     ('大目标卡里的预计日期不见了', {'P2-working': {'date_shift': None}}, 1, ['HOME-GOALDATE']),
