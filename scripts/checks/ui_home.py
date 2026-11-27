@@ -155,6 +155,7 @@ def check_goal_date(name, image, goals, colors, cfg, report):
         return
     if close(image.pixel(to_px(232), middle), colors['accentSoft'], tol):
         check_wide_date(name, image, goals, cfg, report)
+        check_wide_bar(name, image, colors, cfg, report)
         return
     bar = image.band(goals[1] - 16, 40, 140, [colors['accent'], colors['line']], 0.9, reach_pt=14)
     if bar is None:
@@ -178,7 +179,8 @@ def check_wide_date(name, image, goals, cfg, report):
     按文字基线对齐时汉字的字底比数字低约 1pt，所以日期要上提。累计额是 ink 色，后面的「/ 目标额」和日期是 muted 色：
     左边只认 ink 色 (平均亮度低于 100)，右边认 muted 色 (低于 165)，都相当于盖住像素六成以上才算。"""
     to_px = lambda pt: round((pt + image.margin) * image.scale)
-    rows = range(to_px(goals[0] + 36), to_px(goals[1] - 24))
+    # 只看金额那一行 (卡内 40.5–67.5)：上面是名称行，下面 75.5 起是进度条。
+    rows = range(to_px(goals[0] + 38), to_px(goals[0] + 72))
     dark = lambda x, y, limit: sum(image.pixel(x, y)) / 3 < limit
     amount = [y for y in rows if any(dark(x, y, 100) for x in range(to_px(34), to_px(200)))]
     date = [y for y in rows if any(dark(x, y, 165) for x in range(to_px(230), to_px(326)))]
@@ -193,6 +195,16 @@ def check_wide_date(name, image, goals, cfg, report):
     limit = cfg['goalDateTolPt'] + (0.5 if image.scale == 1 else 0)
     if abs(date_bottom - amount_bottom) > limit:
         report.fail('HOME-GOALDATE', name, f'整宽目标卡里预计日期的字底在 {date_bottom:g}pt，累计额的字底在 {amount_bottom:g}pt，相差超过 {limit:g}pt：两者要对齐在一条线上')
+
+
+def check_wide_bar(name, image, colors, cfg, report):
+    """只有 1 个目标的整宽卡：进度条紧跟在金额行下面，不贴在卡底 (Allen 2026-11-27 实机验收：金额和进度条之间空得太多)。"""
+    want = cfg['bands']['wideGoalBar']
+    bar = image.band(sum(want) / 2, 40, 320, [colors['line'], colors['accent']], 0.9, reach_pt=14)
+    if bar is None:
+        report.fail('HOME-BAND', name, f'整宽目标卡里没找到进度条 (应在 {want[0]:g}–{want[1]:g}pt)')
+    elif abs(bar[0] - want[0]) > cfg['tolPt'] or abs(bar[1] - want[1]) > cfg['tolPt']:
+        report.fail('HOME-BAND', name, f'整宽目标卡的进度条在 {bar[0]:g}–{bar[1]:g}pt，应在 {want[0]:g}–{want[1]:g}pt：进度条紧跟金额行 (下面 8pt)，不贴卡底')
 
 
 def main():

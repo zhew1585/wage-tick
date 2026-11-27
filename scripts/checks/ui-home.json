@@ -20,6 +20,7 @@
     "progressButton": [216, 264],
     "stats": [280, 344],
     "goals": [356, 460],
+    "wideGoalBar": [431.5, 437.5],
     "actions": [472, 516],
     "footer": [528, 574]
   },
@@ -41,6 +42,7 @@
   "provenance": {
     "bands": "Allen 2026-11-26 确认的首页定稿：窗口 360×574，块间距 24 / 16 / 12 / 12 / 12 / 12，各区域在所有状态下位置一致。与 WageTick/Theme/Metrics.swift 的 HomeLayout 是同一组数，改一处要改两处",
     "progressBar": "进度区 212–268 里的分段条：区内 26–36",
+    "wideGoalBar": "只有 1 个目标的整宽卡里的进度条 (Allen 2026-11-27 确认的方案 A)：紧跟在金额行下面 8pt，卡内 75.5–81.5；名称行、金额行与多个目标时的大卡同高",
     "progressButton": "已下班时进度区里的「我还没走」：高 48，上下各留 4",
     "colors": "WageTick/Theme/Palette.swift",
     "states": "WageTick/Panel/PanelPreviews.swift 里的首页状态；加了新状态要登记到这里。P2-celebration 不在内：庆祝遮罩把整窗压暗，底色认不出来",

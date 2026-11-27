@@ -208,10 +208,11 @@ INK_COLOR = (31, 27, 22)
 LOSS = (217, 72, 15)
 
 
-def draw_home(path, kind='working', height=574, scale=2, date_shift=0, widen=0, stop=True, wide_date_shift=None, tone=None, **moved):
+def draw_home(path, kind='working', height=574, scale=2, date_shift=0, widen=0, stop=True, wide_date_shift=None, wide_bar_shift=0, tone=None, **moved):
     """画一张首页预览图 (整窗 360×height，四周 24pt 白边)，只有色块。kind：working 画进度条，offwork 画进度区里的「我还没走」，rest 两样都不画，
     empty 把累计中目标卡换成描边的空状态卡，unpaid 画 loss 色的白干进度条、情绪按钮区左边画墨色的「终于下班了」(stop=False 时仍画成次要按钮)。大目标卡最下面一行画进度条和预计日期，date_shift 是日期字底比进度条下沿低多少，None 表示不画日期。
-    wide_date_shift 不是 None 时把目标卡画成只有 1 个目标的整宽卡：金额那一行左边累计额、右边预计日期，值是日期字底比累计额字底低多少。
+    wide_date_shift 不是 None 时把目标卡画成只有 1 个目标的整宽卡：金额那一行左边累计额、右边预计日期，值是日期字底比累计额字底低多少；
+    进度条画在卡内 75.5–81.5，wide_bar_shift 是它往下挪了多少。
     tone 给进度条的填充换个颜色 (默认上班中 money、白干中 loss)。widen 是整页内容被撑宽多少 (左右各多出一半)。moved 里给某个区域新的 (上沿, 下沿) 就是把它挪了位置。"""
     bands = {**HOME, **moved}
     px = lambda pt: round((pt + 24) * scale)
@@ -228,7 +229,7 @@ def draw_home(path, kind='working', height=574, scale=2, date_shift=0, widen=0, 
     if kind == 'empty':
         rects += [box(20, (top, bottom), 340, LINE_COLOR), box(21, (top + 1, bottom - 1), 339, PAPER)]
     elif wide_date_shift is not None:
-        rects += [box(20, (top, bottom), 340, SOFT), box(34, (bottom - 22, bottom - 16), 326, ACCENT),
+        rects += [box(20, (top, bottom), 340, SOFT), box(34, (top + 75.5 + wide_bar_shift, top + 81.5 + wide_bar_shift), 326, ACCENT),
                   box(34, (bottom - 56, bottom - 40), 80, INK_COLOR), box(84, (bottom - 50, bottom - 39), 150, (138, 128, 115)),
                   box(286, (bottom - 50 + wide_date_shift, bottom - 40 + wide_date_shift), 326, (138, 128, 115))]
     else:
@@ -264,6 +265,8 @@ HOME_CASES = [
     ('只有 1 个目标的整宽卡，日期与累计额字底对齐', {'P2-working-one-goal': {'wide_date_shift': 0}}, 0, []),
     ('整宽卡里日期的字底比累计额低 1pt', {'P2-working-one-goal': {'wide_date_shift': 1}}, 1, ['HOME-GOALDATE']),
     ('整宽卡里的预计日期不见了', {'P2-working-one-goal': {'wide_date_shift': 40}}, 1, ['HOME-GOALDATE']),
+    ('整宽卡的进度条又贴回卡底', {'P2-working-one-goal': {'wide_date_shift': 0, 'wide_bar_shift': 6.5}}, 1, ['HOME-BAND']),
+    ('1 倍屏上的整宽卡', {'P2-working-one-goal': {'wide_date_shift': 0, 'scale': 1}}, 0, []),
     ('白干进度条用成了挣钱的绿色', {'P2-unpaid-work': {'kind': 'unpaid', 'tone': MONEY}}, 1, ['HOME-BAND']),
     ('上班中的进度条用成了白干的颜色', {'P2-working': {'tone': LOSS}}, 1, ['HOME-BAND']),
     ('缺图', {'P2-working': None}, 2, ['BLOCKED']),
