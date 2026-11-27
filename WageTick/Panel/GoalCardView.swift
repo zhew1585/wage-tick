@@ -80,7 +80,8 @@ private struct ActiveGoalCardView: View {
                     .layoutPriority(1)
                 if isWide {
                     Spacer(minLength: Spacing.s8)
-                    finish
+                    // 按文字基线对齐时汉字的字底比数字低约 1，日期上提 1，字底才和左边累计额的字底在一条线上。
+                    finish.alignmentGuide(.lastTextBaseline) { $0[.lastTextBaseline] + 1 }
                 }
             }
             .lineLimit(1)

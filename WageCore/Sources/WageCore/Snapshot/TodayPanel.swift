@@ -321,8 +321,10 @@ extension WorkProgress {
         label = "最多白干 \(Format.workHours(milliseconds: total)) 小时"
         percent = Format.percent(ratio)
         segments = [ProgressSegment(share: 1, filled: total > 0 ? Double(elapsed) / Double(total) : 1)]
-        startDay = running.date == today ? nil : Format.shortDay(running.date, relativeTo: today)
-        startClock = Format.time(Moment(date: running.since, timeZone: now.timeZone))
+        // 两端都按此刻的时区换算，切过时区后前缀才与时刻对得上。
+        let start = Moment(date: running.since, timeZone: now.timeZone)
+        startDay = start.localDate == today ? nil : Format.shortDay(start.localDate, relativeTo: today)
+        startClock = Format.time(start)
         let stop = Moment(date: running.autoStop, timeZone: now.timeZone)
         endDay = Self.dayPrefix(stop.localDate, relativeTo: today)
         endClock = Format.time(stop)

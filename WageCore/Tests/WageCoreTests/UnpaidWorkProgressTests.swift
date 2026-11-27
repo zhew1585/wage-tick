@@ -92,6 +92,26 @@ struct UnpaidWorkProgressTests {
         expectSingleBar(progress, filled: 0.85)
     }
 
+    @Test("周四 23:30 (UTC+8) 开始，10 分钟后时区切到 UTC+9 (此刻周五 00:40)：左端按此刻的时区写 00:30，不带前缀")
+    func timeZoneMovedEast() throws {
+        let start = moment(2026, 2, 12, 23, 30)
+        let now = Moment(date: start.date.addingTimeInterval(10 * 60), timeZone: TimeZone(identifier: "Asia/Tokyo")!)
+        let progress = try progress(startedAt: start, now: now)
+
+        #expect(progress.startDay == nil)
+        #expect(progress.startClock == "00:30")
+    }
+
+    @Test("周六 07:30 (UTC+8) 被迫营业，40 分钟后时区切到 UTC+0 (此刻周六 00:10)：左端按此刻的时区写昨天 23:30")
+    func timeZoneMovedWest() throws {
+        let start = moment(2026, 2, 14, 7, 30)
+        let now = Moment(date: start.date.addingTimeInterval(40 * 60), timeZone: TimeZone(identifier: "Europe/London")!)
+        let progress = try progress(startedAt: start, now: now)
+
+        #expect(progress.startDay == "昨天")
+        #expect(progress.startClock == "23:30")
+    }
+
     @Test("往后 60 天都不上班：右端是第 7 天的月日与 00:00")
     func fallbackMonthDay() throws {
         var calendar = Calendar(identifier: .gregorian)
