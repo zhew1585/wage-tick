@@ -32,6 +32,8 @@ public struct RunningUnpaidWork: Sendable, Equatable {
     public let milliseconds: Int
     /// 开始那天已倒贴，保留完整精度。
     public let owed: Decimal
+    /// 这段的自动停止时刻 (见 `UnpaidWorkClock.autoStop`)，到点还没停就自动停止。
+    public let autoStop: Date
 }
 
 extension UnpaidWorkToday {
@@ -57,7 +59,10 @@ extension RunningUnpaidWork {
         for record in dayRecords {
             guard let segment = record.unpaidWork.last(where: { clock.isRunning($0, on: record.date) }) else { continue }
             let total = clock.milliseconds(record.unpaidWork, on: record.date)
-            self.init(date: record.date, since: segment.start, milliseconds: total, owed: clock.owed(on: record.date, milliseconds: total))
+            self.init(
+                date: record.date, since: segment.start, milliseconds: total, owed: clock.owed(on: record.date, milliseconds: total),
+                autoStop: clock.autoStop(after: record.date)
+            )
             return
         }
         return nil

@@ -41,6 +41,14 @@ func onboarded(
     return try apply(command, to: AppState(), at: now).state
 }
 
+extension TodayPanel {
+    /// 白干中面板的主体；不在白干中时为 nil。
+    var unpaidWorkBody: UnpaidWorkPanel? {
+        guard case .unpaidWork(let body) = body else { return nil }
+        return body
+    }
+}
+
 /// 测试侧四舍五入到 4 位小数，用于和 PRD 算例里的 4 位数字比对。
 func rounded4(_ value: Decimal) -> Decimal {
     var input = value
