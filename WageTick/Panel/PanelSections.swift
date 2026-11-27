@@ -58,7 +58,7 @@ struct PanelTopBar: View {
 }
 
 /// 首页提示条 (节假日数据缺失、本月没有要上班的日子、扣款超过日薪)，在红绿灯那一行 (`HomeNoticeLayout`)，只占一行。
-/// accentSoft 底、圆角 8、左右 8，warning 图标 13 + 12 号文字，都是 accent 色；文案原样取自快照。
+/// accentSoft 底、圆角 8、左右 8，只有 12 号 accent 色文字，没有图标；文案原样取自快照。
 /// 放得下就静止；放不下时跑马灯：停 1.5 秒，以每秒 30 pt 向左滚到结尾，停 1.5 秒回到开头，循环。
 /// 有多条时一条播完 (放得下的停 4 秒) 换下一条。悬停时暂停，`.help` 给出这一条的全文；看不见时悬停复位，不会卡在暂停。
 /// 系统开了「减弱动态效果」时不滚动，放不下的截断。
@@ -96,26 +96,23 @@ struct PanelNoticeBanner: View {
     }
 
     var body: some View {
-        HStack(spacing: Spacing.s6) {
-            PhosphorIcon(.warning, size: 13)
-            GeometryReader { geometry in
-                Group {
-                    if reduceMotion {
-                        Text(text).lineLimit(1).truncationMode(.tail)
-                            .frame(width: geometry.size.width, alignment: .leading)
-                    } else {
-                        Text(text).lineLimit(1).fixedSize()
-                            .background(GeometryReader { Color.clear.preference(key: TextWidthKey.self, value: $0.size.width) })
-                            .offset(x: -offset)
-                    }
+        GeometryReader { geometry in
+            Group {
+                if reduceMotion {
+                    Text(text).lineLimit(1).truncationMode(.tail)
+                        .frame(width: geometry.size.width, alignment: .leading)
+                } else {
+                    Text(text).lineLimit(1).fixedSize()
+                        .background(GeometryReader { Color.clear.preference(key: TextWidthKey.self, value: $0.size.width) })
+                        .offset(x: -offset)
                 }
-                .frame(height: geometry.size.height)
-                .onAppear { viewportWidth = geometry.size.width }
-                .onChange(of: geometry.size.width) { _, width in viewportWidth = width }
             }
-            .clipped()
-            .onPreferenceChange(TextWidthKey.self) { textWidth = $0 }
+            .frame(height: geometry.size.height)
+            .onAppear { viewportWidth = geometry.size.width }
+            .onChange(of: geometry.size.width) { _, width in viewportWidth = width }
         }
+        .clipped()
+        .onPreferenceChange(TextWidthKey.self) { textWidth = $0 }
         .font(AppFont.caption)
         .foregroundStyle(Palette.accent)
         .padding(.horizontal, Spacing.s8)
