@@ -106,37 +106,34 @@ struct GoalsView: View {
     }
 }
 
-/// 已完成的一行 (surface 底，整行 muted)：对勾、名称、达成日期，右边金额 (先于名称排版，超长时单行截断，名称至少留 `nameMinWidth`)。不可拖动 (AC-GOAL-10)。
-/// 名称放不下时悬停在整行上横向滚动 (`HoverMarqueeText`)。
+/// 已完成的一行 (surface 底，整行 muted)，三行结构同攒钱队列 (`GoalRowLayout`)：对勾，名称与金额，满的 muted 进度条，达成日期。
+/// 不可拖动 (AC-GOAL-10)。名称放不下时悬停在整行上横向滚动 (`HoverMarqueeText`)，悬停时第三行右端出删除按钮。
 private struct CompletedGoalRowView: View {
     let row: CompletedGoalRow
     let delete: () -> Void
 
     @State private var hovering = false
 
-    /// 名称一栏至少留多宽：上限出现之前存下的超大金额先截断金额，名称仍露出开头几个字。
-    private static let nameMinWidth: CGFloat = 56
+    /// 名称一栏至少留多宽：内容区宽 266 (对勾比拖动手柄宽 2)，减去与金额的间距 8、最宽的合法金额「¥999998.99」(78)，
+    /// 名称最多能留 180；留 170 (多留 10 的余量)，合法金额照样完整显示，上限出现之前存下的超大金额截断，名称仍露出十来个字。
+    private static let nameMinWidth: CGFloat = 170
 
     var body: some View {
-        HStack(spacing: Spacing.s10) {
+        GoalRowLayout(nameMinWidth: Self.nameMinWidth, track: GoalTrack(base: Palette.muted)) {
             PhosphorIcon(.checkCircle, size: 16)
                 .foregroundStyle(Palette.money)
-            VStack(alignment: .leading, spacing: Spacing.s2) {
-                HoverMarqueeText(row.name, isActive: hovering).font(AppFont.bodySemibold)
-                Text(row.completedText).font(AppFont.small).lineLimit(1)
-            }
-            .frame(minWidth: Self.nameMinWidth, alignment: .leading)
-            Spacer(minLength: Spacing.s8)
+        } name: {
+            HoverMarqueeText(row.name, isActive: hovering).font(AppFont.bodySemibold)
+        } amount: {
+            Text(row.amountText).font(AppFont.num(13))
+        } caption: {
+            Text(row.completedText).font(AppFont.small)
+        } buttons: {
             if hovering {
                 IconButton(systemName: "trash", help: "删除", action: delete)
             }
-            Text(row.amountText).font(AppFont.num(13))
-                .lineLimit(1)
-                .layoutPriority(1)
         }
         .foregroundStyle(Palette.muted)
-        .padding(.horizontal, Spacing.s14)
-        .padding(.vertical, Spacing.s10)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.r10))
         .onHover { hovering = $0 }
         .contextMenu {

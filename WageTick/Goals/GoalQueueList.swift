@@ -2,7 +2,7 @@ import SwiftUI
 import WageCore
 
 /// 攒钱队列 (PRD F8)：line 描边的卡片，整组按住一行上下拖动排序【D6】。
-/// 第一行是累计中 (accent-soft 底、accent 色手柄与金额，进度条、预计完成，设计稿 P3 目标管理 · 760)，其余排队中；
+/// 第一行是累计中 (accent-soft 底、accent 色手柄与金额，进度条、预计完成，设计稿 P3 目标管理 · 760)，其余排队中 (空进度条)；
 /// 累计中不另加标签，靠这些和后面排队中的行区分。名称放不下时悬停在行上横向滚动 (`HoverMarqueeText`)，拖动排序时不滚。
 /// 第一行的样子按「眼下排在第几」决定，拖到第一位的行即时显示成累计中，内容取快照里的 `asFirst` 预览。
 /// 被拖的行实时跟着鼠标，其余行带动画让位，松手才把新顺序交给核心。
@@ -98,8 +98,8 @@ struct GoalQueueList: View {
     }
 }
 
-/// 攒钱队列的一行，固定行高。`isFirst` 时是累计中的样子，否则是排队中。
-/// 悬停显示编辑、删除按钮 (排队中的行另叠一层 surface 底)，光标是张开的手 (可拖动排序)；拖动时浮起成一张带投影的小卡。
+/// 攒钱队列的一行，固定行高，三行结构见 `GoalRowLayout`。`isFirst` 时是累计中的样子，否则是排队中。
+/// 悬停在第三行右端显示编辑、删除按钮 (排队中的行另叠一层 surface 底)，光标是张开的手 (可拖动排序)；拖动时浮起成一张带投影的小卡。
 /// 点整行不做任何事，编辑走铅笔按钮或右键菜单。
 private struct QueueGoalRowView: View {
     enum DragState {
@@ -119,27 +119,23 @@ private struct QueueGoalRowView: View {
     let edit: () -> Void
     let delete: () -> Void
 
-    /// 行高固定，排序时按它算落点；累计中的三行信息 (名称与金额、进度条、预计完成) 要在这个高度内排下。
-    static let height: CGFloat = 76
+    /// 行高固定，排序时按它算落点。
+    static let height = GoalRowMetrics.height
 
-    private static let trackHeight: CGFloat = 6
-    /// 排队中的行名称一栏至少留多宽：上限出现之前存下的超大金额先截断金额，名称仍露出开头几个字 (悬停时滚动露出全文)。
-    private static let nameMinWidth: CGFloat = 56
-    /// 累计中的行名称一栏至少留多宽，比排队中的小：首行宽 268，悬停时还要放编辑、删除两个 16 pt 按钮、
-    /// 最短 4 的 Spacer 和四个 6 的间距，名称留 32 时金额能用 268 − 32 − 4 − 32 − 24 = 176，
-    /// 放得下最宽的合法金额「¥999998.99 / ¥999998.99」(173.5)；名称仍露出开头两个字。
-    private static let accumulatingNameMinWidth: CGFloat = 32
+    /// 排队中的行名称一栏至少留多宽：内容区宽 268，减去与金额的间距 8、最宽的合法金额「¥999998.99」(78)，
+    /// 名称最多能留 182；留 170 (多留 12 的余量)，合法金额照样完整显示，上限出现之前存下的超大金额截断，名称仍露出十来个字。
+    private static let nameMinWidth: CGFloat = 170
+    /// 累计中的行名称一栏至少留多宽：内容区宽 268，减去与金额的间距 8、最宽的合法金额「¥999998.99 / ¥999998.99」(173.5)，
+    /// 名称最多能留 86.5；留 84 (多留 2.5 的余量)，合法金额照样完整显示，超大金额截断，名称仍露出开头五六个字。
+    private static let accumulatingNameMinWidth: CGFloat = 84
     private static let dragRadius = Radius.r10
 
     @State private var hovering = false
 
     var body: some View {
-        HStack(spacing: Spacing.s10) {
-            handle
+        Group {
             if isFirst { accumulating } else { queued }
         }
-        .padding(.horizontal, Spacing.s14)
-        .frame(height: Self.height)
         .background { background }
         .contentShape(Rectangle())
         .cursor(state == .dragging ? .closedHand : .openHand)
@@ -167,60 +163,43 @@ private struct QueueGoalRowView: View {
         }
     }
 
-    /// 累计中：第一行名称、悬停时的按钮、累计额 / 目标金额；第二行整宽进度条；第三行预计完成。
+    /// 累计中：名称与累计额 / 目标金额，accent 进度条，预计完成。
     private var accumulating: some View {
         let card = row.asFirst
-        return VStack(alignment: .leading, spacing: Spacing.s6) {
-            HStack(spacing: Spacing.s6) {
-                HoverMarqueeText(card.name, isActive: showsButtons).font(AppFont.ui(14, .bold)).foregroundStyle(Palette.ink)
-                    .frame(minWidth: Self.accumulatingNameMinWidth, alignment: .leading)
-                Spacer(minLength: Spacing.s4)
-                buttons
-                amount(card)
-            }
-            track(card.progress)
-            Text(card.estimate).font(AppFont.small).foregroundStyle(Palette.muted).lineLimit(1)
-        }
-    }
-
-    /// 排队中：名称与「排队中」，右边目标金额 (先于名称排版，超长时单行截断，名称至少留 `nameMinWidth`)。
-    private var queued: some View {
-        HStack(spacing: Spacing.s10) {
-            VStack(alignment: .leading, spacing: Spacing.s2) {
-                HoverMarqueeText(row.name, isActive: showsButtons).font(AppFont.bodySemibold).foregroundStyle(Palette.ink)
-                Text("排队中").font(AppFont.small).foregroundStyle(Palette.muted).lineLimit(1)
-            }
-            .frame(minWidth: Self.nameMinWidth, alignment: .leading)
-            Spacer(minLength: Spacing.s8)
+        return GoalRowLayout(nameMinWidth: Self.accumulatingNameMinWidth, track: GoalTrack(base: Palette.card, fill: Palette.accent, progress: card.progress)) {
+            handle
+        } name: {
+            HoverMarqueeText(card.name, isActive: showsButtons).font(AppFont.ui(14, .bold)).foregroundStyle(Palette.ink)
+        } amount: {
+            amount(card)
+        } caption: {
+            Text(card.estimate).font(AppFont.small).foregroundStyle(Palette.muted)
+        } buttons: {
             buttons
-            Text(row.amountText).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.ink)
-                .lineLimit(1)
-                .layoutPriority(1)
         }
     }
 
-    /// accent 大号累计额，后跟小号「/ 目标金额」。先于名称排版、正常金额完整显示；
-    /// 上限出现之前存下的超大金额比整行还宽时单行截断，不溢出卡片，名称至少留 `accumulatingNameMinWidth`。
+    /// 排队中：名称与目标金额，空进度条，「排队中」。
+    private var queued: some View {
+        GoalRowLayout(nameMinWidth: Self.nameMinWidth, track: GoalTrack(base: Palette.line)) {
+            handle
+        } name: {
+            HoverMarqueeText(row.name, isActive: showsButtons).font(AppFont.bodySemibold).foregroundStyle(Palette.ink)
+        } amount: {
+            Text(row.amountText).font(AppFont.num(13, .semibold)).foregroundStyle(Palette.ink)
+        } caption: {
+            Text("排队中").font(AppFont.small).foregroundStyle(Palette.muted)
+        } buttons: {
+            buttons
+        }
+    }
+
+    /// accent 大号累计额，后跟小号「/ 目标金额」。
     private func amount(_ card: ActiveGoalCard) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.s4) {
             Text(card.accumulatedText).font(AppFont.num(15, .bold)).foregroundStyle(Palette.accent)
             Text("/ \(card.targetText)").font(AppFont.numSmall).foregroundStyle(Palette.muted)
         }
-        .lineLimit(1)
-        .layoutPriority(1)
-    }
-
-    private func track(_ progress: Double) -> some View {
-        Capsule()
-            .fill(Palette.card)
-            .frame(height: Self.trackHeight)
-            .overlay(alignment: .leading) {
-                GeometryReader { proxy in
-                    Capsule()
-                        .fill(Palette.accent)
-                        .frame(width: proxy.size.width * min(max(progress, 0), 1))
-                }
-            }
     }
 
     @ViewBuilder
